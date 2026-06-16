@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>遺物商隊 Relic Caravan — 戰鬥雛形（像素風）</title>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<style>
+  html,body{margin:0;background:#0e0a14;color:#d8cdb8;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;text-align:center}
+  h1{font-size:19px;margin:14px 0 4px;letter-spacing:3px;color:#e7c14a}
+  p.sub{margin:0 0 10px;color:#8a7f9a;font-size:13px}
+  #game{display:inline-block;border:3px solid #2a2238;border-radius:6px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.6);image-rendering:pixelated}
+  .hint{color:#6a637a;font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+  <h1>遺物商隊 · Relic Caravan — 戰鬥雛形</h1>
+  <p class="sub">自動戰鬥・玩家只觀察　|　戰士扛 ・ 遊俠射 ・ 牧師補</p>
+  <div id="game"></div>
+  <p class="hint">手繪像素佔位美術，可再精修。戰鬥結束後點「再戰一場」重來。</p>
+
+<script>
+// ====== 調色盤 ======
+const PAL = {
+  '.':null, K:'#140d18',
+  S:'#e6b48c', s:'#c98f6a',
+  W:'#c9cfda', M:'#eef1f6', n:'#474e5e',
+  G:'#e7c14a',
+  C:'#c23b3b', c:'#822626',
+  B:'#6e4a2a', b:'#4d3019',
+  g:'#83b154', e:'#5a7d33',
+  R:'#e9dca6', r:'#c7b577',
+  o:'#9c6b34', i:'#d9d2b0', q:'#6fd0e0',
+  H:'#2f7d46', h:'#1f5631',
+  A:'#ff5a4a',
+};
+
+// ====== 像素精靈圖（12×16，逐格手繪）======
+const SPRITES = {
+  warrior:[
+    "...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...",
+    "..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..",
+    "WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",
+    ".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
+  ranger:[
+    "...HHHHH....","..HHHHHHH...","..HhSSShH...","..HSSSSSH...",
+    "..HSKSKSH...","..HhSSShH...","...hSSSh....","..HHHHHHo...",
+    ".KHHHHHKoi..",".KHhhhHKoi..",".KBhhhBKoi..",".KhhhhhK.o..",
+    ".KhhKhhK....",".KnnKnnK....",".KK..KK.....","............"],
+  priest:[
+    "...GGGGG....","..GRRRRRG...","..GRSSSRG...","..RSSSSSR...",
+    "..RSKSKSR...","..RrSSSrR...","...RSSSR.q..","..GRRRRRGo..",
+    ".KRRRRRKo...",".KRrrrRKo...",".KRrrrRKo...",".KrrrrrKo...",
+    ".KrrKrrK....",".KnnKnnK....",".KK..KK.....","............"],
+  goblin:[
+    "............","...ggggg....","..gggggggg..","..geggggeg..",
+    "..gAgggAgg..","..gggggggg..","...geeeg....","..gggggg.M..",
+    ".KggggggKM..",".KgeggegK...",".KBBBBBBK...",".KbbKbbK....",
+    ".KeeKeeK....",".KKK.KKK....","............","............"],
+  goblinArcher:[
+    "............","...ggggg....","..gggggggg..","..geggggeg..",
+    "..gAgggAgg..","..gggggggg..","...geeeg....","..ggggggo...",
+    ".KggggggKoi.",".KgeggegKoi.",".KBBBBBBK.o.",".KbbKbbK....",
+    ".KeeKeeK....",".KKK.KKK....","............","............"],
+};
+
+// ====== 像素數字字體（3×5）======
+const GLYPH = {
+  '0':["111","101","101","101","111"],'1':["010","110","010","010","111"],
+  '2':["111","001","111","100","111"],'3':["111","001","111","001","111"],
+  '4':["101","101","111","001","001"],'5':["111","100","111","001","111"],
+  '6':["111","100","111","101","111"],'7':["111","001","010","010","010"],
+  '8':["111","101","111","101","111"],'9':["111","101","111","001","111"],
+  '-':["000","000","111","000","000"],'+':["000","010","111","010","000"],
+};
+
+// ====== 角色設定 ======
+const HERO_DEFS = [
+  { sprite:'warrior', name:'戰士', hp:130, atk:15, def:7, interval:1300, x:255, y:300, ranged:false, healer:false },
+  { sprite:'ranger',  name:'遊俠', hp:75,  atk:21, def:2, interval:1000, x:150, y:205, ranged:true,  healer:false },
+  { sprite:'priest',  name:'牧師', hp:85,  atk:9,  def:3, interval:1500, x:150, y:360, ranged:true,  healer:true  },
+];
+const ENEMY_DEFS = [
+  { sprite:'goblin',       name:'哥布林',     hp:68, atk:12, def:2, interval:1400, x:565, y:205, ranged:false, healer:false },
+  { sprite:'goblin',       name:'哥布林',     hp:68, atk:12, def:2, interval:1450, x:565, y:360, ranged:false, healer:false },
+  { sprite:'goblinArcher', name:'哥布林弓手', hp:52, atk:16, def:1, interval:1150, x:680, y:282, ranged:true,  healer:false },
+];
+
+const SCALE = 4;
+
+class Battle extends Phaser.Scene {
+  constructor(){ super('Battle'); }
+
+  create(){
+    this.battleOver = false;
+    const W=this.scale.width, H=this.scale.height;
+
+    this.buildTextures();
+
+    // 背景：磚牆 + 石板地
+    this.add.tileSprite(0,0,W,300,'wall').setOrigin(0).setTileScale(2,2);
+    this.add.tileSprite(0,300,W,H-300,'floor').setOrigin(0).setTileScale(2,2);
+    this.add.rectangle(0,300,W,3,0x0a0710).setOrigin(0);
+    // 壁面火炬
+    this.makeTorch(120,150); this.makeTorch(700,150);
+
+    this.heroes  = HERO_DEFS.map(d=>this.makeCombatant(d,'hero'));
+    this.enemies = ENEMY_DEFS.map(d=>this.makeCombatant(d,'enemy'));
+    this.all = [...this.heroes, ...this.enemies];
+
+    this.banner = this.add.text(W/2,H/2,'戰鬥開始',{fontFamily:'sans-serif',fontSize:'38px',color:'#fff',fontStyle:'bold'})
+      .setOrigin(.5).setStroke('#000',6).setDepth(100);
+    this.tweens.add({targets:this.banner,alpha:0,delay:700,duration:500,onComplete:()=>this.banner.setText('')});
+  }
+
+  buildTextures(){
+    // 精靈圖
+    for(const key in SPRITES){
+      if(this.textures.exists(key)) continue;
+      const grid=SPRITES[key], h=grid.length, w=Math.max(...grid.map(r=>r.length));
+      const tex=this.textures.createCanvas(key,w,h), ctx=tex.getContext();
+      for(let y=0;y<h;y++){ const row=grid[y];
+        for(let x=0;x<row.length;x++){ const col=PAL[row[x]]; if(!col) continue; ctx.fillStyle=col; ctx.fillRect(x,y,1,1);} }
+      tex.refresh();
+    }
+    // 磚牆
+    if(!this.textures.exists('wall')){
+      const t=this.textures.createCanvas('wall',32,32), c=t.getContext();
+      c.fillStyle='#1d1528'; c.fillRect(0,0,32,32);
+      for(let row=0;row<4;row++){ const y=row*8;
+        for(let bx=-1;bx<3;bx++){ const x=bx*16+(row%2?8:0);
+          c.fillStyle=((row+bx)%2)?'#352843':'#2c2038'; c.fillRect(x+1,y+1,14,6);
+          c.fillStyle='#3f3150'; c.fillRect(x+1,y+1,14,1); } }
+      t.refresh();
+    }
+    // 石板地
+    if(!this.textures.exists('floor')){
+      const t=this.textures.createCanvas('floor',32,32), c=t.getContext();
+      c.fillStyle='#140f1d'; c.fillRect(0,0,32,32);
+      c.fillStyle='#211a30'; c.fillRect(1,1,30,14); c.fillRect(1,17,14,14); c.fillRect(17,17,14,14);
+      c.fillStyle='#2a2240'; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
+      t.refresh();
+    }
+  }
+
+  makeTorch(x,y){
+    this.add.rectangle(x,y,8,22,0x4d3019).setDepth(5);
+    const glow=this.add.circle(x,y-14,30,0xffb347,0.12).setDepth(4);
+    const flame=this.add.ellipse(x,y-16,12,20,0xffb347).setDepth(6);
+    const core=this.add.ellipse(x,y-15,6,12,0xffe08a).setDepth(7);
+    this.tweens.add({targets:[flame,core],scaleY:0.78,scaleX:1.15,duration:160,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+    this.tweens.add({targets:glow,alpha:0.05,duration:200,yoyo:true,repeat:-1});
+  }
+
+  makeCombatant(d,side){
+    const cont=this.add.container(d.x,d.y);
+    const facing = side==='hero'?1:-1;
+    const shadow=this.add.ellipse(0,34,40,12,0x000000,0.4);
+    const spr=this.add.image(0,0,d.sprite).setScale(SCALE);
+    if(side==='enemy') spr.setFlipX(true);
+    const nameText=this.add.text(0,-52,d.name,{fontFamily:'sans-serif',fontSize:'12px',color:'#fff'})
+      .setOrigin(0.5).setStroke('#000',3);
+    const barBg=this.add.rectangle(0,-40,52,7,0x000000,0.75).setOrigin(0.5).setStrokeStyle(1,0x000000);
+    const barFill=this.add.rectangle(-25,-40,50,5,side==='hero'?0x5ad06a:0xd05a5a).setOrigin(0,0.5);
+    cont.add([shadow,spr,nameText,barBg,barFill]);
+    // 待機呼吸
+    this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+    return {...d,side,container:cont,spr,barFill,maxHp:d.hp,hp:d.hp,alive:true,facing,
+            baseX:d.x,baseY:d.y,lastAttack:-Math.random()*800};
+  }
+
+  update(time){
+    if(this.battleOver) return;
+    for(const c of this.all){
+      if(!c.alive) continue;
+      if(time > c.lastAttack + c.interval){ c.lastAttack=time; this.act(c); }
+    }
+  }
+
+  aliveOf(side){ return this.all.filter(c=>c.alive && c.side===side); }
+
+  act(c){
+    if(c.healer){
+      const allies=this.aliveOf(c.side);
+      const low=allies.reduce((a,b)=>(b.hp/b.maxHp<a.hp/a.maxHp?b:a),allies[0]);
+      if(low && low.hp/low.maxHp<0.75){ this.healAction(c,low); return; }
+    }
+    const foes=this.aliveOf(c.side==='hero'?'enemy':'hero');
+    if(foes.length===0) return;
+    let target;
+    if(c.side==='enemy'){
+      const front=foes.find(f=>f.sprite==='warrior');
+      target=(front&&Math.random()<0.6)?front:Phaser.Utils.Array.GetRandom(foes);
+    } else target=Phaser.Utils.Array.GetRandom(foes);
+    if(c.ranged) this.rangedAttack(c,target,c.healer);
+    else this.meleeAttack(c,target);
+  }
+
+  meleeAttack(c,target){
+    const fx=c.baseX+(target.container.x-c.baseX)*0.5;
+    const fy=c.baseY+(target.container.y-c.baseY)*0.5;
+    this.tweens.add({targets:c.container,x:fx,y:fy,duration:160,yoyo:true,ease:'Quad.in',
+      onYoyo:()=>{ if(target.alive){ this.dealDamage(c,target); this.spark(target.container.x,target.container.y);} }});
+  }
+
+  rangedAttack(c,target,magic){
+    this.tweens.add({targets:c.container,x:c.baseX-c.facing*10,duration:120,yoyo:true});
+    const sx=c.container.x+c.facing*18, sy=c.container.y-4;
+    const tx=target.container.x, ty=target.container.y;
+    const color = magic?0x9fe8ff:0xffe08a;
+    const proj=this.add.rectangle(sx,sy, magic?6:18, magic?6:4, color).setDepth(50);
+    proj.rotation=Math.atan2(ty-sy,tx-sx);
+    if(magic) proj.setStrokeStyle(2,0xffffff,0.7);
+    this.tweens.add({targets:proj,x:tx,y:ty,duration:250,ease:'Quad.in',
+      onComplete:()=>{ proj.destroy(); if(target.alive){ this.dealDamage(c,target); this.spark(tx,ty);} }});
+  }
+
+  healAction(c,target){
+    const amount=Phaser.Math.Between(16,24);
+    target.hp=Math.min(target.maxHp,target.hp+amount);
+    this.updateBar(target);
+    this.pixelNum(target.container.x,target.container.y-34,'+'+amount,0x7dff9a);
+    const ring=this.add.circle(target.container.x,target.container.y,10,0x7dff9a,0.5).setDepth(40);
+    this.tweens.add({targets:ring,radius:36,alpha:0,duration:450,onComplete:()=>ring.destroy()});
+  }
+
+  dealDamage(c,target){
+    const raw=Phaser.Math.Between(Math.floor(c.atk*0.8),Math.ceil(c.atk*1.2));
+    const dmg=Math.max(1,raw-target.def);
+    target.hp=Math.max(0,target.hp-dmg);
+    this.updateBar(target);
+    this.pixelNum(target.container.x,target.container.y-34,'-'+dmg,0xff6b6b);
+    target.spr.setTintFill(0xffffff);
+    this.time.delayedCall(80,()=>{ if(target.alive) target.spr.clearTint(); });
+    this.tweens.add({targets:target.container,x:target.container.x+c.facing*5,duration:50,yoyo:true});
+    if(target.hp<=0) this.die(target);
+  }
+
+  updateBar(c){ c.barFill.width = 50*(c.hp/c.maxHp); }
+
+  die(c){
+    c.alive=false;
+    this.tweens.add({targets:c.container,alpha:0,angle:c.facing*80,y:c.baseY+16,duration:420,ease:'Quad.in'});
+    this.checkEnd();
+  }
+
+  checkEnd(){
+    if(this.aliveOf('enemy').length===0) return this.endBattle(true);
+    if(this.aliveOf('hero').length===0)  return this.endBattle(false);
+  }
+
+  endBattle(win){
+    this.battleOver=true;
+    const W=this.scale.width,H=this.scale.height;
+    this.add.rectangle(0,0,W,H,0x000000,0.5).setOrigin(0).setDepth(90);
+    this.add.text(W/2,H/2-30,win?'勝利！':'全員倒下',
+      {fontFamily:'sans-serif',fontSize:'44px',color:win?'#ffe08a':'#ff8a8a',fontStyle:'bold'})
+      .setOrigin(.5).setStroke('#000',6).setDepth(100);
+    this.add.text(W/2,H/2+16,win?'遺物到手，滿載而歸':'傳送卷軸啟動 — 平安歸來，但這趟戰利品全失',
+      {fontFamily:'sans-serif',fontSize:'15px',color:'#e8e0d0'}).setOrigin(.5).setStroke('#000',4).setDepth(100);
+    const btn=this.add.text(W/2,H/2+60,'▶ 再戰一場',
+      {fontFamily:'sans-serif',fontSize:'19px',color:'#fff',backgroundColor:'#4a3f63',padding:{x:16,y:8}})
+      .setOrigin(.5).setDepth(100).setInteractive({useHandCursor:true});
+    btn.on('pointerdown',()=>this.scene.restart());
+  }
+
+  spark(x,y){
+    const s=this.add.circle(x,y,5,0xffffff,0.9).setDepth(45);
+    this.tweens.add({targets:s,radius:16,alpha:0,duration:200,onComplete:()=>s.destroy()});
+  }
+
+  // 像素數字浮動字
+  pixelNum(x,y,str,color){
+    const s=4, cw=3*s, gap=s;
+    const total=str.length*(cw+gap)-gap;
+    const cont=this.add.container(x-total/2,y).setDepth(80);
+    const draw=(off,col)=>{ let cx=0;
+      for(const ch of str){ const pat=GLYPH[ch];
+        if(pat){ for(let ry=0;ry<5;ry++)for(let rx=0;rx<3;rx++){
+          if(pat[ry][rx]==='1') cont.add(this.add.rectangle(cx+rx*s+off, ry*s+off, s, s, col).setOrigin(0)); } }
+        cx+=cw+gap; } };
+    draw(s,0x000000); draw(0,color);
+    this.tweens.add({targets:cont,y:y-48,alpha:0,duration:800,ease:'Quad.out',onComplete:()=>cont.destroy()});
+  }
+}
+
+new Phaser.Game({
+  type:Phaser.AUTO,
+  width:820, height:480,
+  parent:'game',
+  backgroundColor:'#0e0a14',
+  pixelArt:true,
+  roundPixels:true,
+  scene:[Battle],
+});
+</script>
+</body>
+</html>
