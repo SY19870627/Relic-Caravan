@@ -6,60 +6,51 @@ class GuildHall extends Phaser.Scene {
     this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
     txt(this,W/2,26,'公 會 大 廳',24,TH.gold);
-    txt(this,W/2,48,'供奉遺物獲得神殿祝福 ・ 用資金升級設施 ・ 聲望帶來開局贊助',12,TH.dim);
+    txt(this,W/2,48,'收集遺物即時生效 ・ 用資金升級設施 ・ 聲望（遺物種類）帶來開局贊助與解鎖',12,TH.dim);
     this.render();
   }
   render(){
     if(this._ui) this._ui.forEach(o=>o.destroy());
     this._ui=[];
     const W=this.scale.width,H=this.scale.height, add=o=>{this._ui.push(o);return o;};
-    const bl=guildBlessing(), sp=sponsorship();
-    add(txt(this,W/2,72,`公會資金 ＄${GUILD.funds}　🏛 神殿遺物 ${GUILD.relics.length}　🎒 倉庫 ${GUILD.stash.length} 件　⭐ 聲望 ${reputation()}`,13,TH.gold));
+    const bl=relicEffects(), sp=sponsorship();
+    add(txt(this,W/2,72,`公會資金 ＄${GUILD.funds}　🏛 遺物 ${GUILD.relics.length}/${relicTotalCount()}　🎒 倉庫 ${GUILD.stash.length} 件　⭐ 聲望 ${reputation()}`,13,TH.gold));
     add(txt(this,W/2,94,`⚔ 目前隊形：${currentFormation().name}（${currentFormation().desc}）`,11,'#ffc0d0'));
 
-    // 神殿
+    // 遺物收藏（取代神殿：收集即時生效）
     add(this.add.rectangle(245,300,400,322,TH.panel).setStrokeStyle(2,0x5a8cd0).setOrigin(0.5));
-    add(txt(this,245,158,'🏛 神 殿',18,TH.cyan));
-    add(txt(this,245,184,`等級 ${GUILD.facilities.temple}　遺物槽 ${templeSlots()}`,13,TH.text));
-    add(txt(this,245,208,'供奉中（自動取價值最高的遺物）：',12,TH.dim));
-    let y=230; const ens=enshrinedRelics(), showN=5;
-    if(!ens.length){ add(txt(this,245,y,'（尚無遺物可供奉）',12,TH.dim)); }
-    ens.slice(0,showN).forEach(r=>{ add(txt(this,245,y,`🏛 ${r.name}〔${BOON_LABEL[relicBoonType(r)]}〕`,12,TH.cyan)); y+=20; });
-    if(ens.length>showN){ add(txt(this,245,y,`…及其餘 ${ens.length-showN} 件一同供奉`,12,TH.dim)); }
-    add(txt(this,245,368,`神殿祝福：${blessingSummary(bl)}`,12,TH.green));
-    const tc=templeCost(), tok=GUILD.funds>=tc;
-    add(button(this,245,438,280,38,`升級神殿 ＄${tc}（+1 遺物槽）`,()=>{
-      if(GUILD.funds<tc){ this.flash('資金不足'); return; }
-      GUILD.funds-=tc; GUILD.facilities.temple++; saveGuild(); this.render();
-    },{size:13, fill:tok?0x3a6b3a:0x33323a, stroke:tok?0x5ad06a:0x55555f, hover:tok?0x4c8c4c:0x33323a}));
+    add(txt(this,245,158,'🏛 遺 物 收 藏',18,TH.cyan));
+    add(txt(this,245,182,`已收集 ${GUILD.relics.length} / ${relicTotalCount()} 件（即時生效）`,13,TH.text));
+    add(txt(this,245,204,`效果：${relicSummary(bl)}`,11,TH.green).setWordWrapWidth(380));
+    let y=234; const ids=GUILD.relics||[], showN=7;
+    if(!ids.length){ add(txt(this,245,y,'（尚無遺物——去地城帶回吧）',12,TH.dim)); }
+    ids.slice(0,showN).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; add(txt(this,245,y,`${r.icon} ${r.name}`,12,TH.cyan)); y+=20; });
+    if(ids.length>showN){ add(txt(this,245,y,`…及其餘 ${ids.length-showN} 件`,12,TH.dim)); }
+    add(txt(this,245,430,'每關有固定遺物清單，收齊為止；已得不再掉落',11,TH.dim).setWordWrapWidth(380));
 
-    // 整備所
+    // 馬車・補給（項目化強化在「馬車工坊」）
+    const ws=wagonStats();
     add(this.add.rectangle(655,300,400,322,TH.panel).setStrokeStyle(2,0x5a8cd0).setOrigin(0.5));
-    add(txt(this,655,158,'🛠 整 備 所',18,'#ffd24a'));
-    add(txt(this,655,186,`等級 ${GUILD.facilities.outfit}`,13,TH.text));
-    add(txt(this,655,214,`每台貨車：🍖 食物 +${outfitFoodBonus()}　📦 貨格 +${outfitSlotBonus()}`,13,TH.green));
-    add(txt(this,655,240,'提升補給與收穫上限，能去更遠、帶更多',11,TH.dim));
+    add(txt(this,655,158,'🛠 馬 車 ・ 補 給',18,'#ffd24a'));
+    add(txt(this,655,188,`馬匹：${ws.horse}`,13,TH.text));
+    add(txt(this,655,212,`本趟 🍖 食物 ${ws.food}　📦 貨格 ${ws.slots}`,13,TH.green));
+    add(txt(this,655,236,`工匠：${['未聘僱','學徒','師傅','大師'][craftsmanTier()]}　已強化 ${Object.keys(GUILD.upgrades||{}).length} 項`,12,TH.cyan));
     add(txt(this,655,288,`⭐ 聲望贊助（Tier ${reputationTier()}）`,13,TH.gold));
     add(txt(this,655,312,`出發時 🍖 食物 +${sp.food}　＄ 資金 +${sp.funds}`,12,TH.cyan));
-    add(txt(this,655,336,'供奉越多遺物 → 聲望越高 → 贊助越豐厚',11,TH.dim));
-    const oc=outfitCost(), ook=GUILD.funds>=oc;
-    add(button(this,655,438,300,38,`升級整備所 ＄${oc}（+1 食物/貨格）`,()=>{
-      if(GUILD.funds<oc){ this.flash('資金不足'); return; }
-      GUILD.funds-=oc; GUILD.facilities.outfit++; saveGuild(); this.render();
-    },{size:13, fill:ook?0x3a6b3a:0x33323a, stroke:ook?0x5ad06a:0x55555f, hover:ook?0x4c8c4c:0x33323a}));
+    add(txt(this,655,338,'收集越多遺物 → 聲望越高 → 贊助越豐厚',11,TH.dim));
+    add(button(this,655,438,320,38,'🛠 前往馬車工坊（選馬・強化）',()=>this.scene.start('WagonHall'),{size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}));
 
     // 作弊（測試用）：給資源
     add(button(this, W-110, 26, 190, 26, '🐞 作弊：+資源', ()=>{
-      GUILD.funds+=300;
-      GUILD.relics.push({kind:'遺物',name:'測試神器',icon:'🏛',value:300+Math.floor(Math.random()*300)});
+      GUILD.funds+=500;
+      const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
+      if(left.length) GUILD.relics.push(Phaser.Utils.Array.GetRandom(left).id);
       const w=Phaser.Utils.Array.GetRandom(WEAPONS);
       GUILD.stash.push({kind:'武器',name:w.name,icon:'⚔',value:50,gear:w});
       saveGuild(); this.render();
     },{size:11,fill:0x6b3a5a,stroke:0xd05a9a,hover:0x8c4c7a}));
     add(button(this, 96, 26, 150, 26, '🗑 重置存檔', ()=>{
-      try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
-      GUILD={funds:0,stash:[],relics:[],facilities:{temple:1,outfit:1},wagon:0,wagonUp:[0,0,0],formation:0,mageHired:false};
-      ROSTER=[{level:1,xp:0},{level:1,xp:0},{level:1,xp:0},{level:1,xp:0}];
+      resetSave();
       initRun();   // 重建隊伍，裝備回到預設（否則整備畫面會沿用舊 RUN 的裝備）
       this.render();
     },{size:11,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c}));

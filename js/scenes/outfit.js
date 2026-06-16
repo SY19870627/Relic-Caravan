@@ -8,31 +8,33 @@ class Outfit extends Phaser.Scene {
     this.add.rectangle(0,0,W,this.scale.height,0x0e0a14,0.35).setOrigin(0);
     txt(this,W/2,28,'出 發 整 備',24,TH.gold);
     txt(this,W/2,50,'檢視隊伍，選一台貨車後出發（裝備請到公會大廳「角色所」調整）',12,TH.dim);
-    const bl=guildBlessing();
-    const blAny=(bl.atk||bl.def||bl.hp||bl.heal||bl.drop||bl.food);
-    txt(this,W/2,70,`公會資金 ＄${GUILD.funds}　🎒 倉庫 ${GUILD.stash.length} 件　🏛 神殿遺物 ${GUILD.relics.length}`+(blAny?`　✨ 祝福 ${blessingSummary(bl)}`:''),12,TH.gold);
+    const bl=relicEffects();
+    const blAny=(bl.atk||bl.def||bl.hp||bl.heal||bl.drop||bl.extraLoot||bl.firstHitCrit||bl.reviveOnce||bl.noFoodDrain||bl.fullHealAfterBattle);
+    txt(this,W/2,70,`公會資金 ＄${GUILD.funds}　🎒 倉庫 ${GUILD.stash.length} 件　🏛 遺物 ${GUILD.relics.length}/${relicTotalCount()}`+(blAny?`　✨ ${relicSummary(bl)}`:''),12,TH.gold);
     // 返回公會大廳
     button(this, 96, 28, 150, 28, '← 公會大廳', ()=>this.scene.start('GuildHall'), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
 
     this.selHero = 0;
-    this.heroCards = RUN.heroes.map((h,i)=>this.makeHeroCard(h,i, 70+i*200, 110));
+    { const n=RUN.heroes.length, cw=n>=5?166:180, gap=n>=5?6:20, total=n*cw+(n-1)*gap, x0=(W-total)/2;
+      this.heroCards = RUN.heroes.map((h,i)=>this.makeHeroCard(h,i, x0+i*(cw+gap), 110, cw)); }
     this.powerText = txt(this,W/2,92,'',12,TH.green);
     this.refreshHeroCards();
 
-    // 本趟馬車（在公會大廳「馬車強化所」更換/升級）
+    // 本趟馬車（在「馬車工坊」換馬／強化）
     const ws=wagonStats();
     txt(this,W/2,300,'── 本趟馬車 ──',13,TH.gold);
-    this.add.rectangle(W/2,362,320,92,TH.panel).setStrokeStyle(2,0x5a8cd0);
-    txt(this,W/2,338,ws.name+(ws.up?`（強化 Lv${ws.up}）`:''),16,TH.gold);
+    this.add.rectangle(W/2,362,340,92,TH.panel).setStrokeStyle(2,0x5a8cd0);
+    txt(this,W/2,338,`${ws.name}　🐴 ${ws.horse}`,15,TH.gold);
     txt(this,W/2,362,`🍖 食物 ${ws.food} 天　📦 貨格 ${ws.slots}`,13,TH.text);
-    txt(this,W/2,384,'在公會大廳「馬車強化所」可更換或升級',11,TH.dim);
+    txt(this,W/2,384,'在「馬車工坊」可換馬與項目化強化',11,TH.dim);
 
     this.goBtn = button(this, W/2, 472, 240, 44, '▶ 出 發 探 險', ()=>this.depart(), {size:18,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
   }
 
-  makeHeroCard(h,i,x,y){
+  makeHeroCard(h,i,x,y,w){
+    w=w||180;
     const c=this.add.container(x,y);
-    const bg=this.add.rectangle(0,0,180,128,TH.panel).setStrokeStyle(2,0x3a3150).setOrigin(0);
+    const bg=this.add.rectangle(0,0,w,128,TH.panel).setStrokeStyle(2,0x3a3150).setOrigin(0);
     const spr=this.add.image(36,64,h.sprite).setScale(3.0);
     const name=txt(this,72,10,h.name,15,TH.gold,0);
     const stat=txt(this,72,30,'',11,TH.text,0);
@@ -98,26 +100,10 @@ class Outfit extends Phaser.Scene {
     this._toast=txt(this,this.scale.width/2,232,msg,14,TH.red).setDepth(99);
     this.tweens.add({targets:this._toast,alpha:0,delay:900,duration:600,onComplete:()=>{ if(this._toast){this._toast.destroy(); this._toast=null;} }});
   }
-  makeWagonCard(wg,i,x,y){
-    const c=this.add.container(x,y);
-    const bg=this.add.rectangle(0,0,180,80,TH.panel).setStrokeStyle(2,0x3a3150);
-    const fb=outfitFoodBonus(), sb=outfitSlotBonus();
-    const nm=txt(this,0,-24,wg.name,15,TH.gold);
-    const st=txt(this,0,2,`🍖 食物 ${wg.food+fb} 天   📦 貨格 ${wg.slots+sb}`,12,TH.text);
-    const ds=txt(this,0,22,wg.desc,11,TH.dim);
-    c.add([bg,nm,st,ds]);
-    bg.setInteractive({useHandCursor:true}).on('pointerdown',()=>{ this.selWagon=i; this.refreshWagons(); });
-    c.bg=bg;
-    return c;
-  }
-  refreshWagons(){
-    this.wagonCards.forEach((c,i)=>c.bg.setStrokeStyle(i===this.selWagon?3:2, i===this.selWagon?0xe7c14a:0x3a3150));
-    if(this.selWagon!==undefined) this.goBtn.setAlpha(1);
-  }
   depart(){
-    const i=GUILD.wagon||0, ws=wagonStats(i), sp=sponsorship();
-    RUN.wagon=WAGONS[i];
-    RUN.food = ws.food + sp.food + (guildBlessing().food||0);   // 馬車(含整備所+強化) + 聲望贊助 + 遺物食物祝福
+    const ws=wagonStats(), sp=sponsorship();
+    RUN.wagon={name:ws.name, horse:ws.horse};
+    RUN.food = ws.food + sp.food + (relicEffects().food||0);   // 馬匹(含工匠強化) + 聲望贊助 + 遺物食物效果
     RUN.slots = ws.slots;
     RUN.cargo=[];
     if(sp.funds){ GUILD.funds += sp.funds; saveGuild(); }  // 贊助資金入帳

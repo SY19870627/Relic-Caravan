@@ -49,7 +49,7 @@ class MerchantHall extends Phaser.Scene {
     const okAll=stash.length>0;
     add(button(this, W/2, 500, 300, 40, okAll?`💰 全部賣出 ＄${totalSell}`:'全部賣出（倉庫是空的）', ()=>this.sell(()=>true,''),
       {size:15, fill:okAll?0x3a6b3a:0x33323a, stroke:okAll?0x5ad06a:0x55555f, hover:okAll?0x4c8c4c:0x33323a}));
-    add(txt(this,W/2,536,`※ 賣價為物品價值的 ${Math.round(CFG.merchant.sellRate*100)}%；神殿遺物不在此販售（已供奉產生祝福）`,11,TH.dim));
+    add(txt(this,W/2,536,`※ 賣價為物品價值的 ${Math.round(CFG.merchant.sellRate*100)}%；遺物不在此販售（收集即時生效）`,11,TH.dim));
   }
   flash(msg,col){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,470,msg,14,col||TH.red).setDepth(99);
     this.tweens.add({targets:this._f,alpha:0,delay:900,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }

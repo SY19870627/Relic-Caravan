@@ -12,7 +12,8 @@ class CharacterHall extends Phaser.Scene {
     button(this, W-110, 26, 190, 28, '🐞 作弊：全隊 +1 級', ()=>{ ROSTER.forEach(r=>r.level++); saveGuild(); this.refreshHeroCards(); this.toast('全隊職業等級 +1'); }, {size:12,fill:0x6b3a5a,stroke:0xd05a9a,hover:0x8c4c7a});
 
     this.selHero = 0;
-    this.heroCards = RUN.heroes.map((h,i)=>this.makeHeroCard(h,i, 70+i*200, 70));
+    { const n=RUN.heroes.length, cw=n>=5?166:180, gap=n>=5?6:20, total=n*cw+(n-1)*gap, x0=(W-total)/2;
+      this.heroCards = RUN.heroes.map((h,i)=>this.makeHeroCard(h,i, x0+i*(cw+gap), 70, cw)); }
 
     this.skillText = txt(this,W/2,212,'',12,'#ffd24a');
 
@@ -53,9 +54,10 @@ class CharacterHall extends Phaser.Scene {
     this.refreshHeroCards();
   }
 
-  makeHeroCard(h,i,x,y){
+  makeHeroCard(h,i,x,y,w){
+    w=w||180;
     const c=this.add.container(x,y);
-    const bg=this.add.rectangle(0,0,180,128,TH.panel).setStrokeStyle(2,0x3a3150).setOrigin(0);
+    const bg=this.add.rectangle(0,0,w,128,TH.panel).setStrokeStyle(2,0x3a3150).setOrigin(0);
     const spr=this.add.image(36,64,h.sprite).setScale(3.0);
     const name=txt(this,72,10,h.name,15,TH.gold,0);
     const stat=txt(this,72,30,'',11,TH.text,0);
@@ -82,9 +84,11 @@ class CharacterHall extends Phaser.Scene {
     // 選取隊員的技能列（解鎖顯示名稱，未解鎖標 LvN）
     if(this.skillText){
       const h=RUN.heroes[this.selHero], lv=heroStat(h).level;
-      const all=SKILLS[h.sprite]||[];
+      const rolled=ROSTER[h.idx].skills;
+      let all=SKILLS[h.sprite]||[];
+      if(Array.isArray(rolled)) all=all.filter(s=>rolled.includes(s.name));
       const parts=all.map(sk=> lv>=sk.lv ? sk.name : `${sk.name}(Lv${sk.lv})`);
-      this.skillText.setText(`🎓 ${h.name} 技能：`+(parts.length?parts.join('・'):'無'));
+      this.skillText.setText(`🎓 ${h.name} 隨機雙技能：`+(parts.length?parts.join('・'):'無'));
     }
     this.refreshEquip();
   }

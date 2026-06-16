@@ -30,8 +30,9 @@ class WorldMap extends Phaser.Scene {
     button(this, 120, H-32, 180, 36, '← 返回整備', ()=>this.scene.start('Outfit'), {size:14,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
   }
   go(d){
-    RUN.food -= d.travel;          // 旅途消耗
-    RUN.destTier = d.tier; RUN.destName = d.name;
+    const di = DESTINATIONS.indexOf(d);
+    if(!relicEffects().noFoodDrain) RUN.food -= d.travel;   // 潮汐之冠：旅途不耗食物
+    RUN.destTier = d.tier; RUN.destName = d.name; RUN.destIndex = di;
     RUN.map = genMap();
     this.scene.start('Map');
   }

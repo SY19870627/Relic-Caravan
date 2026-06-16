@@ -25,12 +25,12 @@ class TrainingHall extends Phaser.Scene {
     // 隊員等級面板
     add(this.add.rectangle(W/2,180,820,150,TH.panel).setStrokeStyle(2,0x3a3150));
     add(txt(this,W/2,124,'目前隊員',14,TH.cyan));
-    let x=140;
-    activeRoster().forEach(idx=>{ const r=ROSTER[idx], h=HERO_BASE[idx];
+    const ar=activeRoster(); const step=ar.length>=5?165:190; let x=W/2-(ar.length-1)*step/2;
+    ar.forEach(idx=>{ const r=ROSTER[idx], h=HERO_BASE[idx];
       add(this.add.image(x,170,h.sprite).setScale(2.6));
-      add(txt(this,x,206,`${h.name} Lv${r.level}`,12,TH.text));
+      add(txt(this,x,206,`${h.name} Lv${r.level}/${classCap(idx)}`,12,TH.text));
       add(txt(this,x,224,`經驗 ${r.xp}/${xpNeed(r.level)}`,10,TH.dim));
-      x+=190;
+      x+=step;
     });
 
     // 特訓方案

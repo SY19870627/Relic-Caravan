@@ -15,8 +15,24 @@ const CFG = {
     wagonUp: { base:80,  step:80  },   // 各馬車升級
   },
 
-  // 招募費用
-  recruit: { mage:250 },
+  // 招募：戰鬥成員職業槽。warrior 開局即有；其餘需 funds＋聲望(遺物種類數)門檻
+  // tierCaps：占位者各階(0/1/2)的等級上限；tierUp：升階成本(funds)與聲望門檻
+  recruit: {
+    classes: {
+      ranger: { cost:0,   repReq:0, name:'遊俠' },
+      priest: { cost:0,   repReq:0, name:'牧師' },
+      mage:   { cost:250, repReq:3, name:'法師' },
+      rogue:  { cost:400, repReq:5, name:'盜賊' },
+    },
+    tierCaps: [5, 8, 12],                 // tier0→Lv5、tier1→Lv8、tier2→Lv12
+    tierUp:   [ {cost:300, repReq:3}, {cost:700, repReq:6} ],  // 升 tier1 / tier2
+  },
+
+  // 後勤：工匠（學徒1/師傅2/大師3）與領隊聘僱
+  staff: {
+    craftsman: [ {cost:200, repReq:0, name:'學徒工匠'}, {cost:600, repReq:4, name:'師傅工匠'}, {cost:1400, repReq:8, name:'大師工匠'} ],
+    leader:    { cost:350, repReq:2, name:'領隊' },
+  },
 
   // 商會賣價 = 物品價值 × sellRate
   merchant: { sellRate:0.7 },

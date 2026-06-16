@@ -10,7 +10,11 @@ function genMap(){
       const food = layer===0?0 : 1 + (layer>=3?1:0) + (Math.random()<0.25?1:0); // 越深越耗糧，銳化「跑遠 vs 滿載」
       let lootKind=null;
       if(type==='chest'){ const lk=Math.random(); lootKind = lk<0.34?'貴重物品':(lk<0.6?'防具':(lk<0.8?'武器':(lk<0.92?'道具':'遺物'))); }
-      nodes.push({id:id++,layer,i,cnt,type,risk,food,lootKind,next:[],done:false});
+      // 領隊探路屬性：天氣／地形／陷阱
+      const weather = layer===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id;
+      const terrain = layer===0?'plain':Phaser.Utils.Array.GetRandom(TERRAINS).id;
+      const trap = (layer>0 && type!=='relic' && Math.random()<0.22) ? 0.12 : 0;
+      nodes.push({id:id++,layer,i,cnt,type,risk,food,lootKind,weather,terrain,trap,next:[],done:false});
     }
   });
   const byLayer=l=>nodes.filter(n=>n.layer===l);
@@ -67,10 +71,12 @@ class MapScene extends Phaser.Scene {
 
     button(this, W-90, H-34, 150, 36, '⮌ 撤退收工', ()=>this.retreat(), {size:14,fill:0x6b3a3a,stroke:0xd05a5a,hover:0x8c4c4c});
     button(this, 100, H-34, 150, 36, '🎒 整理裝備', ()=>{ RUN.equipOpen=true; RUN.equipSel=null; this.scene.restart(); }, {size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
-    button(this, 270, H-34, 130, 36, '⚔ 隊形', ()=>this.scene.start('FormationHall',{from:'Map'}), {size:13,fill:0x4a3f63,stroke:0x9a7fd0,hover:0x6a5d8a});
+    button(this, 268, H-34, 116, 36, '⚔ 隊形', ()=>this.scene.start('FormationHall',{from:'Map'}), {size:13,fill:0x4a3f63,stroke:0x9a7fd0,hover:0x6a5d8a});
+    if(hasLeader()) button(this, 400, H-34, 116, 36, '🍳 領隊料理', ()=>{ RUN.cookOpen=true; this.scene.restart(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
     if(!m.started){ m.started=true; }
     if(RUN.pendingReward){ const pr=RUN.pendingReward; RUN.pendingReward=null; this.showReward(pr); }
     if(RUN.equipOpen){ this.openEquip(RUN.equipSel); }
+    if(RUN.cookOpen){ this.openCook(); }
   }
   showReward(pr){
     const W=this.scale.width,H=this.scale.height;
@@ -136,9 +142,9 @@ class MapScene extends Phaser.Scene {
     txt(this,16,63,`🍖 食物 ${RUN.food}`,15, RUN.food<=1?TH.red:TH.text,0);
     txt(this,150,63,`📦 貨格 ${RUN.cargo.length}/${RUN.slots}`,15, RUN.cargo.length>=RUN.slots?TH.red:TH.text,0);
     // 隊伍 HP
-    let x=330;
+    let x=300; const step=RUN.heroes.length>=5?116:150;
     RUN.heroes.forEach(h=>{ const s=heroStat(h);
-      txt(this,x,63,`${h.name} ${Math.max(0,h.hp)}/${s.maxHp}`,12, h.hp<=0?TH.red:'#9fd0a0',0); x+=150; });
+      txt(this,x,63,`${h.name} ${Math.max(0,h.hp)}/${s.maxHp}`,11, h.hp<=0?TH.red:'#9fd0a0',0); x+=step; });
   }
   drawNode(n, reach, isCur){
     const p=this.nodePos[n.id], info=NODE_INFO[n.type];
@@ -156,10 +162,16 @@ class MapScene extends Phaser.Scene {
       const tag = n.type==='relic'?'👑 首領':(n.type==='elite'?'⚔ 精英(2掉落)':'⚔ 戰鬥');
       c.add(txt(this,0,-42,`${tag}・風險${words}`,11,cols).setAlpha(reach||isCur?1:0.45));
     }
+    // 領隊探路：揭露天氣／地形／陷阱（無領隊只見 ❓）
+    if(!n.done && n.layer>0){
+      if(hasLeader()){ const w=WEATHER_BY_ID[n.weather], t=TERRAIN_BY_ID[n.terrain];
+        c.add(txt(this,0,-60,`${w?w.icon:''}${t?t.icon:''}${n.trap?'⚠':''}`,12, n.trap?'#ff9a3a':'#9fd0ff')); }
+      else { c.add(txt(this,0,-60,'❓',11,TH.dim)); }
+    }
     if(n.risk>0 && !n.done){ for(let k=0;k<n.risk;k++) c.add(this.add.star(-12+k*12,30,4,3,6,0xe7c14a)); }
-    // 路程：前往此格的食物消耗
-    if(reach && !isCur){ const short = RUN.food-n.food<0;
-      c.add(txt(this,0,46,`路程 ${n.food} 天　🍖−${n.food}`, 11, short?TH.red:'#cdeecd')); }
+    // 路程：前往此格的食物消耗（潮汐之冠時不耗）
+    if(reach && !isCur){ const free=relicEffects().noFoodDrain, short = !free && RUN.food-n.food<0;
+      c.add(txt(this,0,46, free?`路程 ${n.food} 天　🍖−0`:`路程 ${n.food} 天　🍖−${n.food}`, 11, short?TH.red:'#cdeecd')); }
     if(reach && !isCur){
       circle.setInteractive({useHandCursor:true})
         .on('pointerover',()=>this.tweens.add({targets:c,scale:1.15,duration:120}))
@@ -169,9 +181,15 @@ class MapScene extends Phaser.Scene {
     }
   }
   enterNode(n){
-    RUN.map.current=n.id; RUN.node=n;
-    RUN.food-=n.food;
+    RUN.map.current=n.id; RUN.node=n; RUN.cookOpen=false;
+    if(!relicEffects().noFoodDrain){ RUN.food-=n.food;   // 潮汐之冠：探索不耗食物
+      const tx=TERRAIN_BY_ID[n.terrain]; if(tx&&tx.eff&&tx.eff.foodPlus) RUN.food-=tx.eff.foodPlus; }  // 水域：多耗糧
     if(RUN.food<0){ this.starve(); if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; } }
+    // 陷阱：有領隊拆除、無則觸發扣血
+    if(n.trap){ if(hasLeader()){ RUN.itemToast='🧭 領隊拆除了陷阱'; }
+      else { RUN.heroes.forEach(h=>{ if(h.hp>0) h.hp=Math.max(0, h.hp-Math.round(heroStat(h).maxHp*n.trap)); });
+        if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; }
+        RUN.itemToast='⚠ 觸發陷阱！全隊受創'; } }
     if(n.type==='battle'||n.type==='elite'){
       RUN.encounter=buildEncounter(n); RUN.isBoss=false; this.scene.start('Battle');
     } else if(n.type==='relic'){
@@ -207,8 +225,9 @@ class MapScene extends Phaser.Scene {
   openEvent(n){
     const W=this.scale.width,H=this.scale.height, t=RUN.destTier||1;
     const pool=[
-      {title:'🏛 古老祭壇', text:'獻上 2 天份食物，換得一件遺物', btn:'獻祭（-2 糧）', cond:()=>RUN.food>2 && RUN.cargo.length<RUN.slots,
-        act:()=>{ RUN.food-=2; const pn=RELIC_NAMES[Math.min(3,t-1)]||['神器殘片']; const it={kind:'遺物',name:Phaser.Utils.Array.GetRandom(pn),icon:'🏛',value:CFG.loot.relicValueBase+t*CFG.loot.relicValuePerTier}; RUN.cargo.push(it); return `獻祭成功，獲得 🏛 ${it.name}`; } },
+      {title:'🏛 古老祭壇', text:'獻上 2 天份食物，換得本關一件未收集的遺物', btn:'獻祭（-2 糧）',
+        cond:()=>RUN.food>2 && RUN.cargo.length<RUN.slots && uncollectedRelicsForDest(RUN.destIndex||0).length>0,
+        act:()=>{ RUN.food-=2; const it=rollRelicForDest(RUN.destIndex||0); if(!it) return '祭壇沉寂，無物可得'; RUN.cargo.push(it); return `獻祭成功，獲得 ${it.icon} ${it.name}`; } },
       {title:'⛲ 治療之泉', text:'飲下清泉，全隊回復 40% 體力', btn:'飲用', cond:()=>true,
         act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); return '清泉沁入，全隊回復了體力'; } },
       {title:'🧙 流浪商人', text:'花 ＄80 購入 2 瓶治療藥水', btn:'購買（＄80）', cond:()=>GUILD.funds>=80 && RUN.cargo.length<RUN.slots,
@@ -222,6 +241,25 @@ class MapScene extends Phaser.Scene {
     box.add(txt(this,0,-30,ev.text,14,TH.text));
     button(this,0,0,200,40,ev.btn,()=>{ RUN.itemToast=ev.act(); this.scene.restart(); },{size:15,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c}).setDepth(92).setPosition(W/2-100,H/2+58);
     button(this,0,0,140,40,'離開',()=>{ this.scene.restart(); },{size:15,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(92).setPosition(W/2+110,H/2+58);
+  }
+  openCook(){
+    const W=this.scale.width,H=this.scale.height;
+    this.add.rectangle(0,0,W,H,0x000000,0.7).setOrigin(0).setDepth(90).setInteractive();
+    this.add.rectangle(W/2,H/2,560,430,TH.panel).setStrokeStyle(3,0xd0b05a).setDepth(91);
+    txt(this,W/2,H/2-190,'🍳 領隊料理',20,'#ffd24a').setDepth(95);
+    txt(this,W/2,H/2-165,'消耗食材換取補血／本趟增益（buff 持續整趟）',12,TH.dim).setDepth(95);
+    const ing=INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（庫存無食材）';
+    txt(this,W/2,H/2-140,'食材庫存：'+ing,12,TH.cyan).setDepth(95);
+    const cb=RUN.cookBuff||{atk:0,def:0};
+    if(cb.atk||cb.def) txt(this,W/2,H/2-120,`本趟料理加成：ATK+${cb.atk}　DEF+${cb.def}`,11,'#9fe8a0').setDepth(95);
+    RECIPES.forEach((r,i)=>{ const y=H/2-90+i*58; const ok=canCook(r);
+      this.add.rectangle(W/2,y,520,50,0x241a30).setStrokeStyle(2, ok?0x5ad06a:0x55476b).setDepth(94);
+      txt(this,W/2-245,y-10,r.name,15, ok?TH.gold:TH.dim,0).setDepth(95);
+      txt(this,W/2-245,y+10,r.desc,11,TH.text,0).setDepth(95);
+      button(this,W/2+175,y,150,38, recipeNeedText(r), ()=>{ if(!canCook(r)){ RUN.itemToast='食材不足'; this.scene.restart(); return; } RUN.itemToast=cook(r); this.scene.restart(); },
+        {size:11, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}).setDepth(95);
+    });
+    button(this,W/2,H/2+185,140,36,'關閉',()=>{ RUN.cookOpen=false; this.scene.restart(); },{size:14,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(95);
   }
   retreat(){ this.scene.start('Result',{outcome:'retreat'}); }
 }
@@ -239,11 +277,13 @@ function useConsumable(item){
 function rollItem(risk, kind){
   const tier=Math.min(4, Math.max(1,risk) + ((RUN.destTier||1)-1));  // 目的地階級越高，掉落階級越高
   const L=CFG.loot;
-  if(kind==='遺物' || (!kind && Math.random()<L.relicChanceBase+risk*L.relicChancePerRisk+(guildBlessing().drop||0))){  // 風險＋遺物率祝福
-    const pool=RELIC_NAMES[Math.min(3,tier-1)]||['神器殘片'];
-    return {kind:'遺物', name:Phaser.Utils.Array.GetRandom(pool), icon:'🏛', value:L.relicValueBase+tier*L.relicValuePerTier};
+  const wantRelic = kind==='遺物' || (!kind && Math.random()<L.relicChanceBase+risk*L.relicChancePerRisk+(relicEffects().drop||0));
+  if(wantRelic){ const it=rollRelicForDest(RUN.destIndex||0); if(it) return it; }   // 已收齊則改掉其他戰利品
+  if(!kind){ const rr=Math.random();   // 素材／食材：特定關掉特定資源
+    if(rr<0.14){ const m=makeMaterialItem(RUN.destIndex||0); if(m) return m; }
+    else if(rr<0.24){ const g=makeIngredientItem(RUN.destIndex||0); if(g) return g; }
   }
-  const pick = kind || (function(){ const r=Math.random(); return r<0.5?'貴重物品':(r<0.72?'防具':(r<0.88?'武器':'道具')); })();
+  const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random(); return r<0.5?'貴重物品':(r<0.72?'防具':(r<0.88?'武器':'道具')); })();
   if(pick==='貴重物品') return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier};
   if(pick==='防具'){ const a=Phaser.Utils.Array.GetRandom(ARMORS); return {kind:'防具', name:a.name, icon:'🛡', value:L.gearBase+tier*L.gearPerTier, gear:a}; }
   if(pick==='武器'){ const w=Phaser.Utils.Array.GetRandom(WEAPONS); return {kind:'武器', name:w.name, icon:'⚔', value:L.gearBase+tier*L.gearPerTier, gear:w}; }

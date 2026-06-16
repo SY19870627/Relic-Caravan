@@ -3,6 +3,7 @@ class Battle extends Phaser.Scene {
   constructor(){ super('Battle'); }
   create(){
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
+    const _re=relicEffects(); this._firstHitCrit=!!_re.firstHitCrit; this._reviveOnce=!!_re.reviveOnce; this.reviveUsed=false;
     const W=this.scale.width, H=this.scale.height;
     this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
     this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
@@ -10,9 +11,18 @@ class Battle extends Phaser.Scene {
     this.torch(120,150); this.torch(W-120,150);
     this.fxFlash=this.add.rectangle(0,0,W,H,0xffffff,1).setOrigin(0).setDepth(95).setAlpha(0); // 全螢幕閃光層
 
+    // 環境（天氣/地形）＋ 料理加成
+    const node=RUN.node||{}; const wx=WEATHER_BY_ID[node.weather], tx=TERRAIN_BY_ID[node.terrain]; const cb=RUN.cookBuff||{atk:0,def:0};
+    this._heroAtkMod=(cb.atk||0)+((wx&&wx.eff&&wx.eff.allAtk)||0);
+    this._heroDefMod=(cb.def||0)+((tx&&tx.eff&&tx.eff.heroDef)||0);
+    this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0);
+    this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
+    const envParts=[]; if(wx&&wx.eff)envParts.push(wx.icon+wx.name); if(tx&&tx.eff)envParts.push(tx.icon+tx.name); if(cb.atk||cb.def)envParts.push('🍳料理');
+    if(envParts.length) txt(this,W/2,58,'環境／加成：'+envParts.join('　'),11,'#9fd0ff').setDepth(60);
     // 英雄
     this.heroes=RUN.heroes.map((h,idx)=>{ const s=heroStat(h), fs=formationSlot(h.sprite);
-      return this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq:s.atkSeq,def:s.def,heal:s.heal,interval:h.interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h}, 'hero', fs.x, fs.y);
+      const atkSeq=s.atkSeq.map(a=>Math.max(1,a+this._heroAtkMod)), def=s.def+this._heroDefMod;
+      return this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval:h.interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h}, 'hero', fs.x, fs.y);
     });
     // 敵人（多波次）：RUN.encounter = 波次陣列
     this.waves = RUN.encounter;
@@ -43,7 +53,8 @@ class Battle extends Phaser.Scene {
     const W=this.scale.width;
     const epos = ec.length===1?[[640,360]] : ec.length===2?[[620,255],[620,440]] : [[600,235],[600,455],[720,350]];
     const fresh = ec.map((e,idx)=>{ const big=e.boss;
-      const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:e.atkSeq,def:e.def,heal:e.heal||0,interval:e.interval,ranged:e.ranged,healer:!!e.healer,boss:e.boss,skills:e.skills}, 'enemy', epos[idx]?epos[idx][0]:640, epos[idx]?epos[idx][1]:300, big?6:SCALE);
+      const eAtk=e.atkSeq.map(a=>Math.max(1,a+(this._enemyAtkMod||0))), eDef=e.def+(this._enemyDefMod||0);
+      const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:eAtk,def:eDef,heal:e.heal||0,interval:e.interval,ranged:e.ranged,healer:!!e.healer,boss:e.boss,skills:e.skills}, 'enemy', epos[idx]?epos[idx][0]:640, epos[idx]?epos[idx][1]:300, big?6:SCALE);
       // 從畫面右側走進場，到定位才開打
       c.container.x = W + 80 + idx*70;
       this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:idx*90});
@@ -194,6 +205,9 @@ class Battle extends Phaser.Scene {
     let crit=false;
     if(opt.crit!==undefined){ crit=opt.crit; if(crit) atk=Math.round(atk*(opt.mult||2)); }   // 範圍攻擊：暴擊一次套全體
     else { const cs=this.trySkill(c,'crit'); if(cs){ atk=Math.round(atk*cs.mult); crit=true; } }
+    // 遺物・永燃聖燭：我方每位成員本場首次攻擊必定暴擊
+    if(!crit && c.side==='hero' && this._firstHitCrit && !c.firstHitDone){ crit=true; atk=Math.round(atk*2); }
+    if(c.side==='hero') c.firstHitDone=true;
     const dmg=Math.max(1, atk - target.def); target.hp=Math.max(0,target.hp-dmg); this.bar(target);
     const heavy = !!c.boss || dmg>=20;                    // 重擊：王戰或高傷
     const base = target.boss?6:SCALE;                     // 目標基礎縮放
@@ -222,6 +236,14 @@ class Battle extends Phaser.Scene {
     const p=this.add.rectangle(x,y,4,4,color).setDepth(60);
     this.tweens.add({targets:p,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d+12,alpha:0,angle:Math.random()*180,scale:0.2,duration:430+Math.random()*220,ease:'Quad.out',onComplete:()=>p.destroy()}); } }
   die(c){
+    // 遺物・時之沙漏：每場首位陣亡的我方復活一次（半血）
+    if(c.side==='hero' && this._reviveOnce && !this.reviveUsed){
+      this.reviveUsed=true; c.hp=Math.max(1,Math.round(c.maxHp*0.5)); this.bar(c);
+      this.floatLabel(c.baseX,c.baseY-58,'復活!','#7dff9a'); this.screenFlash(0x7dff9a,0.18,220);
+      const ring=this.add.circle(c.container.x,c.container.y,12,0x7dff9a,0.6).setDepth(45);
+      this.tweens.add({targets:ring,radius:60,alpha:0,duration:420,onComplete:()=>ring.destroy()});
+      return;
+    }
     c.alive=false;
     if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
     this.spark(c.container.x,c.container.y, c.side==='hero'?0xff6b6b:0xffe08a);
@@ -248,11 +270,19 @@ class Battle extends Phaser.Scene {
       const node=RUN.node;
       const xp = RUN.isBoss?CFG.battleXp.boss:(CFG.battleXp.base+(node?node.risk:1)*CFG.battleXp.perRisk);
       const ups = gainXP(xp); saveGuild();
-      // 戰後僅小幅回復（攻關是消耗戰：HP 是要管理的資源，逼出「見好就收 vs 再賭一層」）
-      RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp; h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); });
-      if(RUN.isBoss){ RUN.cargo.push({kind:'遺物',name:'守護者的神器',icon:'🏛',value:CFG.battle.bossRelicValue}); this.scene.start('Result',{outcome:'clear'}); }
+      // 戰後回復：遺物・永恆之輪 → 全隊完全回復；否則小幅回復（消耗戰）
+      const re=relicEffects();
+      RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;
+        if(re.fullHealAfterBattle){ h.hp=mx; }
+        else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); } });
+      if(RUN.isBoss){
+        const rel=rollRelicForDest(RUN.destIndex||0);
+        if(rel) RUN.cargo.push(rel);
+        else RUN.cargo.push({kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue});
+        this.scene.start('Result',{outcome:'clear'});
+      }
       else {
-        const count = node&&node.type==='elite'?2:1;
+        const count = (node&&node.type==='elite'?2:1) + (re.extraLoot||0);   // 古神之眼／創世殘頁：額外掉落
         const got=[], full=[];
         for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
           if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); got.push(it); } else full.push(it); }

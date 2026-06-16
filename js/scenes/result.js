@@ -23,21 +23,27 @@ class Result extends Phaser.Scene {
     }
     // 完整通關／撤退：逐項勾選保留 or 賣出
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
+    const resources=RUN.cargo.filter(i=>i.kind==='素材'||i.kind==='食材');   // 自動入庫
     const rank=it=>(it.kind==='武器'||it.kind==='防具')?0:(it.kind==='貴重物品'?1:2);
-    this.others=RUN.cargo.filter(i=>i.kind!=='遺物').sort((a,b)=> rank(a)-rank(b) || b.value-a.value);
+    this.others=RUN.cargo.filter(i=>i.kind!=='遺物'&&i.kind!=='素材'&&i.kind!=='食材').sort((a,b)=> rank(a)-rank(b) || b.value-a.value);
     // 預設：武器/防具保留，其餘賣出
     this.others.forEach(it=>{ if(it._keep===undefined) it._keep=(it.kind==='武器'||it.kind==='防具'); });
     this.add.rectangle(W/2,360,690,376,TH.panel).setStrokeStyle(2,0x3a3150);
     txt(this,W/2,182,'── 戰利品結算（勾選要保留的，其餘賣成資金）──',14,TH.gold);
     const relicVal=relics.reduce((a,b)=>a+(b.value||0),0);
-    txt(this,W/2,206, relics.length?`🏛 遺物 ×${relics.length}（總價值 ${relicVal}）自動供奉神殿 → 信仰加成`:'（本趟沒有帶回遺物）',13, relics.length?TH.cyan:TH.dim);
+    txt(this,W/2,206, relics.length?`🏛 遺物 ×${relics.length}（${relics.map(r=>r.name).join('、')}）自動入收藏 → 即時生效`:'（本趟沒有帶回遺物）',13, relics.length?TH.cyan:TH.dim).setWordWrapWidth(660);
+    if(resources.length){ const rc={}; resources.forEach(r=>rc[r.icon+r.name]=(rc[r.icon+r.name]||0)+1);
+      txt(this,W/2,252,'🛠 素材／食材 '+Object.keys(rc).map(k=>k+'×'+rc[k]).join('　')+' 自動入庫',12,'#cdeecd').setWordWrapWidth(660); }
     // 一鍵全保留 / 全賣出
     button(this, W/2-150, 232, 150, 26, '全部保留 ✓', ()=>{ this.others.forEach(it=>it._keep=true); this.renderList(); }, {size:12,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
     button(this, W/2+150, 232, 150, 26, '全部賣出 ＄', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
     this.listGroup=[];
     this.renderList();
     button(this,W/2,524,240,40,'✓ 帶回公會',()=>{
-      RUN.cargo.forEach(it=>{ if(it.kind==='遺物') GUILD.relics.push(it); else if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; });
+      RUN.cargo.forEach(it=>{ if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)) GUILD.relics.push(it.relicId); }
+        else if(it.kind==='素材'){ addMaterial(it.matId); }
+        else if(it.kind==='食材'){ addIngredient(it.ingId); }
+        else if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; });
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{size:17,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
   }

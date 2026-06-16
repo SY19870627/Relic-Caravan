@@ -29,23 +29,23 @@ class FormationHall extends Phaser.Scene {
     add(txt(this,620,154,f.desc,12,TH.dim));
     // 站位預覽（小人按座標排出，越右越靠近敵人）
     add(txt(this,792,256,'敵 ▶',12,'#ff8a8a'));
-    const info={warrior:['戰',0xc23b3b,'戰士'],ranger:['俠',0x83b154,'遊俠'],priest:['牧',0xe7c14a,'牧師'],mage:['法',0x8a6fd0,'法師']};
+    const info={warrior:['戰',0xc23b3b,'戰士'],ranger:['俠',0x83b154,'遊俠'],priest:['牧',0xe7c14a,'牧師'],mage:['法',0x8a6fd0,'法師'],rogue:['盜',0x4f8f6f,'盜賊']};
     // 依目前在隊成員顯示（招募法師後才出現法師站位）
     const sprites=activeRoster().map(i=>HERO_BASE[i].sprite).filter(sp=>f.slots[sp]);
-    sprites.forEach(sp=>{ const s=f.slots[sp];
-      const px=620+(s.x-250)*0.5, py=256+(s.y-357)*0.45, c=info[sp];
+    sprites.forEach(sp=>{ const s=formationSlot(sp), c=info[sp];   // 動態站位（依目前人數）
+      const px=620+(s.x-250)*0.6, py=256+(s.y-360)*0.5;
       add(this.add.circle(px,py,16,c[1]).setStrokeStyle(2,0x140d18));
       add(txt(this,px,py,c[0],14,'#fff'));
     });
     // 各站位加減成
     const rowName={front:'前排',mid:'中排',back:'後排'};
-    let y=372;
+    let y=362;
     sprites.forEach(sp=>{ const s=f.slots[sp];
       const mods=[]; if(s.atk)mods.push('ATK'+(s.atk>0?'+':'')+s.atk); if(s.def)mods.push('DEF'+(s.def>0?'+':'')+s.def);
       if(s.hp)mods.push('HP'+(s.hp>0?'+':'')+s.hp); if(s.heal)mods.push('治療'+(s.heal>0?'+':'')+s.heal);
-      add(txt(this,620,y,`${info[sp][2]}　${rowName[s.row]}　${mods.join('・')||'—'}`,13,TH.text)); y+=24;
+      add(txt(this,620,y,`${info[sp][2]}　${rowName[s.row]}　${mods.join('・')||'—'}`,12,TH.text)); y+=21;
     });
-    add(txt(this,620,472,'✓ 目前選用',13,'#5ad06a'));
+    add(txt(this,620,478,'✓ 目前選用',13,'#5ad06a'));
   }
   flash(msg){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,500,msg,14,TH.red).setDepth(99);
     this.tweens.add({targets:this._f,alpha:0,delay:900,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }

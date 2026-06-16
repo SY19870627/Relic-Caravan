@@ -11,7 +11,7 @@ class WarehouseHall extends Phaser.Scene {
 
     const stash=GUILD.stash||[];
     const totalVal=stash.reduce((a,b)=>a+(b.value||0),0);
-    txt(this,W/2,82,`共 ${stash.length} 件　總價值 ＄${totalVal}　|　🏛 神殿遺物 ${GUILD.relics.length} 件（已供奉）`,13,TH.gold);
+    txt(this,W/2,82,`共 ${stash.length} 件　總價值 ＄${totalVal}　|　🏛 遺物收藏 ${GUILD.relics.length}/${relicTotalCount()} 件（即時生效）`,13,TH.gold);
 
     this.add.rectangle(W/2,330,820,470,TH.panel).setStrokeStyle(2,0x3a3150);
     const kinds=[['武器','⚔','#9fe8ff'],['防具','🛡','#9fd0a0'],['貴重物品','💎','#cdeecd'],['道具','🧪','#ffd6a0']];
@@ -23,8 +23,13 @@ class WarehouseHall extends Phaser.Scene {
       const list=names.length? names.map(n=>`${n}×${counts[n]}`).join('　') : '（無）';
       txt(this,90,y,`${icon} ${k}（${items.length} 件）`,15,col,0);
       txt(this,110,y+24,list,12, names.length?TH.text:TH.dim, 0).setWordWrapWidth(780);
-      y+=72;
+      y+=60;
     });
-    if(!stash.length) txt(this,W/2,y+10,'倉庫目前是空的——探險結算時把物品選「保留」就會收進這裡。',12,TH.dim);
+    // 素材／食材（自動入庫，不佔倉庫件數）
+    const matLine = MATERIALS.filter(m=>matCount(m.id)>0).map(m=>`${m.icon}${m.name}×${matCount(m.id)}`).join('　')||'（無）';
+    const ingLine = INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（無）';
+    txt(this,90,y,'🛠 素材（工匠強化用）',15,'#ffd24a',0); txt(this,110,y+24,matLine,12, matLine==='（無）'?TH.dim:TH.text,0).setWordWrapWidth(780); y+=60;
+    txt(this,90,y,'🍳 食材（領隊料理用）',15,'#9fe8a0',0); txt(this,110,y+24,ingLine,12, ingLine==='（無）'?TH.dim:TH.text,0).setWordWrapWidth(780);
+    if(!stash.length) txt(this,W/2,y+48,'倉庫雜物為空——探險結算時把物品選「保留」就會收進這裡。',12,TH.dim);
   }
 }
