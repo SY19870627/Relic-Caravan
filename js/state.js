@@ -164,9 +164,12 @@ function tierUpClass(i){ const d=tierUpDef(i); if(!d) return false; if(GUILD.fun
 // 隨機雙技能（Phase D 用；此處先建立資料：從該職業技能池抽 2 個）
 function rollRecruitSkills(i){ const pool=(SKILLS[CLASS_ORDER[i]]||[]).slice();
   if(pool.length<=2){ ROSTER[i].skills=pool.map(s=>s.name); return; }
-  const pick=[]; const copy=pool.slice();
-  for(let k=0;k<2 && copy.length;k++){ const idx=Math.floor(Math.random()*copy.length); pick.push(copy.splice(idx,1)[0].name); }
-  ROSTER[i].skills=pick; }
+  // 保證至少一個低階(≤Lv4)技能，避免「兩個都高階→長期沒技能」的爛抽
+  const low=pool.filter(s=>s.lv<=4);
+  const first=(low.length?low:pool)[Math.floor(Math.random()*(low.length?low.length:pool.length))];
+  const remain=pool.filter(s=>s.name!==first.name);
+  const second=remain[Math.floor(Math.random()*remain.length)];
+  ROSTER[i].skills=[first.name, second.name]; }
 
 // ---- 後勤：工匠（階級0-3）與領隊 ----
 function craftsmanTier(){ return GUILD.staff.craftsman||0; }

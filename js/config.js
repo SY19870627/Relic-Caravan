@@ -72,7 +72,8 @@ const CFG = {
   },
 
   // 敵人強度縮放：scale = (1+層數*layerScale)*(1+(階級-1)*tierScale)；王戰用 bossTierScale
-  enemy: { layerScale:0.16, tierScale:0.22, bossTierScale:0.25 },
+  // v0.7 平衡：壓低 layer 斜率（緩和開局深層/精英過硬）、拉高 tier 斜率（讓中後期不再無腦輾壓）
+  enemy: { layerScale:0.12, tierScale:0.40, bossTierScale:0.50 },
 
   // 地圖節點機率（每層 roll）：< battle 為戰鬥、< event 為事件、< chest 為寶箱，其餘為精英
   map: { battleRoll:0.42, eventRoll:0.62, chestRoll:0.84 },

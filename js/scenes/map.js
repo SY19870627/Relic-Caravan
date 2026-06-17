@@ -306,14 +306,14 @@ function buildEncounter(n){
   const mk=(sprite,name,hp,atkSeq,def,interval,ranged,extra)=>Object.assign(
     {sprite,name,hp:Math.round(hp*scale),atkSeq:atkSeq.map(a=>Math.round(a*scale)),def,interval,ranged,healer:false,heal:0}, extra||{});
   const normalWave=()=>{ const r=Math.random();
-    if(r<0.34) return [mk('goblin','哥布林',62,[11,16],2,1400,false), mk('goblinArcher','哥布林弓手',50,[18,22],1,1150,true)];
+    if(r<0.34) return [mk('goblin','哥布林',62,[11,16],2,1400,false), mk('goblinArcher','哥布林弓手',50,[16,20],1,1150,true)];
     if(r<0.67) return [mk('goblin','哥布林',62,[10,14],2,1400,false), mk('goblin','哥布林',62,[10,14],2,1450,false)];
     return [mk('goblin','哥布林斥候',54,[12,16],1,1200,false,{skills:[{name:'偷襲',type:'crit',cd:7000,uses:2,mult:2}]}), mk('goblinArcher','哥布林薩滿',56,[10,12],1,1500,true,{healer:true,heal:10,skills:[{name:'治療波',type:'groupHeal',cd:9000,uses:2}]})];
   };
   const eliteWave=()=>{ const pool=[
-      [mk('goblin','哥布林兵',75,[12,16],3,1300,false), mk('goblin','哥布林兵',75,[12,16],3,1350,false), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
-      [mk('goblin','哥布林狂戰士',95,[16,22],2,1100,false,{skills:[{name:'狂亂',type:'doubleHit',cd:5000,uses:3}]}), mk('goblinArcher','哥布林薩滿',60,[10,12],1,1500,true,{healer:true,heal:12,skills:[{name:'治療波',type:'groupHeal',cd:9000,uses:2}]})],
-      [mk('guardian','殘缺石衛',150,[18,24],5,1500,false,{skills:[{name:'重擊',type:'stun',cd:6000,uses:2,dur:1200}]}), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
+      [mk('goblin','哥布林兵',68,[12,16],3,1300,false), mk('goblin','哥布林兵',68,[12,16],3,1350,false), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
+      [mk('goblin','哥布林狂戰士',86,[15,20],2,1100,false,{skills:[{name:'狂亂',type:'doubleHit',cd:5000,uses:3}]}), mk('goblinArcher','哥布林薩滿',60,[10,12],1,1500,true,{healer:true,heal:12,skills:[{name:'治療波',type:'groupHeal',cd:9000,uses:2}]})],
+      [mk('guardian','殘缺石衛',124,[16,21],4,1500,false,{skills:[{name:'重擊',type:'stun',cd:6000,uses:2,dur:1200}]}), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
     ]; return Phaser.Utils.Array.GetRandom(pool); };
   if(n.type==='elite'){
     const w=2+(t>=3?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(eliteWave()); return waves;   // 2-3 波精英
@@ -323,13 +323,13 @@ function buildEncounter(n){
 function buildBoss(){
   const t=RUN.destTier||1, s=1+(t-1)*CFG.enemy.bossTierScale;   // 目的地階級越高，王戰越強
   const bosses=[
-    [{sprite:'guardian',name:'遺跡守護者',hp:260,atkSeq:[24,14,34],def:6,interval:1500,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'震地',type:'stun',cd:6000,uses:3,dur:1400}]},
-     {sprite:'goblinArcher',name:'哥布林弓手',hp:55,atkSeq:[16,18],def:1,interval:1100,ranged:true,healer:false,heal:0}],
-    [{sprite:'guardian',name:'墮落守護者',hp:300,atkSeq:[20,26,30],def:7,interval:1400,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'碎地連擊',type:'doubleHit',cd:4500,uses:4},{name:'震地',type:'stun',cd:7000,uses:2,dur:1200}]},
-     {sprite:'goblinArcher',name:'哥布林薩滿',hp:70,atkSeq:[12,14],def:2,interval:1400,ranged:true,healer:true,heal:16,skills:[{name:'治療波',type:'groupHeal',cd:8000,uses:3}]}],
+    [{sprite:'guardian',name:'遺跡守護者',hp:360,atkSeq:[30,18,42],def:6,interval:1350,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'震地',type:'stun',cd:6000,uses:3,dur:1400}]},
+     {sprite:'goblinArcher',name:'哥布林弓手',hp:64,atkSeq:[16,18],def:1,interval:1100,ranged:true,healer:false,heal:0}],
+    [{sprite:'guardian',name:'墮落守護者',hp:410,atkSeq:[26,32,38],def:7,interval:1300,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'碎地連擊',type:'doubleHit',cd:4500,uses:4},{name:'震地',type:'stun',cd:7000,uses:2,dur:1200}]},
+     {sprite:'goblinArcher',name:'哥布林薩滿',hp:80,atkSeq:[12,14],def:2,interval:1400,ranged:true,healer:true,heal:16,skills:[{name:'治療波',type:'groupHeal',cd:8000,uses:3}]}],
   ];
   const boss=Phaser.Utils.Array.GetRandom(bosses).map(e=>Object.assign({},e,{hp:Math.round(e.hp*s), atkSeq:e.atkSeq.map(a=>Math.round(a*s))}));
   const mk=(sprite,name,hp,atkSeq,def,interval,ranged)=>({sprite,name,hp:Math.round(hp*s),atkSeq:atkSeq.map(a=>Math.round(a*s)),def,interval,ranged,healer:false,heal:0});
-  const minions=[mk('goblin','遺跡守衛',72,[14,18],3,1250,false), mk('goblinArcher','遺跡哨兵',56,[18,20],1,1100,true)];
+  const minions=[mk('goblin','遺跡守衛',90,[16,20],3,1250,false), mk('goblinArcher','遺跡哨兵',64,[18,20],1,1100,true)];
   return [minions, boss];   // 第一波小兵 → 第二波王本體
 }

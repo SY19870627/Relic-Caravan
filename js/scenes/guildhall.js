@@ -16,6 +16,7 @@ class GuildHall extends Phaser.Scene {
     const bl=relicEffects(), sp=sponsorship();
     add(txt(this,W/2,72,`公會資金 ＄${GUILD.funds}　🏛 遺物 ${GUILD.relics.length}/${relicTotalCount()}　🎒 倉庫 ${GUILD.stash.length} 件　⭐ 聲望 ${reputation()}`,13,TH.gold));
     add(txt(this,W/2,94,`⚔ 目前隊形：${currentFormation().name}（${currentFormation().desc}）`,11,'#ffc0d0'));
+    if(activeRoster().length<3){ add(txt(this,W/2,116,`👉 隊伍只有 ${activeRoster().length} 人！先到「招募所」免費招募遊俠與牧師，湊滿 3 人再出發`,12,'#ffd24a')); }
 
     // 遺物收藏（取代神殿：收集即時生效）
     add(this.add.rectangle(245,300,400,322,TH.panel).setStrokeStyle(2,0x5a8cd0).setOrigin(0.5));
