@@ -26,6 +26,8 @@ const CFG = {
     },
     tierCaps: [5, 8, 12],                 // tier0→Lv5、tier1→Lv8、tier2→Lv12
     tierUp:   [ {cost:300, repReq:3}, {cost:700, repReq:6} ],  // 升 tier1 / tier2
+    // v0.8：升階除了拉高等級上限，另解鎖「功能位」(累計)。tier0 無、tier1 進階、tier2 精英。
+    tierPerks: [ {}, {useBonus:1, label:'技能每場多 1 次使用'}, {useBonus:1, startShield:15, label:'技能多 1 次使用＋開場護盾 15'} ],
   },
 
   // 後勤：工匠（學徒1/師傅2/大師3）與領隊聘僱

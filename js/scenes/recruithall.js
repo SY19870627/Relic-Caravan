@@ -40,7 +40,8 @@ class RecruitHall extends Phaser.Scene {
       c.add(txt(this,0,-18,roleTxt,11,TH.cyan));
       if(unlocked){
         c.add(txt(this,0,8,`Lv ${r.level} / 上限 ${classCap(i)}`,12,TH.text));
-        c.add(txt(this,0,28,`占位者階級 ${['初階','進階','精英'][r.tier||0]}`,11,TH.dim));
+        const tpk=tierPerk(i);
+        c.add(txt(this,0,28,`占位者 ${['初階','進階','精英'][r.tier||0]}`+(tpk&&tpk.label?'・'+tpk.label:''),10,TH.dim).setWordWrapWidth(cw-10));
         if(r.skills&&r.skills.length) c.add(txt(this,0,48,`技能：${r.skills.join('・')}`,10,'#ffd24a').setWordWrapWidth(cw-12));
         const td=tierUpDef(i);
         if(td){ const ok=canTierUp(i);

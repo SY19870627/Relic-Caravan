@@ -88,7 +88,8 @@ class CharacterHall extends Phaser.Scene {
       let all=SKILLS[h.sprite]||[];
       if(Array.isArray(rolled)) all=all.filter(s=>rolled.includes(s.name));
       const parts=all.map(sk=> lv>=sk.lv ? sk.name : `${sk.name}(Lv${sk.lv})`);
-      this.skillText.setText(`🎓 ${h.name} 隨機雙技能：`+(parts.length?parts.join('・'):'無'));
+      const tp=[]; if(h.weapon.traitDesc)tp.push('武器「'+h.weapon.traitDesc+'」'); if(h.armor.traitDesc)tp.push('防具「'+h.armor.traitDesc+'」');
+      this.skillText.setText(`🎓 ${h.name} 技能：`+(parts.length?parts.join('・'):'無')+(tp.length?'　🗡 '+tp.join('　'):''));
     }
     this.refreshEquip();
   }

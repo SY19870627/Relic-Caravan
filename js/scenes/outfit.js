@@ -9,7 +9,7 @@ class Outfit extends Phaser.Scene {
     txt(this,W/2,28,'出 發 整 備',24,TH.gold);
     txt(this,W/2,50,'檢視隊伍，選一台貨車後出發（裝備請到公會大廳「角色所」調整）',12,TH.dim);
     const bl=relicEffects();
-    const blAny=(bl.atk||bl.def||bl.hp||bl.heal||bl.drop||bl.extraLoot||bl.firstHitCrit||bl.reviveOnce||bl.noFoodDrain||bl.fullHealAfterBattle);
+    const blAny=(GUILD.relics&&GUILD.relics.length>0);
     txt(this,W/2,70,`公會資金 ＄${GUILD.funds}　🎒 倉庫 ${GUILD.stash.length} 件　🏛 遺物 ${GUILD.relics.length}/${relicTotalCount()}`+(blAny?`　✨ ${relicSummary(bl)}`:''),12,TH.gold);
     // 返回公會大廳
     button(this, 96, 28, 150, 28, '← 公會大廳', ()=>this.scene.start('GuildHall'), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});

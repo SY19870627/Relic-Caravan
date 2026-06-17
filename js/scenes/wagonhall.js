@@ -27,8 +27,8 @@ class WagonHall extends Phaser.Scene {
       const c=this.add.container(cx,cy); add(c);
       c.add(this.add.rectangle(0,0,250,96,TH.panel,1).setStrokeStyle(sel?3:2, sel?0xe7c14a:0x5a8cd0));
       c.add(txt(this,0,-32,h.name,16,TH.gold));
-      c.add(txt(this,0,-8,`🍖 食物 ${h.food}　📦 貨格 ${h.slots}`,13,TH.text));
-      c.add(txt(this,0,14,h.desc,11,TH.dim));
+      c.add(txt(this,0,-10,`🍖 食物 ${h.food}　📦 貨格 ${h.slots}`,13,TH.text));
+      c.add(txt(this,0,16,h.desc,10,TH.dim).setWordWrapWidth(238));
       if(sel) c.add(txt(this,0,34,'✓ 目前選用',12,'#5ad06a'));
       else c.add(button(this,0,34,120,24,'選用',()=>{ GUILD.horse=i; saveGuild(); this.render(); },{size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}));
     });

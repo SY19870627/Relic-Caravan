@@ -29,7 +29,7 @@ function activeRoster(){ const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) ou
 let BATTLE_SPEED = 1;   // 戰鬥速度倍率（1/2/4），跨場記住
 
 // ---- 存檔持久化（localStorage）。SAVE_KEY 升 v2：舊檔不遷移、直接以新結構重置 ----
-const SAVE_KEY = 'relicCaravanSave_v2';
+const SAVE_KEY = 'relicCaravanSave_v3';   // v0.8 去數據化改版：結構變動，舊檔不遷移、直接重置
 function saveGuild(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify({GUILD,ROSTER})); }catch(e){} }
 function loadGuild(){ try{
   const s=JSON.parse(localStorage.getItem(SAVE_KEY));
@@ -47,7 +47,7 @@ function loadGuild(){ try{
     if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){ ROSTER=s.ROSTER; ensureRoster(); }
   }
 }catch(e){} }
-function resetSave(){ try{ localStorage.removeItem(SAVE_KEY); localStorage.removeItem('relicCaravanSave_v1'); }catch(e){}
+function resetSave(){ try{ localStorage.removeItem(SAVE_KEY); localStorage.removeItem('relicCaravanSave_v2'); localStorage.removeItem('relicCaravanSave_v1'); }catch(e){}
   GUILD=defaultGuild(); ROSTER=defaultRoster(); ensureRoster(); }
 loadGuild(); ensureRoster();
 
@@ -74,18 +74,25 @@ function makeIngredientItem(di){ const g=INGREDIENT_BY_DEST[di]; if(!g) return n
 
 // ---- 領隊・料理：消耗食材（公會庫存）產生補血／本趟增益 ----
 function recipeNeedText(r){ return Object.keys(r.need).map(k=>{ const g=INGREDIENT_BY_ID[k]; return `${g?g.icon:''}${g?g.name:k}×${r.need[k]}`; }).join(' '); }
-function canCook(r){ if(!hasLeader()) return false; for(const k in r.need){ if(ingCount(k)<r.need[k]) return false; } return true; }
+// 可料理：有領隊，或工匠強化「隨車鍋」(campstove) 解鎖後也能煮
+function canCook(r){ if(!hasLeader() && !hasCampstove()) return false; for(const k in r.need){ if(ingCount(k)<r.need[k]) return false; } return true; }
 function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ GUILD.ingredients[k]-=r.need[k]; } saveGuild();
   let msg='料理「'+r.name+'」：';
   if(r.heal && RUN){ let n=0; RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; const b=h.hp; h.hp=Math.min(mx,h.hp+Math.round(mx*r.heal)); if(h.hp>b)n++; } }); msg+=`回復 ${n} 人 `; }
-  if(r.buff && RUN){ RUN.cookBuff=RUN.cookBuff||{atk:0,def:0}; RUN.cookBuff.atk+=r.buff.atk||0; RUN.cookBuff.def+=r.buff.def||0;
-    const p=[]; if(r.buff.atk)p.push('ATK+'+r.buff.atk); if(r.buff.def)p.push('DEF+'+r.buff.def); msg+='本趟 '+p.join(' '); }
+  // v0.8：buff 從數值改成一次性功能（下一場戰鬥生效）
+  if(r.grant && RUN){
+    if(r.grant==='shield'){ RUN.cookShield=(RUN.cookShield||0)+(r.amt||20); msg+=`下場開場護盾 +${r.amt||20}`; }
+    else if(r.grant==='revive'){ RUN.reviveCharge=(RUN.reviveCharge||0)+1; msg+='下場 +1 次陣亡復活'; }
+    else if(r.grant==='firstCrit'){ RUN.cookFirstCrit=true; msg+='下場全隊首擊必暴'; }
+  }
   return msg; }
 
 // ---- 遺物效果：已收集的遺物即時、永久生效（取代神殿供奉）----
 // 數值加成累加；規則型旗標 OR 起來。供 heroStat / 戰鬥 / 地圖讀取。
 function relicEffects(){
-  const e={atk:0,def:0,hp:0,heal:0,drop:0,food:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, noFoodDrain:false, fullHealAfterBattle:false};
+  const e={atk:0,def:0,hp:0,heal:0,drop:0,food:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, noFoodDrain:false, fullHealAfterBattle:false,
+    // v0.8 規則型旗標
+    splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0};
   (GUILD.relics||[]).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
     for(const k in ef){ if(typeof ef[k]==='boolean'){ e[k]=e[k]||ef[k]; } else { e[k]=(e[k]||0)+ef[k]; } } });
   return e;
@@ -96,6 +103,10 @@ function relicSummary(e){
   if(e.atk)p.push('ATK+'+e.atk); if(e.def)p.push('DEF+'+e.def); if(e.hp)p.push('HP+'+e.hp);
   if(e.heal)p.push('治療+'+e.heal); if(e.drop)p.push('遺物率+'+Math.round(e.drop*100)+'%'); if(e.extraLoot)p.push('額外掉落+'+e.extraLoot);
   if(e.firstHitCrit)p.push('首擊必暴'); if(e.reviveOnce)p.push('復活一次'); if(e.noFoodDrain)p.push('不耗食物'); if(e.fullHealAfterBattle)p.push('戰後全回');
+  if(e.splash)p.push('濺射'); if(e.startShield)p.push('開場護盾'+e.startShield); if(e.regen)p.push('行動回復'+Math.round(e.regen*100)+'%');
+  if(e.killCrit)p.push('擊殺爆擊'); if(e.healToShield)p.push('治療轉盾'); if(e.lastStand)p.push('背水');
+  if(e.firstDeathHeal)p.push('陣亡回援'+Math.round(e.firstDeathHeal*100)+'%'); if(e.firstStrikeAoe)p.push('首擊全體');
+  if(e.soloBoost)p.push('寡兵越強'); if(e.lifesteal)p.push('吸血'+Math.round(e.lifesteal*100)+'%');
   return p.length?p.join('　'):'（尚無）';
 }
 // 相容別名：舊呼叫點仍可用（內容已改為遺物即時效果）
@@ -118,14 +129,29 @@ function reputationTier(){ const r=reputation(), th=CFG.reputation.thresholds; r
 function sponsorship(){ return CFG.reputation.sponsorship[reputationTier()]; }
 
 // ---- 隊員羈絆：成員皆在隊時生效（固定班底恆成立），回傳該 sprite 的加成 ----
-function bondBonus(sprite){
-  const present = s => HERO_BASE.some(h=>h.sprite===s);
-  let atk=0,def=0,hp=0,heal=0;
-  BONDS.forEach(b=>{ if(b.members.includes(sprite) && b.members.every(present)){
-    atk+=b.atk||0; def+=b.def||0; hp+=b.hp||0; heal+=b.heal||0; } });
-  return {atk,def,hp,heal};
-}
-function activeBonds(){ const present=s=>HERO_BASE.some(h=>h.sprite===s); return BONDS.filter(b=>b.members.every(present)); }
+// 隊員羈絆（v0.8）：改為戰鬥行為觸發，bondBonus 已停用（保留空殼避免舊呼叫出錯）。
+function bondBonus(sprite){ return {atk:0,def:0,hp:0,heal:0}; }
+function activeBonds(){ const act=new Set(activeRoster().map(i=>CLASS_ORDER[i])); return BONDS.filter(b=>b.members.every(m=>act.has(m))); }
+// 某羈絆觸發（healInvuln/stunMark/killCdCut）是否生效：兩名成員都在出戰名單
+function bondTriggerActive(trigger){ const act=new Set(activeRoster().map(i=>CLASS_ORDER[i]));
+  return BONDS.some(b=>b.trigger===trigger && b.members.every(m=>act.has(m))); }
+
+// ---- v0.8 馬匹專屬功能 ----
+function horseFeature(){ const h=HORSES[GUILD.horse]; return h?h.feature:null; }
+// ---- v0.8 工匠功能解鎖（項目化強化中 effect.feature 型）----
+function hasUpgradeFeature(f){ return UPGRADES.some(u=>u.effect&&u.effect.feature===f&&upgradeOwned(u.id)); }
+function hasCampstove(){ return hasUpgradeFeature('campstove'); }
+function hasAutotrap(){ return hasUpgradeFeature('autotrap'); }
+function hasDeck2(){ return hasUpgradeFeature('deck2'); }
+function hasLedger(){ return hasUpgradeFeature('ledger'); }
+// ---- v0.8 占位者升階功能位（累計）----
+function tierPerk(i){ const t=(ROSTER[i]&&ROSTER[i].tier)||0; const arr=(CFG.recruit.tierPerks)||[]; return arr[Math.min(t,arr.length-1)]||{}; }
+// ---- v0.8 升級 perk（依等級自動獲得功能，取代純堆血）----
+const PERKS = { 3:{id:'swift',label:'疾行：出手速度 +12%'}, 5:{id:'startShield',label:'護身：每場開場護盾 +12'}, 7:{id:'extraUse',label:'熟練：技能每場多 1 次使用'} };
+function perkAtLevel(lv){ return PERKS[lv]||null; }
+function heroPerks(i){ const lv=(ROSTER[i]&&ROSTER[i].level)||1; const out={intervalMul:1, startShield:0, useBonus:0};
+  Object.keys(PERKS).forEach(k=>{ if(lv>=+k){ const p=PERKS[k]; if(p.id==='swift')out.intervalMul*=0.88; if(p.id==='startShield')out.startShield+=12; if(p.id==='extraUse')out.useBonus+=1; } });
+  return out; }
 
 // ---- 隊形：站位（座標＋row）與站位加減成（取代固定羈絆）----
 function currentFormation(){ return FORMATIONS[GUILD.formation||0] || FORMATIONS[0]; }
@@ -187,7 +213,8 @@ function gainXP(amount){
   const ups=[];
   activeRoster().forEach(i=>{ const r=ROSTER[i], cap=classCap(i); r.xp+=amount;
     while(r.level<cap && r.xp>=xpNeed(r.level)){ r.xp-=xpNeed(r.level); r.level++; ups.push(`${HERO_BASE[i].name} → Lv${r.level}`);
-      (SKILLS[HERO_BASE[i].sprite]||[]).filter(s=>s.lv===r.level).forEach(s=>ups.push(`🎓 ${HERO_BASE[i].name} 習得「${s.name}」`)); }
+      (SKILLS[HERO_BASE[i].sprite]||[]).filter(s=>s.lv===r.level).forEach(s=>ups.push(`🎓 ${HERO_BASE[i].name} 習得「${s.name}」`));
+      const pk=perkAtLevel(r.level); if(pk) ups.push(`✨ ${HERO_BASE[i].name} ${pk.label}`); }
     if(r.level>=cap){ r.xp=Math.min(r.xp, xpNeed(r.level)-1); }   // 達上限：經驗封頂、不再升
   });
   return ups;
@@ -205,6 +232,9 @@ function initRun(){
     cargo: [], food: 0, slots: 0,
     map: null, encounter:null, isBoss:false,
     cookBuff:{atk:0,def:0},
+    // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
+    cookShield:0, reviveCharge:0, cookFirstCrit:false,
+    trampleUsed:false, starveImmuneUsed:false, deckExpanded:false,
   };
 }
 // 保存目前配裝（武器/防具名稱）到 ROSTER，跨輪不重置
@@ -217,16 +247,20 @@ function heroStat(h){
   let pdef=0, healB=0, patk=0, phpB=0;
   sk.forEach(s=>{ if(s.type==='passiveDef') pdef+=s.def; if(s.type==='healBoost') healB+=s.amt;
     if(s.type==='passiveAtk') patk+=(s.atk||0); if(s.type==='passiveHp') phpB+=(s.hp||0); });
-  const bl=guildBlessing();   // 神殿祝福（場外加成）
+  const bl=guildBlessing();   // 遺物即時效果（數值部分；規則部分由戰鬥讀取）
   const bo=formationMod(h.sprite); // 隊形站位加減成（取代固定羈絆）
+  // 遺物・神王冠冕（寡兵越強）：每空一個出戰席位，全隊 ATK/DEF +3、HP +20
+  let soloA=0,soloD=0,soloH=0;
+  if(bl.soloBoost){ const empty=Math.max(0, CLASS_ORDER.length - activeRoster().length); soloA=3*empty; soloD=3*empty; soloH=20*empty; }
   const baseHp=HERO_BASE[h.idx].hp;   // 基礎血量取自職業設定（h.hp 是「當前血量」會變動，不能拿來算上限）
-  // 攻防來源：武器/防具 ＋ 被動技能 ＋ 遺物祝福 ＋ 羈絆；角色本身無基礎攻防，純等級只給 HP
+  // 攻防來源：武器/防具 ＋ 被動技能 ＋ 遺物 ＋ 寡兵；角色本身無基礎攻防，純等級只給 HP
   return {
     level:  lv,
-    maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB,
-    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk),
-    def:    h.armor.def + pdef + bl.def + bo.def,
+    maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB + soloH,
+    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA),
+    def:    h.armor.def + pdef + bl.def + bo.def + soloD,
     heal:   (h.weapon.heal? h.weapon.heal + healB + bo.heal + bl.heal : 0),
     skills: sk,
+    weaponTrait: h.weapon.trait||null, armorTrait: h.armor.trait||null,   // v0.8 裝備特性（戰鬥讀取）
   };
 }

@@ -72,7 +72,14 @@ class MapScene extends Phaser.Scene {
     button(this, W-90, H-34, 150, 36, '⮌ 撤退收工', ()=>this.retreat(), {size:14,fill:0x6b3a3a,stroke:0xd05a5a,hover:0x8c4c4c});
     button(this, 100, H-34, 150, 36, '🎒 整理裝備', ()=>{ RUN.equipOpen=true; RUN.equipSel=null; this.scene.restart(); }, {size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     button(this, 268, H-34, 116, 36, '⚔ 隊形', ()=>this.scene.start('FormationHall',{from:'Map'}), {size:13,fill:0x4a3f63,stroke:0x9a7fd0,hover:0x6a5d8a});
-    if(hasLeader()) button(this, 400, H-34, 116, 36, '🍳 領隊料理', ()=>{ RUN.cookOpen=true; this.scene.restart(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
+    if(hasLeader()||hasCampstove()) button(this, 400, H-34, 116, 36, '🍳 料理', ()=>{ RUN.cookOpen=true; this.scene.restart(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
+    // 工匠・商隊帳房（ledger）：途中變賣貴重物品換資金
+    if(hasLedger()){ const nVal=RUN.cargo.filter(it=>it.kind==='貴重物品').length;
+      button(this, 532, H-34, 140, 36, `💰 帳房變賣(${nVal})`, ()=>{ const v=RUN.cargo.filter(it=>it.kind==='貴重物品');
+        if(!v.length){ RUN.itemToast='沒有可變賣的貴重物品'; this.scene.restart(); return; }
+        let g=0; v.forEach(it=>{ g+=Math.round(it.value*CFG.merchant.sellRate); const i=RUN.cargo.indexOf(it); if(i>=0)RUN.cargo.splice(i,1); });
+        GUILD.funds+=g; saveGuild(); RUN.itemToast=`帳房變賣 ${v.length} 件，得 ＄${g}`; this.scene.restart(); },
+        {size:11,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c}); }
     if(!m.started){ m.started=true; }
     if(RUN.pendingReward){ const pr=RUN.pendingReward; RUN.pendingReward=null; this.showReward(pr); }
     if(RUN.equipOpen){ this.openEquip(RUN.equipSel); }
@@ -182,14 +189,24 @@ class MapScene extends Phaser.Scene {
   }
   enterNode(n){
     RUN.map.current=n.id; RUN.node=n; RUN.cookOpen=false;
+    const forage = horseFeature()==='forage';   // 耐力馬
     if(!relicEffects().noFoodDrain){ RUN.food-=n.food;   // 潮汐之冠：探索不耗食物
-      const tx=TERRAIN_BY_ID[n.terrain]; if(tx&&tx.eff&&tx.eff.foodPlus) RUN.food-=tx.eff.foodPlus; }  // 水域：多耗糧
-    if(RUN.food<0){ this.starve(); if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; } }
-    // 陷阱：有領隊拆除、無則觸發扣血
-    if(n.trap){ if(hasLeader()){ RUN.itemToast='🧭 領隊拆除了陷阱'; }
+      const tx=TERRAIN_BY_ID[n.terrain]; if(tx&&tx.eff&&tx.eff.foodPlus && !forage) RUN.food-=tx.eff.foodPlus; }  // 水域：多耗糧（耐力馬免）
+    if(RUN.food<0){
+      if(forage && !RUN.starveImmuneUsed){ RUN.starveImmuneUsed=true; RUN.food=0; RUN.itemToast='🐴 耐力馬撐過了糧盡'; }   // 耐力馬：首次糧盡免傷
+      else { this.starve(); if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; } } }
+    // 陷阱：有領隊或「拆陷阱機關」拆除、無則觸發扣血
+    if(n.trap){ if(hasLeader()||hasAutotrap()){ RUN.itemToast = hasLeader()?'🧭 領隊拆除了陷阱':'🔧 拆陷阱機關拆除了陷阱'; }
       else { RUN.heroes.forEach(h=>{ if(h.hp>0) h.hp=Math.max(0, h.hp-Math.round(heroStat(h).maxHp*n.trap)); });
         if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; }
         RUN.itemToast='⚠ 觸發陷阱！全隊受創'; } }
+    // 馬匹・力量馬（碾過）：每趟免戰穿越第一個一般戰鬥節點
+    if(n.type==='battle' && horseFeature()==='trample' && !RUN.trampleUsed){
+      RUN.trampleUsed=true; n.done=true;
+      const xp=CFG.battleXp.base+(n.risk||1)*CFG.battleXp.perRisk; const ups=gainXP(xp); saveGuild();
+      RUN.itemToast='🐎 力量馬碾過了敵陣（免戰）'+((ups&&ups.length)?'　'+ups[0]:'');
+      this.scene.restart(); return;
+    }
     if(n.type==='battle'||n.type==='elite'){
       RUN.encounter=buildEncounter(n); RUN.isBoss=false; this.scene.start('Battle');
     } else if(n.type==='relic'){
@@ -246,12 +263,12 @@ class MapScene extends Phaser.Scene {
     const W=this.scale.width,H=this.scale.height;
     this.add.rectangle(0,0,W,H,0x000000,0.7).setOrigin(0).setDepth(90).setInteractive();
     this.add.rectangle(W/2,H/2,560,430,TH.panel).setStrokeStyle(3,0xd0b05a).setDepth(91);
-    txt(this,W/2,H/2-190,'🍳 領隊料理',20,'#ffd24a').setDepth(95);
-    txt(this,W/2,H/2-165,'消耗食材換取補血／本趟增益（buff 持續整趟）',12,TH.dim).setDepth(95);
+    txt(this,W/2,H/2-190,'🍳 料理',20,'#ffd24a').setDepth(95);
+    txt(this,W/2,H/2-165,'消耗食材換取補血或一次性功能（下一場戰鬥生效）',12,TH.dim).setDepth(95);
     const ing=INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（庫存無食材）';
     txt(this,W/2,H/2-140,'食材庫存：'+ing,12,TH.cyan).setDepth(95);
-    const cb=RUN.cookBuff||{atk:0,def:0};
-    if(cb.atk||cb.def) txt(this,W/2,H/2-120,`本趟料理加成：ATK+${cb.atk}　DEF+${cb.def}`,11,'#9fe8a0').setDepth(95);
+    const pend=[]; if(RUN.cookShield)pend.push('開場護盾+'+RUN.cookShield); if(RUN.reviveCharge)pend.push('復活充能×'+RUN.reviveCharge); if(RUN.cookFirstCrit)pend.push('首擊必暴');
+    if(pend.length) txt(this,W/2,H/2-120,'下場待生效：'+pend.join('　'),11,'#9fe8a0').setDepth(95);
     RECIPES.forEach((r,i)=>{ const y=H/2-90+i*58; const ok=canCook(r);
       this.add.rectangle(W/2,y,520,50,0x241a30).setStrokeStyle(2, ok?0x5ad06a:0x55476b).setDepth(94);
       txt(this,W/2-245,y-10,r.name,15, ok?TH.gold:TH.dim,0).setDepth(95);
