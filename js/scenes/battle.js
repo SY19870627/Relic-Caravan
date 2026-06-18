@@ -15,6 +15,7 @@ class Battle extends Phaser.Scene {
     this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
     this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
     this.add.rectangle(0,360,W,3,0x0a0710).setOrigin(0);
+    const _hb=this.add.graphics().setDepth(59); _hb.fillStyle(UI.bg2,0.8); _hb.fillRoundedRect(8,8,W-16,62,10); _hb.lineStyle(1.5,UI.lineN,0.6); _hb.strokeRoundedRect(8,8,W-16,62,10);
     this.torch(120,150); this.torch(W-120,150);
     this.fxFlash=this.add.rectangle(0,0,W,H,0xffffff,1).setOrigin(0).setDepth(95).setAlpha(0); // 全螢幕閃光層
 
@@ -25,7 +26,7 @@ class Battle extends Phaser.Scene {
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0);
     this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
     const envParts=[]; if(wx&&wx.eff)envParts.push(wx.icon+wx.name); if(tx&&tx.eff)envParts.push(tx.icon+tx.name); if(cb.atk||cb.def)envParts.push('🍳料理');
-    if(envParts.length) txt(this,W/2,58,'環境／加成：'+envParts.join('　'),11,'#9fd0ff').setDepth(60);
+    if(envParts.length) txt(this,W/2,57,'環境／加成　'+envParts.join('　'),11,UI.blue).setDepth(60);
     // 英雄
     this.heroes=RUN.heroes.map((h,idx)=>{ const s=heroStat(h), fs=formationSlot(h.sprite);
       const atkSeq=s.atkSeq.map(a=>Math.max(1,a+this._heroAtkMod)), def=s.def+this._heroDefMod;
@@ -49,7 +50,7 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
     if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }   // 料理一次性效果讀取後即清
 
-    txt(this,W/2,18,'ℹ 點擊任一角色可查看明細（會暫停戰鬥）',12,TH.dim).setDepth(60);
+    txt(this,W/2,20,'點擊任一角色可查看明細（會暫停戰鬥）',12,UI.dim).setDepth(60);
     // 戰鬥速度（跨場記住）
     this.speed = BATTLE_SPEED || 1;
     this.tweens.timeScale = this.speed; this.time.timeScale = this.speed;
@@ -59,7 +60,7 @@ class Battle extends Phaser.Scene {
       this.speedBtn.label.setText(`速度 x${this.speed}`);
     }, {size:12,fill:0x33486b,stroke:0x5a8cd0,hover:0x466a9c});
     this.speedBtn.setDepth(60);
-    this.waveText = txt(this,W/2,40,'',13,'#ffd24a').setDepth(60);
+    this.waveText = txt(this,W/2,39,'',13,UI.gold).setDepth(60);
     this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(100);
     this.spawnWave();
   }
@@ -120,7 +121,7 @@ class Battle extends Phaser.Scene {
     const W=this.scale.width,H=this.scale.height, px=W/2, py=H/2;
     const ui=this.add.container(0,0).setDepth(105); this.infoUI=ui;
     ui.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());
-    ui.add(this.add.rectangle(px,py,380,260,TH.panel).setStrokeStyle(3, c.side==='hero'?0x5ad06a:0xd05a5a));
+    ui.add(panel(this,px,py,380,260,{accent: c.side==='hero'?'green':'red'}));
     const img=this.add.image(px-120,py-30,c.sprite).setScale(c.sprite==='guardian'?4.5:5); if(c.side==='enemy') img.setFlipX(true);
     ui.add(img);
     const type=c.boss?'首領':(c.healer?'治療':(c.ranged?'遠程':'近戰'));

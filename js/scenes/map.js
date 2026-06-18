@@ -34,9 +34,8 @@ class MapScene extends Phaser.Scene {
   constructor(){ super('Map'); }
   create(){
     const W=this.scale.width, H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.45);
-    this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
-    txt(this,W/2,24,'地 城 路 線'+(RUN.destName?` — ${RUN.destName}　${'★'.repeat(RUN.destTier||1)}`:''),20,TH.gold);
+    sceneBg(this,{glow:0xf0975a});
+    sceneHeader(this,'地 城 路 線', RUN.destName? (RUN.destName+'　'+'★'.repeat(RUN.destTier||1)) : '', {accent:'ember'});
 
     this.drawHUD();
     this.nodePos={};
@@ -88,7 +87,7 @@ class MapScene extends Phaser.Scene {
   showReward(pr){
     const W=this.scale.width,H=this.scale.height;
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
-    this.add.rectangle(W/2,H/2,440,300,TH.panel).setStrokeStyle(3,0x5ad06a).setDepth(91);
+    panel(this,W/2,H/2,440,300,{accent:'green'}).setDepth(91);
     txt(this,W/2,H/2-118,'戰鬥勝利！戰利品',18,TH.green).setDepth(92);
     let y=H/2-86;
     if(!pr.got.length && !pr.full.length){ txt(this,W/2,y,'這次沒有掉落',14,TH.dim).setDepth(92); y+=26; }
@@ -110,7 +109,7 @@ class MapScene extends Phaser.Scene {
     const cargoGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具');
     if(sel!=null && sel>=cargoGear.length) sel=null;
     this.add.rectangle(0,0,W,H,0x000000,0.7).setOrigin(0).setDepth(90).setInteractive();
-    this.add.rectangle(W/2,H/2,780,470,TH.panel).setStrokeStyle(3,0x5a8cd0).setDepth(91);
+    panel(this,W/2,H/2,780,470,{accent:'blue'}).setDepth(91);
     txt(this,W/2,H/2-205,'🎒 整理裝備',20,'#9fd0ff').setDepth(95);
     txt(this,W/2,H/2-182, sel!=null?'選擇要裝上的隊員（換下的會放回貨車）':'穿在身上的裝備全滅時不會遺失；貨車裡的會。把好裝備換上身。',12, sel!=null?'#5ad06a':TH.dim).setDepth(95);
     RUN.heroes.forEach((h,i)=>{
@@ -145,13 +144,13 @@ class MapScene extends Phaser.Scene {
   }
   drawHUD(){
     const W=this.scale.width;
-    this.add.rectangle(0,46,W,34,0x000000,0.5).setOrigin(0);
-    txt(this,16,63,`🍖 食物 ${RUN.food}`,15, RUN.food<=1?TH.red:TH.text,0);
-    txt(this,150,63,`📦 貨格 ${RUN.cargo.length}/${RUN.slots}`,15, RUN.cargo.length>=RUN.slots?TH.red:TH.text,0);
-    // 隊伍 HP
-    let x=300; const step=RUN.heroes.length>=5?116:150;
-    RUN.heroes.forEach(h=>{ const s=heroStat(h);
-      txt(this,x,63,`${h.name} ${Math.max(0,h.hp)}/${s.maxHp}`,11, h.hp<=0?TH.red:'#9fd0a0',0); x+=step; });
+    const g=this.add.graphics(); g.fillStyle(UI.panelN,0.92); g.fillRoundedRect(10,52,W-20,38,10); g.lineStyle(1.5,UI.lineN,0.7); g.strokeRoundedRect(10,52,W-20,38,10);
+    chip(this,22,71,{label:'食物 '+RUN.food, accent: RUN.food<=1?'red':'green', icon:'flame', size:12, h:26});
+    chip(this,128,71,{label:'貨格 '+RUN.cargo.length+'/'+RUN.slots, accent: RUN.cargo.length>=RUN.slots?'red':'teal', icon:'box', size:12, h:26});
+    let x=270; const step=RUN.heroes.length>=5?120:150;
+    RUN.heroes.forEach(h=>{ const s=heroStat(h); const dead=h.hp<=0;
+      icon(this,x,71,'heart',13, dead?UI.redN:UI.greenN);
+      txt(this,x+12,71,h.name+' '+Math.max(0,Math.round(h.hp))+'/'+s.maxHp,11, dead?UI.red:UI.text,0); x+=step; });
   }
   drawNode(n, reach, isCur){
     const p=this.nodePos[n.id], info=NODE_INFO[n.type];
@@ -225,7 +224,7 @@ class MapScene extends Phaser.Scene {
     const W=this.scale.width,H=this.scale.height;
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
     const box=this.add.container(W/2,H/2).setDepth(91);
-    box.add(this.add.rectangle(0,0,420,200,TH.panel).setStrokeStyle(3,0xe7c14a));
+    box.add(panel(this,0,0,420,200,{accent:'gold'}));
     box.add(txt(this,0,-70,'發現寶箱！',20,TH.gold));
     let msg, color=TH.text;
     if(RUN.cargo.length>=RUN.slots){ msg=`貨車已滿，只能忍痛放棄\n${item.icon} ${item.name}`; color=TH.red; }
@@ -253,7 +252,7 @@ class MapScene extends Phaser.Scene {
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>e.cond())) || pool[1];
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
     const box=this.add.container(W/2,H/2).setDepth(91);
-    box.add(this.add.rectangle(0,0,440,210,TH.panel).setStrokeStyle(3,0x6fae6f));
+    box.add(panel(this,0,0,440,210,{accent:'green'}));
     box.add(txt(this,0,-72,ev.title,20,'#9fe8a0'));
     box.add(txt(this,0,-30,ev.text,14,TH.text));
     button(this,0,0,200,40,ev.btn,()=>{ RUN.itemToast=ev.act(); this.scene.restart(); },{size:15,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c}).setDepth(92).setPosition(W/2-100,H/2+58);
@@ -262,7 +261,7 @@ class MapScene extends Phaser.Scene {
   openCook(){
     const W=this.scale.width,H=this.scale.height;
     this.add.rectangle(0,0,W,H,0x000000,0.7).setOrigin(0).setDepth(90).setInteractive();
-    this.add.rectangle(W/2,H/2,560,430,TH.panel).setStrokeStyle(3,0xd0b05a).setDepth(91);
+    panel(this,W/2,H/2,560,430,{accent:'gold'}).setDepth(91);
     txt(this,W/2,H/2-190,'🍳 料理',20,'#ffd24a').setDepth(95);
     txt(this,W/2,H/2-165,'消耗食材換取補血或一次性功能（下一場戰鬥生效）',12,TH.dim).setDepth(95);
     const ing=INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（庫存無食材）';

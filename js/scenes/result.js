@@ -1,72 +1,76 @@
-// ========================= 結算 =========================
+// ========================= 結算（v0.9 重塑）=========================
 class Result extends Phaser.Scene {
   constructor(){ super('Result'); }
   create(data){
     const W=this.scale.width,H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.4);
-    this.add.rectangle(0,0,W,H,0x0e0a14,0.55).setOrigin(0);
     const o=data.outcome;
-    let title,color,note,keep;
-    if(o==='clear'){ title='完整通關！'; color=TH.gold; note='抵達遺物室並擊敗守護者，滿載而歸'; keep=true; }
-    else if(o==='retreat'){ title='撤退收工'; color=TH.cyan; note='見好就收，平安帶著沿途戰利品返回'; keep=true; }
-    else { title='全員倒下'; color=TH.red; note='傳送卷軸啟動 — 平安歸來，但貨車戰利品全失，僅保留身上裝備'; keep=false; }
-    txt(this,W/2,80,title,40,color).setStroke('#000',6);
-    txt(this,W/2,128,note,15,TH.text);
+    let title,acc,note,keep;
+    if(o==='clear'){ title='完整通關！'; acc='gold'; note='抵達遺物室並擊敗守護者，滿載而歸'; keep=true; }
+    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，平安帶著沿途戰利品返回'; keep=true; }
+    else { title='全員倒下'; acc='red'; note='傳送卷軸啟動 — 平安歸來，但貨車戰利品全失，僅保留身上裝備'; keep=false; }
+    const A=accent(acc);
+    sceneBg(this,{glow:A.num});
+    const t=txt(this,W/2,72,title,38,A.hex).setStroke('#07060f',6).setShadow(0,3,'#000',8,false,true);
+    txt(this,W/2,118,note,14,UI.text);
 
     if(!keep){
-      // 全滅：貨車戰利品全失
-      txt(this,W/2,250,'貨車上的一切都留在了地城深處…',16,TH.red);
-      txt(this,W/2,290,`（損失 ${RUN.cargo.length} 件戰利品）`,13,TH.dim);
-      txt(this,W/2,350,'隊員身上的武器與防具得以保留，下次再來。',14,TH.text);
-      button(this,W/2,470,220,44,'⟳ 回公會大廳',()=>{ initRun(); this.scene.start('GuildHall'); },{size:18,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
+      const p=panel(this,W/2,300,560,150,{accent:'red',title:'貨車戰利品全失',icon:'skull',titleSize:15});
+      txt(this,W/2,p.bodyTop+18,'貨車上的一切都留在了地城深處…',15,UI.red);
+      txt(this,W/2,p.bodyTop+44,'（損失 '+RUN.cargo.length+' 件戰利品）',12,UI.dim);
+      txt(this,W/2,p.bodyTop+74,'隊員身上的武器與防具得以保留，下次再來。',13,UI.text);
+      button(this,W/2,470,240,46,'回公會大廳',()=>{ initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
       return;
     }
-    // 完整通關／撤退：逐項勾選保留 or 賣出
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
-    const resources=RUN.cargo.filter(i=>i.kind==='素材'||i.kind==='食材');   // 自動入庫
+    const resources=RUN.cargo.filter(i=>i.kind==='素材'||i.kind==='食材');
     const rank=it=>(it.kind==='武器'||it.kind==='防具')?0:(it.kind==='貴重物品'?1:2);
     this.others=RUN.cargo.filter(i=>i.kind!=='遺物'&&i.kind!=='素材'&&i.kind!=='食材').sort((a,b)=> rank(a)-rank(b) || b.value-a.value);
-    // 預設：武器/防具保留，其餘賣出
     this.others.forEach(it=>{ if(it._keep===undefined) it._keep=(it.kind==='武器'||it.kind==='防具'); });
-    this.add.rectangle(W/2,360,690,376,TH.panel).setStrokeStyle(2,0x3a3150);
-    txt(this,W/2,182,'── 戰利品結算（勾選要保留的，其餘賣成資金）──',14,TH.gold);
-    const relicVal=relics.reduce((a,b)=>a+(b.value||0),0);
-    txt(this,W/2,206, relics.length?`🏛 遺物 ×${relics.length}（${relics.map(r=>r.name).join('、')}）自動入收藏 → 即時生效`:'（本趟沒有帶回遺物）',13, relics.length?TH.cyan:TH.dim).setWordWrapWidth(660);
-    if(resources.length){ const rc={}; resources.forEach(r=>rc[r.icon+r.name]=(rc[r.icon+r.name]||0)+1);
-      txt(this,W/2,252,'🛠 素材／食材 '+Object.keys(rc).map(k=>k+'×'+rc[k]).join('　')+' 自動入庫',12,'#cdeecd').setWordWrapWidth(660); }
-    // 一鍵全保留 / 全賣出
-    button(this, W/2-150, 232, 150, 26, '全部保留 ✓', ()=>{ this.others.forEach(it=>it._keep=true); this.renderList(); }, {size:12,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
-    button(this, W/2+150, 232, 150, 26, '全部賣出 ＄', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
+
+    const pnl=panel(this,W/2,346,720,356,{accent:acc,title:'戰利品結算　·　勾選保留，其餘賣成資金',icon:'chest',titleSize:15});
+    this.bodyTop=pnl.bodyTop;
+    let yy=pnl.bodyTop+4;
+    if(relics.length){ const rc=chip(this,0,yy+8,{label:'遺物 ×'+relics.length+'　'+relics.map(r=>r.name).join('、')+'　→ 入收藏即時生效',accent:'violet',icon:'relic',size:11,h:24}); rc.setX(W/2-rc.w/2); }
+    else txt(this,W/2,yy+8,'（本趟沒有帶回遺物）',12,UI.faint);
+    yy+=30;
+    if(resources.length){ const rcc={}; resources.forEach(r=>rcc[r.name]=(rcc[r.name]||0)+1);
+      const rs=chip(this,0,yy+8,{label:'素材／食材　'+Object.keys(rcc).map(k=>k+'×'+rcc[k]).join('  ')+'　→ 自動入庫',accent:'teal',size:11,h:22}); rs.setX(W/2-rs.w/2); yy+=26; }
+
+    button(this, W/2-180, yy+12, 160, 28, '全部保留', ()=>{ this.others.forEach(it=>it._keep=true); this.renderList(); }, {variant:'go',size:12});
+    button(this, W/2+180, yy+12, 160, 28, '全部賣出', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {variant:'gold',size:12});
+    this.listTop=yy+40;
     this.listGroup=[];
     this.renderList();
-    button(this,W/2,524,240,40,'✓ 帶回公會',()=>{
+    button(this,W/2,524,240,42,'帶回公會',()=>{
       RUN.cargo.forEach(it=>{ if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)) GUILD.relics.push(it.relicId); }
         else if(it.kind==='素材'){ addMaterial(it.matId); }
         else if(it.kind==='食材'){ addIngredient(it.ingId); }
         else if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; });
       saveGuild(); initRun(); this.scene.start('GuildHall');
-    },{size:17,fill:0x3a6b3a,stroke:0x5ad06a,hover:0x4c8c4c});
+    },{variant:'go',size:17,icon:'home',iconSize:16});
   }
   renderList(){
     const W=this.scale.width;
     if(this.listGroup) this.listGroup.forEach(o=>o.destroy());
     this.listGroup=[];
-    let y=266; const cap=7;
-    if(!this.others.length) this.listGroup.push(txt(this,W/2,286,'沒有其他雜物',13,TH.dim));
+    let y=this.listTop; const cap=6;
+    if(!this.others.length) this.listGroup.push(txt(this,W/2,y+6,'沒有其他雜物',13,UI.dim));
     this.others.slice(0,cap).forEach(it=>{
-      const gear=(it.kind==='武器'||it.kind==='防具');
-      this.listGroup.push(txt(this,W/2-300,y,`${it.icon} ${it.name}`,14, gear?'#9fe8ff':TH.text,0));
-      this.listGroup.push(txt(this,W/2-110,y,it.kind,12,TH.dim,0));
-      this.listGroup.push(txt(this,W/2+10,y,`價值 ${it.value}`,12,'#cdeecd',0));
-      const b=button(this, W/2+200, y, 120,26, it._keep?'保留 ✓':'賣出 ＄', ()=>{ it._keep=!it._keep; this.renderList(); },
-        {size:13, fill: it._keep?0x3a6b3a:0x6b5a3a, stroke: it._keep?0x5ad06a:0xd0b05a});
-      this.listGroup.push(b);
-      y+=28;
+      const gear=(it.kind==='武器'||it.kind==='防具'), row=this.add.graphics();
+      row.fillStyle(it._keep?0x1f2c22:UI.panelN, 0.9); row.fillRoundedRect(W/2-330,y-15,660,30,8);
+      row.lineStyle(1.5, it._keep?UI.greenN:UI.lineN, 0.7); row.strokeRoundedRect(W/2-330,y-15,660,30,8);
+      this.listGroup.push(row);
+      this.listGroup.push(icon(this, W/2-312, y, gear?(it.kind==='武器'?'sword':'shield'):(it.kind==='貴重物品'?'coin':'flame'), 15, gear?UI.tealN:UI.goldN));
+      this.listGroup.push(txt(this,W/2-296,y,it.name,13, gear?UI.teal:UI.text,0));
+      this.listGroup.push(txt(this,W/2-120,y,it.kind,11,UI.dim,0));
+      this.listGroup.push(txt(this,W/2-10,y,'價值 '+it.value,11,UI.green,0));
+      this.listGroup.push(button(this, W/2+255, y, 120,26, it._keep?'保留':'賣出', ()=>{ it._keep=!it._keep; this.renderList(); },
+        {variant: it._keep?'go':'gold', size:12}));
+      y+=36;
     });
-    if(this.others.length>cap){ this.listGroup.push(txt(this,W/2,y,`…及其餘 ${this.others.length-cap} 件（依目前設定處理；可用上方一鍵全保留/全賣出）`,11,TH.dim)); }
+    if(this.others.length>cap){ this.listGroup.push(txt(this,W/2,y,'…及其餘 '+(this.others.length-cap)+' 件（依目前設定處理）',11,UI.dim)); y+=22; }
     const sell=this.others.filter(i=>!i._keep).reduce((a,b)=>a+b.value,0);
-    const kept=this.others.filter(i=>i._keep);
-    const keptVal=kept.reduce((a,b)=>a+b.value,0);
-    this.listGroup.push(txt(this,W/2, 490, `💰 賣出得 ＄${sell}（公會現有 ＄${GUILD.funds}）　🎒 保留 ${kept.length} 件（價值 ${keptVal}）`,14,TH.green));
+    const kept=this.others.filter(i=>i._keep); const keptVal=kept.reduce((a,b)=>a+b.value,0);
+    this.listGroup.push(txt(this,W/2, 488, '賣出得 ＄'+sell+'（公會現有 ＄'+GUILD.funds+'）　·　保留 '+kept.length+' 件（價值 '+keptVal+'）',13,UI.green));
   }
 }
