@@ -5,6 +5,23 @@ let RUN = null;
 const SPRITE_INDEX = {}; HERO_BASE.forEach((h,i)=>{ SPRITE_INDEX[h.sprite]=i; });
 const CLASS_ORDER = HERO_BASE.map(h=>h.sprite);   // ['warrior','ranger','priest','mage','rogue']
 
+// ---- v0.9 職業裝備限制：武器依職業、防具依重量 ----
+const WEAPON_CLASS = { '鐵劍':'warrior','雙手斧':'warrior','雙刃劍':'warrior','巨劍':'warrior',
+  '短弓':'ranger','獵弓':'ranger','戰弓':'ranger', '橡木杖':'priest','聖光杖':'priest','神息法杖':'priest',
+  '火花杖':'mage','烈焰法杖':'mage', '短刃':'rogue','匕首':'rogue' };
+const ARMOR_CLASSES = { '布衣':['warrior','ranger','priest','mage','rogue'], '皮甲':['warrior','ranger','rogue'],
+  '鎖子甲':['warrior'], '法袍':['priest','mage'], '精鋼板甲':['warrior'], '守護重盔':['warrior'],
+  '法師長袍':['priest','mage'], '龍鱗甲':['warrior'] };
+const CLASS_LABEL = { warrior:'戰士', ranger:'遊俠', priest:'牧師', mage:'法師', rogue:'盜賊' };
+function weaponClassOK(sprite,w){ if(!w) return true; const c=WEAPON_CLASS[w.name]; return !c || c===sprite; }
+function armorClassOK(sprite,a){ if(!a) return true; const cs=ARMOR_CLASSES[a.name]; return !cs || cs.includes(sprite); }
+function gearClassOK(sprite,item){ if(!item) return true; const g=item.gear||item;
+  if(item.kind==='武器'|| (g&&g.atkSeq)) return weaponClassOK(sprite,g);
+  if(item.kind==='防具'|| (g&&g.def!==undefined&&!g.atkSeq)) return armorClassOK(sprite,g);
+  return true; }
+function weaponClassLabel(w){ const c=WEAPON_CLASS[w.name]; return c?CLASS_LABEL[c]:'通用'; }
+function armorClassLabel(a){ const cs=ARMOR_CLASSES[a.name]; return (!cs||cs.length>=5)?'通用':cs.map(x=>CLASS_LABEL[x]).join('/'); }
+
 // 跨輪保存的公會狀態
 function defaultGuild(){ return {
   funds:0, stash:[], relics:[],

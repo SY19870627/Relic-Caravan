@@ -50,7 +50,7 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
     if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }   // 料理一次性效果讀取後即清
 
-    txt(this,W/2,20,'點擊任一角色可查看明細（會暫停戰鬥）',12,UI.dim).setDepth(60);
+    txt(this,W/2,20,'點擊角色看細節 ・ 頭上技能格：亮=可用、暗=冷卻中',12,UI.dim).setDepth(60);
     // 戰鬥速度（跨場記住）
     this.speed = BATTLE_SPEED || 1;
     this.tweens.timeScale = this.speed; this.time.timeScale = this.speed;
@@ -112,8 +112,50 @@ class Battle extends Phaser.Scene {
     const obj={...d,side,container:cont,spr,barFill,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
+    if(side==='hero') this.buildSkillPips(obj);
     spr.setInteractive({useHandCursor:true}).on('pointerdown',()=>this.showInfo(obj));
     return obj;
+  }
+  // 角色頭上技能格：顯示擁有的技能，亮=可用、暗=冷卻/用盡
+  buildSkillPips(c){
+    const sk=c.skills||[]; if(!sk.length) return;
+    c.skillPips={};
+    const cont=this.add.container(0,-86).setDepth(70); c.container.add(cont);
+    const sizes=sk.map(s=>Math.max(20, s.name.length*10+10)); const gap=4;
+    let total=sizes.reduce((a,b)=>a+b,0)+gap*(sk.length-1), cx=-total/2;
+    sk.forEach((s,i)=>{ const w=sizes[i], active=s.cd!==undefined;
+      const acc = !active?0x9b93b8 : (s.type==='stun'?0xf2c14e : (s.type==='groupHeal'?0x6ee29a : (s.type==='crit'?0xff6f7a : 0x6aa6f0)));
+      const pc=this.add.container(cx+w/2,0); const g=this.add.graphics();
+      g.fillStyle(0x07060f,0.85); g.fillRoundedRect(-w/2,-9,w,18,6);
+      g.lineStyle(1.5,acc,0.95); g.strokeRoundedRect(-w/2,-9,w,18,6);
+      if(!active){ g.fillStyle(acc,0.85); g.fillRect(-w/2+3,-1.2,3,2.4); }   // 被動：左側標記
+      pc.add([g, txt(this,0,0,s.name,9,'#ece6d6')]); cont.add(pc);
+      c.skillPips[s.name]={c:pc,acc,active,skill:s};
+      cx+=w+gap;
+    });
+  }
+  // 技能施放：閃爍對應技能格 + 在頭上彈出技能名
+  skillCast(c,s){
+    const pip=c.skillPips&&c.skillPips[s.name];
+    if(pip){ this.tweens.add({targets:pip.c,scaleX:1.4,scaleY:1.4,duration:130,yoyo:true,repeat:1,ease:'Quad.out'}); }
+    const accNum = c.side==='hero'? (pip?pip.acc:0x6aa6f0) : 0xff6f7a;
+    const cont=this.add.container(c.container.x, c.baseY-102).setDepth(86);
+    const t=txt(this,0,0,s.name,13,'#ffffff'); const w=t.width+18;
+    const g=this.add.graphics(); g.fillStyle(0x07060f,0.92); g.fillRoundedRect(-w/2,-12,w,24,8); g.lineStyle(2,accNum,1); g.strokeRoundedRect(-w/2,-12,w,24,8);
+    cont.add([g,t]); cont.setScale(0.6);
+    this.tweens.add({targets:cont,scale:1,duration:140,ease:'Back.out'});
+    this.tweens.add({targets:cont,y:cont.y-34,alpha:0,duration:780,delay:240,ease:'Quad.out',onComplete:()=>cont.destroy()});
+  }
+  // 每幀更新技能格亮暗（冷卻/用盡）
+  updateSkillPips(){
+    if(!this.heroes) return; const now=this.time.now;
+    this.heroes.forEach(c=>{ if(!c.skillPips) return;
+      for(const name in c.skillPips){ const p=c.skillPips[name]; let alpha=1;
+        if(!c.alive) alpha=0.18;
+        else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : (now-st.last < p.skill.cd ? 0.5 : 1); } }
+        p.c.setAlpha(alpha);
+      }
+    });
   }
   showInfo(c){
     this.paused=true;
@@ -136,6 +178,7 @@ class Battle extends Phaser.Scene {
     ui.add(button(this,px,py+98,120,32,'關閉',()=>{ ui.destroy(); this.infoUI=null; this.paused=false; },{size:14,fill:0x4a3f63,stroke:0x7a6f93}));
   }
   update(time){
+    this.updateSkillPips();
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
@@ -151,7 +194,6 @@ class Battle extends Phaser.Scene {
     const cx=foes.reduce((a,b)=>a+b.container.x,0)/foes.length, cy=foes.reduce((a,b)=>a+b.container.y,0)/foes.length;
     const orb=this.add.circle(c.container.x+c.facing*18, c.container.y-4, 7, 0x9a7fd0).setDepth(50).setStrokeStyle(2,0xffffff,0.7);
     const cs=this.trySkill(c,'crit'); const opt = cs? {crit:true, mult:cs.mult} : {crit:false};
-    if(cs) this.floatLabel(c.baseX,c.baseY-58,'炎爆!','#c9a0ff');
     this.tweens.add({targets:orb,x:cx,y:cy,duration:240,ease:'Quad.in',onComplete:()=>{ orb.destroy();
       const ring=this.add.circle(cx,cy,12,0xc9a0ff,0.5).setDepth(45); this.tweens.add({targets:ring,radius:95,alpha:0,duration:320,onComplete:()=>ring.destroy()});
       this.shake(120,0.008);
@@ -168,7 +210,7 @@ class Battle extends Phaser.Scene {
     const s=(c.skills||[]).find(k=>k.type===type); if(!s || s.cd===undefined) return null;
     const st=c.skillCD[s.name]; if(!st || st.left<=0) return null;
     if(this.time.now - st.last < s.cd) return null;
-    st.last=this.time.now; st.left--; return s;
+    st.last=this.time.now; st.left--; this.skillCast(c,s); return s;
   }
   act(c){
     // 遺物・殘缺護符（生機）：非治療成員每次行動回復少量 HP
@@ -186,7 +228,7 @@ class Battle extends Phaser.Scene {
       if(c.ranged) this.ranged(c,target,c.healer); else this.melee(c,target);
     }
     // 連射／連環施法：追加一擊（CD＋次數）
-    if(this.trySkill(c,'doubleHit')){ this.floatLabel(c.baseX,c.baseY-52, c.aoe?'連環施法!':'連射!','#9fe8ff');
+    if(this.trySkill(c,'doubleHit')){
       this.time.delayedCall(300,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
         if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=Phaser.Utils.Array.GetRandom(fs); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
   }
@@ -236,7 +278,7 @@ class Battle extends Phaser.Scene {
       if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
       const ring=this.add.circle(a.container.x,a.container.y,10,0x7dff9a,0.5).setDepth(40);
       this.tweens.add({targets:ring,radius:36,alpha:0,duration:450,onComplete:()=>ring.destroy()}); };
-    if(this.trySkill(c,'groupHeal')){ this.floatLabel(c.baseX,c.baseY-52,'群體治療!','#7dff9a'); this.aliveOf(c.side).forEach(healOne); }
+    if(this.trySkill(c,'groupHeal')){ this.aliveOf(c.side).forEach(healOne); }
     else healOne(target);
   }
   damage(c,target,opt){

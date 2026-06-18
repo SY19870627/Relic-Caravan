@@ -124,13 +124,13 @@ class MapScene extends Phaser.Scene {
         txt(this,-42,-12,'防具 '+h.armor.name,11,'#9fd0a0',0),
         txt(this,-42,12,`HP ${s.maxHp} ATK ${s.atkSeq.join('/')} DEF ${s.def}`,11,TH.text,0)]);
       if(canRecv){
-        const item=cargoGear[sel], req=(item.gear&&item.gear.lvReq)||1, ok=s.level>=req;
+        const item=cargoGear[sel], req=(item.gear&&item.gear.lvReq)||1, clsOK=gearClassOK(h.sprite,item), ok=s.level>=req&&clsOK;
         if(ok){
           cont.add(txt(this,0,54,`▶ 換上此${item.kind}`,13,'#5ad06a'));
           bg.setInteractive({useHandCursor:true}).on('pointerdown',()=>{ equipSwap(item,i); RUN.equipSel=null; this.scene.restart(); });
         } else {
           bg.setStrokeStyle(2,0x6b3a3a);
-          cont.add(txt(this,0,54,`職業等級不足，需 Lv${req}`,12,TH.red));
+          cont.add(txt(this,0,54, clsOK?`職業等級不足，需 Lv${req}`:`${h.name} 無法裝備此${item.kind}`,12,TH.red));
         }
       }
     });
@@ -307,6 +307,7 @@ function rollItem(risk, kind){
 }
 function equipSwap(item, heroIndex){
   const h=RUN.heroes[heroIndex], slot=item.kind==='武器'?'weapon':'armor', old=h[slot];
+  if(!gearClassOK(h.sprite,item)) return;
   const oldMax=heroStat(h).maxHp;
   h[slot]=item.gear;
   const newMax=heroStat(h).maxHp;
