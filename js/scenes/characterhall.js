@@ -3,6 +3,7 @@ class CharacterHall extends Phaser.Scene {
   constructor(){ super('CharacterHall'); }
   create(){
     if(!RUN) initRun();
+    syncDiscovered();
     const W=this.scale.width;
     sceneBg(this,{glow:0x56d6c6});
     sceneHeader(this,'角 色 所','',{accent:'teal'});
@@ -33,7 +34,6 @@ class CharacterHall extends Phaser.Scene {
     this.heroCards.forEach((card,k)=>{ card.redraw(k===i); card.lv.setText('Lv'+heroStat(RUN.heroes[k]).level); });
     this.renderDetail();
     this.buildGearButtons();
-    this.refreshEquip();
   }
   renderDetail(){
     if(this._detail) this._detail.forEach(o=>o.destroy());
@@ -59,59 +59,71 @@ class CharacterHall extends Phaser.Scene {
       traits.forEach(t=>{ add(txt(this, ax, y, t[0], 10.5, UI.text, 0)); add(txt(this, ax+116, y, t[1], 10.5, UI.dim, 0).setWordWrapWidth(p.w-150)); y+=17; }); }
   }
   skillCard(x,y,w,sk,unlocked,add){
-    const active=sk.cd!==undefined;
-    const acc = active? (sk.type==='stun'?accent('gold'):(sk.type==='groupHeal'?accent('green'):(sk.type==='crit'?accent('red'):accent('blue')))) : accent('slate');
-    const inner=w-28, perLine=Math.floor(inner/11), lines=Math.max(1, Math.ceil((sk.desc||'').length/perLine)), h=50+lines*16;
+    const active=sk.cd!==undefined, sv=skillVisual(sk), acc=unlocked?accent(sv.accent):accent('slate');
+    const tx=x+52, inner=w-66, perLine=Math.floor(inner/11), lines=Math.max(1, Math.ceil((sk.desc||'').length/perLine)), h=50+lines*16;
     const g=add(this.add.graphics());
     g.fillStyle(UI.raisedN, unlocked?1:0.5); g.fillRoundedRect(x,y,w,h,9);
     g.lineStyle(1.5, acc.num, unlocked?0.85:0.4); g.strokeRoundedRect(x,y,w,h,9);
     g.fillStyle(acc.num, unlocked?1:0.4); g.fillRoundedRect(x,y,4,h,{tl:9,bl:9,tr:0,br:0});
-    add(txt(this, x+14, y+15, sk.name, 14, unlocked?acc.hex:UI.faint, 0, 0.5));
+    g.fillStyle(acc.deep, unlocked?0.55:0.3); g.fillCircle(x+28,y+h/2,16); g.lineStyle(1.5,acc.num,unlocked?0.8:0.35); g.strokeCircle(x+28,y+h/2,16);
+    add(icon(this, x+28, y+h/2, sv.icon, 20, unlocked?acc.num:UI.faint));
+    add(txt(this, tx, y+15, sk.name, 14, unlocked?acc.hex:UI.faint, 0, 0.5));
     const badge = unlocked? '已習得' : 'Lv'+sk.lv+' 解鎖';
     add(chip(this, x+w-10-this._badgeW(badge), y+15, {label:badge, accent: unlocked?'green':'slate', size:9, h:18, filled:unlocked, textColor: unlocked?UI.white:undefined}));
-    add(txt(this, x+14, y+33, active?('主動 ・ CD '+(sk.cd/1000)+' 秒 ・ 每場 '+sk.uses+' 次'):'被動 ・ 自動觸發', 10, UI.dim, 0, 0.5));
-    add(txt(this, x+14, y+46, sk.desc||'', 10.5, unlocked?UI.text:UI.faint, 0).setWordWrapWidth(inner));
+    add(txt(this, tx, y+33, active?('主動 ・ CD '+(sk.cd/1000)+' 秒 ・ 每場 '+sk.uses+' 次'):'被動 ・ 自動觸發', 10, UI.dim, 0, 0.5));
+    add(txt(this, tx, y+46, sk.desc||'', 10.5, unlocked?UI.text:UI.faint, 0).setWordWrapWidth(inner));
     return y+h+8;
   }
   _badgeW(s){ return s.length*10+22; }
   buildGearButtons(){
     if(this._gearObjs) this._gearObjs.forEach(o=>o.destroy());
-    this._gearObjs=[]; const gadd=o=>{this._gearObjs.push(o);return o;};
-    const h=RUN.heroes[this.selHero], p=this.pGear, gx=p.left+18, bw=Math.floor((p.w-44)/2);
-    let y=p.bodyTop+8;
-    this.curText=gadd(txt(this, gx, y, '目前：'+h.weapon.name+'　/　'+h.armor.name, 11, UI.gold, 0)); y+=28;
-    gadd(txt(this, gx, y, h.name+' 可用武器（數值＝傷害・Lv＝需求）', 10, UI.dim, 0)); y+=22;
-    const ws=WEAPONS.filter(w=>w.starter && weaponClassOK(h.sprite,w));
-    this.wpBtns=ws.map((w,i)=>{ const bx=gx+(i%2)*(bw+8)+bw/2, by=y+14+Math.floor(i/2)*32;
-      const b=gadd(button(this, bx, by, bw, 28, w.name+' '+w.atkSeq.join('/')+(w.heal?' ♥'+w.heal:''), ()=>{ if(heroStat(h).level<w.lvReq){this.toast(h.name+' 需 Lv'+w.lvReq);return;} h.weapon=w; persistLoadout(); this.selectHero(this.selHero); }, {size:10.5,fill:UI.raisedN,stroke:UI.lineN}));
-      return {b,w}; });
-    y+=Math.ceil(ws.length/2)*32+12;
-    gadd(txt(this, gx, y, h.name+' 可用防具（D＝防禦・+＝護盾）', 10, UI.dim, 0)); y+=22;
-    const as=ARMORS.filter(a=>a.starter && armorClassOK(h.sprite,a));
-    this.arBtns=as.map((a,i)=>{ const bx=gx+(i%2)*(bw+8)+bw/2, by=y+14+Math.floor(i/2)*32;
-      const b=gadd(button(this, bx, by, bw, 28, a.name+' D'+a.def+' +'+a.hp, ()=>{ if(heroStat(h).level<a.lvReq){this.toast(h.name+' 需 Lv'+a.lvReq);return;} h.armor=a; persistLoadout(); this.selectHero(this.selHero); }, {size:10.5,fill:UI.raisedN,stroke:UI.lineN}));
-      return {b,a}; });
-    y+=Math.ceil(as.length/2)*32+12;
-    const stashGear=[], seen={}; GUILD.stash.forEach(it=>{ if((it.kind==='武器'||it.kind==='防具')&&it.gear&&!seen[it.name]&&gearClassOK(h.sprite,it)){ seen[it.name]=1; stashGear.push(it); } });
-    this.stashBtns=[];
-    if(stashGear.length){
-      gadd(txt(this, gx, y, '倉庫裝備（本職業可用）', 10, UI.violet, 0)); y+=22;
-      this.stashBtns=stashGear.slice(0,6).map((it,i)=>{ const bx=gx+(i%2)*(bw+8)+bw/2, by=y+13+Math.floor(i/2)*30;
-        const b=gadd(button(this, bx, by, bw, 26, it.name+' Lv'+((it.gear.lvReq)||1), ()=>{ const slot=it.kind==='武器'?'weapon':'armor', req=it.gear.lvReq||1;
-          if(heroStat(h).level<req){this.toast(h.name+' 需 Lv'+req);return;} h[slot]=it.gear; persistLoadout(); this.selectHero(this.selHero); this.toast(h.name+' 裝上 '+it.name); }, {size:10.5,fill:UI.raisedN,stroke:UI.lineN}));
-        return {b,it}; });
-    }
+    if(this._gdet) this._gdet.forEach(o=>o.destroy());
+    this._gearObjs=[]; this._gdet=[]; this._gadd=o=>{this._gearObjs.push(o);return o;};
+    const h=RUN.heroes[this.selHero], p=this.pGear, gx=p.left+18, sz=42, pitch=50, lx=gx, sx=gx+52, add=this._gadd;
+    // 已擁有且本職業可用的裝備（武器/防具皆唯一，不分起手或掉落）
+    const weapons=WEAPONS.filter(w=>gearOwned(w.name)&&weaponClassOK(h.sprite,w));
+    const armors =ARMORS.filter(a=>gearOwned(a.name)&&armorClassOK(h.sprite,a));
+    add(txt(this, gx, p.bodyTop+10, '目前：'+h.weapon.name+'　/　'+h.armor.name, 12, UI.gold, 0, 0.5));
+    let y=p.bodyTop+52;
+    add(txt(this, lx, y, '武器', 13, UI.teal, 0, 0.5));
+    weapons.forEach((w,i)=> this.gearSlot(sx+sz/2+i*pitch, y, sz, w, '武器')); y+=62;
+    add(txt(this, lx, y, '防具', 13, UI.blue, 0, 0.5));
+    armors.forEach((a,i)=> this.gearSlot(sx+sz/2+i*pitch, y, sz, a, '防具')); y+=62;
+    add(divider(this, p.cx, y, p.w-36, UI.lineN, 0.5)); this.gdetY=y+14;
+    this.showGearDetail(h.weapon, '武器');
   }
-  refreshEquip(){
-    const h=RUN.heroes[this.selHero]; if(!h) return; const s=heroStat(h);
-    const curW=h.weapon, curWmax=Math.max(...curW.atkSeq), curA=h.armor;
-    const mark=(g,state)=>{ if(!g) return; const col = state==='lock'?0x8a3a3a : state==='equip'?UI.goldN : state==='up'?UI.greenN : UI.lineN;
-      g.bg.setStrokeStyle(state==='equip'||state==='up'?3:2, col); g.setAlpha(state==='lock'?0.5:1); };
-    (this.wpBtns||[]).forEach(({b,w})=>{ if(s.level<w.lvReq) return mark(b,'lock'); if(w===curW) return mark(b,'equip');
-      const better = w.heal>0 ? (w.heal>curW.heal||Math.max(...w.atkSeq)>curWmax) : Math.max(...w.atkSeq)>curWmax; mark(b, better?'up':'norm'); });
-    (this.arBtns||[]).forEach(({b,a})=>{ if(s.level<a.lvReq) return mark(b,'lock'); if(a===curA) return mark(b,'equip'); mark(b,(a.def+a.hp/4)>(curA.def+curA.hp/4)?'up':'norm'); });
-    (this.stashBtns||[]).forEach(({b,it})=>{ const req=it.gear.lvReq||1, slot=it.kind==='武器'?'weapon':'armor'; if(s.level<req) return mark(b,'lock'); if(it.gear===h[slot]) return mark(b,'equip');
-      const better = slot==='weapon' ? (it.gear.heal>0?it.gear.heal>curW.heal:Math.max(...it.gear.atkSeq)>curWmax) : (it.gear.def+it.gear.hp/4)>(curA.def+curA.hp/4); mark(b, better?'up':'norm'); });
+  gearSlot(x,y,sz,item,kind){
+    const h=RUN.heroes[this.selHero], s=heroStat(h), v=itemVisual(item.name), ac=accent(v.accent);
+    const equipped = kind==='武器'? h.weapon.name===item.name : h.armor.name===item.name;
+    const lvOK = s.level>=item.lvReq, curW=h.weapon, curA=h.armor;
+    const better = kind==='武器' ? (item.heal>0?(item.heal>curW.heal||Math.max(...item.atkSeq)>Math.max(...curW.atkSeq)):Math.max(...item.atkSeq)>Math.max(...curW.atkSeq))
+                                 : ((item.def+item.hp/4)>(curA.def+curA.hp/4));
+    const g=this._gadd(this.add.graphics());
+    g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,9);
+    g.fillStyle(equipped?ac.deep:UI.raisedN, lvOK?1:0.5); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
+    g.fillStyle(0xffffff, equipped?0.14:0.05); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz*0.5,9);
+    g.lineStyle(equipped?3:2, equipped?UI.goldN:(!lvOK?0x8a3a3a:ac.num), lvOK?0.95:0.5); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
+    this._gadd(icon(this, x, y-3, v.icon, sz*0.5, lvOK?ac.num:UI.faint));
+    if(!lvOK) this._gadd(txt(this, x, y+sz/2-7, 'Lv'+item.lvReq, 9, UI.red));
+    else if(better){ const tg=this._gadd(this.add.graphics()); tg.fillStyle(UI.greenN,1); tg.fillTriangle(x+sz/2-13,y-sz/2+5,x+sz/2-3,y-sz/2+5,x+sz/2-8,y-sz/2-4); }
+    const hit=this._gadd(this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true}));
+    hit.on('pointerover',()=>this.showGearDetail(item,kind));
+    hit.on('pointerdown',()=>{ if(!lvOK){ this.toast(h.name+' 職業等級不足，需 Lv'+item.lvReq); this.showGearDetail(item,kind); return; }
+      if(kind==='武器') h.weapon=item; else h.armor=item; persistLoadout(); this.selectHero(this.selHero); });
+  }
+  showGearDetail(item,kind){
+    if(this._gdet) this._gdet.forEach(o=>o.destroy()); this._gdet=[];
+    const p=this.pGear, h=RUN.heroes[this.selHero], s=heroStat(h), y=this.gdetY, gx=p.left+20, add=o=>{this._gdet.push(o);return o;};
+    const v=itemVisual(item.name), ac=accent(v.accent);
+    add(this.add.graphics().fillStyle(ac.deep,0.5).fillRoundedRect(gx,y,46,46,9));
+    add(icon(this, gx+23, y+23, v.icon, 26, ac.num));
+    add(txt(this, gx+58, y+8, item.name, 14, ac.hex, 0, 0.5));
+    const stat = kind==='武器' ? ('傷害 '+item.atkSeq.join('/')+(item.heal?'　治療 '+item.heal:'')+'　需求 Lv'+item.lvReq)
+                              : ('防禦 '+item.def+'　護盾 +'+item.hp+'　需求 Lv'+item.lvReq);
+    add(txt(this, gx+58, y+26, stat, 11, UI.text, 0, 0.5));
+    const equipped = kind==='武器'? h.weapon.name===item.name : h.armor.name===item.name, lvOK=s.level>=item.lvReq;
+    const hint = equipped?'● 裝備中':(lvOK?'▶ 點擊裝備':'✕ 職業等級不足');
+    add(txt(this, gx+58, y+44, (item.traitDesc?('特效：'+item.traitDesc+'　'):'')+hint, 10.5, equipped?UI.gold:(lvOK?UI.green:UI.red), 0, 0.5));
   }
   toast(msg){ if(this._toast) this._toast.destroy(); this._toast=txt(this,this.scale.width/2,52,msg,13,UI.red).setDepth(99);
     this.tweens.add({targets:this._toast,alpha:0,delay:900,duration:600,onComplete:()=>{ if(this._toast){this._toast.destroy(); this._toast=null;} }}); }

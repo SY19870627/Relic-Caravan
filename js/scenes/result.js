@@ -23,9 +23,11 @@ class Result extends Phaser.Scene {
     }
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
     const resources=RUN.cargo.filter(i=>i.kind==='素材'||i.kind==='食材');
-    const rank=it=>(it.kind==='武器'||it.kind==='防具')?0:(it.kind==='貴重物品'?1:2);
-    this.others=RUN.cargo.filter(i=>i.kind!=='遺物'&&i.kind!=='素材'&&i.kind!=='食材').sort((a,b)=> rank(a)-rank(b) || b.value-a.value);
-    this.others.forEach(it=>{ if(it._keep===undefined) it._keep=(it.kind==='武器'||it.kind==='防具'); });
+    // 武器/防具：唯一擁有——新裝備納入收藏、重複只能賣出
+    const gear=RUN.cargo.filter(i=>i.kind==='武器'||i.kind==='防具');
+    this.gearNew=gear.filter(it=>!gearOwned(it.name)); this.gearDup=gear.filter(it=>gearOwned(it.name));
+    this.others=RUN.cargo.filter(i=>i.kind==='道具'||i.kind==='貴重物品').sort((a,b)=> (a.kind==='貴重物品'?1:0)-(b.kind==='貴重物品'?1:0) || b.value-a.value);
+    this.others.forEach(it=>{ if(it._keep===undefined) it._keep=(it.kind==='道具'); });
 
     const pnl=panel(this,W/2,346,720,356,{accent:acc,title:'戰利品結算　·　勾選保留，其餘賣成資金',icon:'chest',titleSize:15});
     this.bodyTop=pnl.bodyTop;
@@ -35,6 +37,9 @@ class Result extends Phaser.Scene {
     yy+=30;
     if(resources.length){ const rcc={}; resources.forEach(r=>rcc[r.name]=(rcc[r.name]||0)+1);
       const rs=chip(this,0,yy+8,{label:'素材／食材　'+Object.keys(rcc).map(k=>k+'×'+rcc[k]).join('  ')+'　→ 自動入庫',accent:'teal',size:11,h:22}); rs.setX(W/2-rs.w/2); yy+=26; }
+    if(this.gearNew.length||this.gearDup.length){ const dupVal=this.gearDup.reduce((a,b)=>a+(b.value||0),0);
+      const parts=[]; if(this.gearNew.length)parts.push('新裝備 '+this.gearNew.map(g=>g.name).join('、')+' 納入收藏'); if(this.gearDup.length)parts.push('重複 ×'+this.gearDup.length+' 賣出 ＄'+dupVal);
+      const gs=chip(this,0,yy+8,{label:'裝備　'+parts.join('　·　'),accent:'gold',icon:'sword',size:11,h:22}); gs.setX(W/2-gs.w/2); yy+=26; }
 
     button(this, W/2-180, yy+12, 160, 28, '全部保留', ()=>{ this.others.forEach(it=>it._keep=true); this.renderList(); }, {variant:'go',size:12});
     button(this, W/2+180, yy+12, 160, 28, '全部賣出', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {variant:'gold',size:12});
@@ -42,10 +47,12 @@ class Result extends Phaser.Scene {
     this.listGroup=[];
     this.renderList();
     button(this,W/2,524,240,42,'帶回公會',()=>{
-      RUN.cargo.forEach(it=>{ if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)) GUILD.relics.push(it.relicId); }
+      RUN.cargo.forEach(it=>{
+        if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)) GUILD.relics.push(it.relicId); }
         else if(it.kind==='素材'){ addMaterial(it.matId); }
         else if(it.kind==='食材'){ addIngredient(it.ingId); }
-        else if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; });
+        else if(it.kind==='武器'||it.kind==='防具'){ if(gearOwned(it.name)) GUILD.funds+=it.value; else ownGear(it.name); }
+        else { discover(it.name); if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; } });
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{variant:'go',size:17,icon:'home',iconSize:16});
   }

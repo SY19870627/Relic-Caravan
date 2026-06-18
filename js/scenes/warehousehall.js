@@ -1,35 +1,88 @@
-// ========================= 倉庫所（查看持有物品） =========================
+// ========================= 倉庫 ・ 收藏（格狀圖鑑）v0.9 =========================
 class WarehouseHall extends Phaser.Scene {
   constructor(){ super('WarehouseHall'); }
   create(){
-    const W=this.scale.width,H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
-    this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
-    txt(this,W/2,26,'倉 庫',24,TH.gold);
-    txt(this,W/2,48,'查看公會保留下來的物品（探險結算時選「保留」會進倉庫）',12,TH.dim);
-    button(this, 96, 26, 150, 28, '← 公會大廳', ()=>this.scene.start('GuildHall'), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
+    if(!RUN) initRun();
+    syncDiscovered();
+    const W=this.scale.width;
+    sceneBg(this,{glow:0xf2c14e});
+    sceneHeader(this,'倉 庫 ・ 收 藏','',{accent:'gold'});
+    button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
 
-    const stash=GUILD.stash||[];
-    const totalVal=stash.reduce((a,b)=>a+(b.value||0),0);
-    txt(this,W/2,82,`共 ${stash.length} 件　總價值 ＄${totalVal}　|　🏛 遺物收藏 ${GUILD.relics.length}/${relicTotalCount()} 件（即時生效）`,13,TH.gold);
+    // 庫存數量
+    this.cnt={}; (GUILD.stash||[]).forEach(it=>{ this.cnt[it.name]=(this.cnt[it.name]||0)+1; });
 
-    this.add.rectangle(W/2,330,820,470,TH.panel).setStrokeStyle(2,0x3a3150);
-    const kinds=[['武器','⚔','#9fe8ff'],['防具','🛡','#9fd0a0'],['貴重物品','💎','#cdeecd'],['道具','🧪','#ffd6a0']];
-    let y=130;
-    kinds.forEach(([k,icon,col])=>{
-      const items=stash.filter(it=>it.kind===k);
-      const counts={}; items.forEach(it=>counts[it.name]=(counts[it.name]||0)+1);
-      const names=Object.keys(counts);
-      const list=names.length? names.map(n=>`${n}×${counts[n]}`).join('　') : '（無）';
-      txt(this,90,y,`${icon} ${k}（${items.length} 件）`,15,col,0);
-      txt(this,110,y+24,list,12, names.length?TH.text:TH.dim, 0).setWordWrapWidth(780);
-      y+=60;
+    const cats=[
+      {label:'武器', accent:'teal', items:WEAPONS, kind:'武器'},
+      {label:'防具', accent:'blue', items:ARMORS, kind:'防具'},
+      {label:'道具', accent:'green', items:LOOT.consum.map(n=>({name:n})), kind:'道具'},
+      {label:'貴重', accent:'gold', items:LOOT.valuable.map(n=>({name:n})), kind:'貴重物品'},
+    ];
+    let total=0, got=0;
+    cats.forEach(c=>{ c.items.forEach(it=>{ total++; if(this.lit(c.kind,it.name)) got++; }); });
+    const pc=chip(this, 0, 20, {label:'收藏 '+got+' / '+total, accent:'gold', icon:'bag', size:12, h:26}); pc.setX(W-14-pc.w);
+
+    // 三區段固定格位
+    const sz=44, pitch=56, x0=35+sz/2;
+    const rowsY=[114,186,258,330], labelY=[78,150,222,294];
+    cats.forEach((c,ci)=>{
+      const gotC=c.items.filter(it=>this.lit(c.kind,it.name)).length;
+      const lb=txt(this, 35, labelY[ci], c.label, 13, accent(c.accent).hex, 0, 0.5);
+      txt(this, 35+lb.width+12, labelY[ci], gotC+' / '+c.items.length, 11, UI.dim, 0, 0.5);
+      c.items.forEach((it,i)=>{ this.slot(x0+i*pitch, rowsY[ci], sz, it, c.kind); });
     });
-    // 素材／食材（自動入庫，不佔倉庫件數）
-    const matLine = MATERIALS.filter(m=>matCount(m.id)>0).map(m=>`${m.icon}${m.name}×${matCount(m.id)}`).join('　')||'（無）';
-    const ingLine = INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（無）';
-    txt(this,90,y,'🛠 素材（工匠強化用）',15,'#ffd24a',0); txt(this,110,y+24,matLine,12, matLine==='（無）'?TH.dim:TH.text,0).setWordWrapWidth(780); y+=60;
-    txt(this,90,y,'🍳 食材（領隊料理用）',15,'#9fe8a0',0); txt(this,110,y+24,ingLine,12, ingLine==='（無）'?TH.dim:TH.text,0).setWordWrapWidth(780);
-    if(!stash.length) txt(this,W/2,y+48,'倉庫雜物為空——探險結算時把物品選「保留」就會收進這裡。',12,TH.dim);
+
+    // 詳細面板
+    this.det=panel(this, W/2, 462, 866, 138, {accent:'gold', title:'物品資訊', icon:'bag', titleSize:14});
+    this._det=[];
+    this.showDetail(null,null,false);
+  }
+  lit(kind,name){ return (kind==='武器'||kind==='防具')? gearOwned(name) : itemDiscovered(name); }
+  slot(x,y,sz,item,kind){
+    const disc=this.lit(kind,item.name), v=disc?itemVisual(item.name):null, ac=disc?accent(v.accent):accent('slate');
+    const g=this.add.graphics();
+    g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,9);
+    g.fillStyle(disc?UI.raisedN:UI.panelN, disc?1:0.55); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
+    if(disc){ g.fillStyle(ac.deep,0.4); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz*0.5,9); }
+    g.lineStyle(2, disc?ac.num:UI.lineN, disc?0.9:0.35); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
+    if(disc){ icon(this, x, y-2, v.icon, sz*0.52, ac.num); }
+    else { txt(this, x, y, '?', sz*0.42, UI.faint); }
+    const count=this.cnt[item.name]||0;
+    if(disc && count>0 && kind!=='武器' && kind!=='防具'){ const cw=12+(''+count).length*7; const bg=this.add.graphics();
+      bg.fillStyle(ac.deep,1); bg.fillRoundedRect(x+sz/2-cw-3, y+sz/2-15, cw, 14, 5); bg.lineStyle(1,ac.num,1); bg.strokeRoundedRect(x+sz/2-cw-3, y+sz/2-15, cw, 14, 5);
+      txt(this, x+sz/2-3-cw/2, y+sz/2-8, '×'+count, 9, UI.white); }
+    const hit=this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true});
+    hit.on('pointerover',()=>this.showDetail(item,kind,disc));
+  }
+  showDetail(item,kind,disc){
+    if(this._det) this._det.forEach(o=>o.destroy());
+    this._det=[]; const p=this.det, add=o=>{this._det.push(o);return o;};
+    const ix=p.left+50, tx=p.left+96, ty=p.bodyTop+2;
+    if(!item){ add(txt(this, p.cx, p.bodyTop+34, '把游標移到物品格上，查看詳細資訊', 13, UI.dim)); return; }
+    if(!disc){
+      add(icon(this, ix, p.bodyTop+34, 'box', 40, UI.lineN));
+      add(txt(this, tx, ty+8, '？？？（尚未取得）', 16, UI.faint, 0));
+      add(txt(this, tx, ty+34, '繼續探險地城，取得後就會在此解鎖並顯示完整資訊。', 12, UI.dim, 0));
+      return;
+    }
+    const v=itemVisual(item.name), ac=accent(v.accent);
+    add(this.add.graphics().fillStyle(ac.deep,0.5).fillRoundedRect(ix-30,p.bodyTop+8,60,60,10));
+    add(icon(this, ix, p.bodyTop+38, v.icon, 42, ac.num));
+    add(txt(this, tx, ty+10, item.name, 18, ac.hex, 0));
+    if(kind==='武器'){
+      add(txt(this, tx, ty+38, '武器 ・ '+weaponClassLabel(item)+'　|　傷害 '+item.atkSeq.join(' / ')+(item.heal?'　|　治療 '+item.heal:'')+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
+      if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
+    } else if(kind==='防具'){
+      add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.hp+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
+      if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
+    } else if(kind==='貴重物品'){
+      add(txt(this, tx, ty+38, '貴重物品 ・ 帶回公會後可在「商會」賣出換取資金', 12, UI.text, 0));
+      add(txt(this, tx, ty+62, '越深的地城、階級越高的貴重物品越值錢', 12, UI.gold, 0));
+    } else {
+      add(txt(this, tx, ty+38, '道具 ・ 探險中使用', 12, UI.text, 0));
+      add(txt(this, tx, ty+62, (CONSUM_INFO[item.name]||''), 12, UI.green, 0));
+    }
+    if(kind==='武器'||kind==='防具'){ add(txt(this, p.right-20, ty+10, '已擁有', 12, UI.green, 1)); }
+    else { const count=this.cnt[item.name]||0; add(txt(this, p.right-20, ty+10, count>0?('庫存 ×'+count):'庫存 0', 12, count>0?UI.green:UI.dim, 1)); }
   }
 }

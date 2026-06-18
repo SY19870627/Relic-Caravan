@@ -31,6 +31,8 @@ function defaultGuild(){ return {
   materials:{}, ingredients:{},  // 新資源：素材（強化）、食材（料理）
   staff:{ craftsman:0, leader:0 },// 後勤：工匠階級0-3、領隊0/1
   upgrades:{},                   // 項目化強化已解鎖項目 {id:true}
+  discovered:{},                 // 收藏圖鑑：曾取得過的物品名稱
+  owned:{},                      // 已擁有的武器/防具（唯一，不計數量）
 }; }
 let GUILD = defaultGuild();
 
@@ -57,6 +59,8 @@ function loadGuild(){ try{
     if(!GUILD.ingredients) GUILD.ingredients={};
     if(!GUILD.staff) GUILD.staff={craftsman:0,leader:0};
     if(!GUILD.upgrades) GUILD.upgrades={};
+    if(!GUILD.discovered) GUILD.discovered={};
+    if(!GUILD.owned) GUILD.owned={};
     if(GUILD.horse==null) GUILD.horse=1;
     if(GUILD.wagon==null) GUILD.wagon=0;
     if(!Array.isArray(GUILD.wagonUp)) GUILD.wagonUp=[0,0,0];
@@ -280,4 +284,60 @@ function heroStat(h){
     skills: sk,
     weaponTrait: h.weapon.trait||null, armorTrait: h.armor.trait||null,   // v0.8 裝備特性（戰鬥讀取）
   };
+}
+
+
+// ---- v0.9 物品圖鑑：每件物品的圖示與色彩、發現追蹤 ----
+const ITEM_ICON = {
+  // 武器
+  '鐵劍':['sword','teal'], '雙手斧':['axe','teal'], '獵弓':['bow','teal'], '短弓':['bow','teal'],
+  '橡木杖':['staff','green'], '聖光杖':['staff','gold'], '火花杖':['magestaff','violet'], '短刃':['dagger','teal'],
+  '匕首':['dagger','blue'], '雙刃劍':['dualblade','gold'], '巨劍':['greatsword','gold'], '戰弓':['bow','gold'],
+  '神息法杖':['staff','green'], '烈焰法杖':['magestaff','red'],
+  // 防具
+  '布衣':['robe','slate'], '皮甲':['armor','teal'], '鎖子甲':['armor','blue'], '法袍':['robe','violet'],
+  '精鋼板甲':['armor','gold'], '守護重盔':['helmet','gold'], '法師長袍':['robe','violet'], '龍鱗甲':['armor','red'],
+  // 道具
+  '治療藥水':['potion','red'], '解毒劑':['potion','green'], '聖水':['potion','blue'], '回復卷軸':['scroll','gold'], '復活之種':['seed','violet'],
+  // 貴重物品
+  '碎銀錢袋':['coin','slate'], '古青銅幣':['coin','teal'], '寶石原石':['gem','blue'], '黃金聖盃':['coin','gold'], '失落王冠':['gem','gold'],
+};
+// ---- 技能圖示：依機制給專屬 icon、依類型上色 ----
+const SKILL_ICON = {
+  '敲暈':'stun','震懾箭':'stun','割喉':'stun',
+  '強擊':'smash','弱點射擊':'target','鷹眼':'eye','炎爆':'fireball','偷襲':'dagger','致命':'skull',
+  '連射':'arrows','連刺':'dagger','連環施法':'sparkle',
+  '群體治療':'heal','聖療':'heal','聖盾':'shield','神恩':'sparkle',
+  '堅守':'reflect','鐵骨':'fortify','護體罩':'ward','奧術精通':'sparkle',
+};
+function skillVisual(s){ const name=(typeof s==='string')?s:(s&&s.name), type=(s&&s.type)||'';
+  const icon = SKILL_ICON[name] || ({stun:'stun',crit:'smash',doubleHit:'arrows',groupHeal:'heal'}[type]) || 'sparkle';
+  let acc='violet';
+  if(type==='stun') acc='gold';
+  else if(type==='crit'||type==='critVsFull'||type==='critVsStunned') acc='red';
+  else if(type==='doubleHit') acc='blue';
+  else if(type==='groupHeal'||type==='critHealLow'||type==='shieldOnHeal'||type==='cleanseOnHeal') acc='green';
+  else if(type==='reflect'||type==='lowHpDef'||type==='deathSave') acc='blue';
+  return {icon, accent:acc};
+}
+function itemVisual(name){ const v=ITEM_ICON[name]; return v? {icon:v[0], accent:v[1]} : {icon:'box', accent:'slate'}; }
+const CONSUM_INFO = {
+  '治療藥水':'回復全隊 30% HP', '解毒劑':'回復全隊 20% HP', '聖水':'回復全隊 50% HP',
+  '回復卷軸':'回復全隊 60% HP', '復活之種':'復活陣亡成員（50% HP）',
+};
+// ---- 圖鑑：發現追蹤 ----
+function discover(name){ if(!name) return; if(!GUILD.discovered) GUILD.discovered={}; if(!GUILD.discovered[name]){ GUILD.discovered[name]=true; saveGuild(); } }
+// ---- 武器/防具唯一擁有：起手裝備永遠擁有；掉落取得後永久可裝；重複只能賣出 ----
+function gearOwned(name){ const w=WEAPONS.find(x=>x.name===name); if(w&&w.starter) return true; const a=ARMORS.find(x=>x.name===name); if(a&&a.starter) return true; return !!(GUILD.owned&&GUILD.owned[name]); }
+function ownGear(name){ if(!GUILD.owned) GUILD.owned={}; GUILD.owned[name]=true; discover(name); saveGuild(); }
+function itemDiscovered(name){ if(GUILD.discovered && GUILD.discovered[name]) return true;
+  const w=WEAPONS.find(x=>x.name===name); if(w&&w.starter) return true; const a=ARMORS.find(x=>x.name===name); if(a&&a.starter) return true; return false; }
+// 把目前持有／裝備中／貨車內的物品補登為已發現（回溯既有存檔）
+function syncDiscovered(){ if(!GUILD.discovered) GUILD.discovered={}; if(!GUILD.owned) GUILD.owned={};
+  const own=(n)=>{ if(!n) return; GUILD.owned[n]=true; GUILD.discovered[n]=true; };
+  (GUILD.stash||[]).forEach(it=>{ if(it&&it.name){ GUILD.discovered[it.name]=true; if(it.kind==='武器'||it.kind==='防具') GUILD.owned[it.name]=true; } });
+  (ROSTER||[]).forEach(r=>{ own(r&&r.weapon); own(r&&r.armor); });
+  if(typeof RUN!=='undefined' && RUN){ (RUN.cargo||[]).forEach(it=>{ if(it&&it.name) GUILD.discovered[it.name]=true; });
+    (RUN.heroes||[]).forEach(h=>{ if(h.weapon) own(h.weapon.name); if(h.armor) own(h.armor.name); }); }
+  saveGuild();
 }

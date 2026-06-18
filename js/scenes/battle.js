@@ -120,27 +120,28 @@ class Battle extends Phaser.Scene {
   buildSkillPips(c){
     const sk=c.skills||[]; if(!sk.length) return;
     c.skillPips={};
-    const cont=this.add.container(0,-86).setDepth(70); c.container.add(cont);
-    const sizes=sk.map(s=>Math.max(20, s.name.length*10+10)); const gap=4;
-    let total=sizes.reduce((a,b)=>a+b,0)+gap*(sk.length-1), cx=-total/2;
-    sk.forEach((s,i)=>{ const w=sizes[i], active=s.cd!==undefined;
-      const acc = !active?0x9b93b8 : (s.type==='stun'?0xf2c14e : (s.type==='groupHeal'?0x6ee29a : (s.type==='crit'?0xff6f7a : 0x6aa6f0)));
-      const pc=this.add.container(cx+w/2,0); const g=this.add.graphics();
-      g.fillStyle(0x07060f,0.85); g.fillRoundedRect(-w/2,-9,w,18,6);
-      g.lineStyle(1.5,acc,0.95); g.strokeRoundedRect(-w/2,-9,w,18,6);
-      if(!active){ g.fillStyle(acc,0.85); g.fillRect(-w/2+3,-1.2,3,2.4); }   // 被動：左側標記
-      pc.add([g, txt(this,0,0,s.name,9,'#ece6d6')]); cont.add(pc);
-      c.skillPips[s.name]={c:pc,acc,active,skill:s};
-      cx+=w+gap;
+    const ps=22, gap=5, total=sk.length*ps+(sk.length-1)*gap, cont=this.add.container(0,-84).setDepth(70); c.container.add(cont);
+    let cx=-total/2+ps/2;
+    sk.forEach(s=>{ const sv=skillVisual(s), ac=accent(sv.accent), active=s.cd!==undefined;
+      const pc=this.add.container(cx,0); const g=this.add.graphics();
+      g.fillStyle(0x07060f,0.88); g.fillRoundedRect(-ps/2,-ps/2,ps,ps,6);
+      g.lineStyle(1.5, ac.num, 0.95); g.strokeRoundedRect(-ps/2,-ps/2,ps,ps,6);
+      pc.add([g, icon(this,0,0,sv.icon,ps*0.62,ac.num)]); cont.add(pc);
+      c.skillPips[s.name]={c:pc, acc:ac.num, active, skill:s};
+      cx+=ps+gap;
     });
   }
   // 技能施放：閃爍對應技能格 + 在頭上彈出技能名
-  skillCast(c,s){
-    const pip=c.skillPips&&c.skillPips[s.name];
+  skillCast(c,s){ this.skillProc(c, s.name); }
+  // 顯示技能名稱（主動立即；被動可加 throttle 防洗版）並閃爍對應技能格
+  skillProc(c, name, opt){
+    opt=opt||{};
+    if(opt.throttle){ const now=this.time.now; if(!c._proc)c._proc={}; if(now-(c._proc[name]||-1e9) < opt.throttle) return; c._proc[name]=now; }
+    const pip=c.skillPips&&c.skillPips[name];
     if(pip){ this.tweens.add({targets:pip.c,scaleX:1.4,scaleY:1.4,duration:130,yoyo:true,repeat:1,ease:'Quad.out'}); }
     const accNum = c.side==='hero'? (pip?pip.acc:0x6aa6f0) : 0xff6f7a;
     const cont=this.add.container(c.container.x, c.baseY-102).setDepth(86);
-    const t=txt(this,0,0,s.name,13,'#ffffff'); const w=t.width+18;
+    const t=txt(this,0,0,name,13,'#ffffff'); const w=t.width+18;
     const g=this.add.graphics(); g.fillStyle(0x07060f,0.92); g.fillRoundedRect(-w/2,-12,w,24,8); g.lineStyle(2,accNum,1); g.strokeRoundedRect(-w/2,-12,w,24,8);
     cont.add([g,t]); cont.setScale(0.6);
     this.tweens.add({targets:cont,scale:1,duration:140,ease:'Back.out'});
@@ -199,7 +200,7 @@ class Battle extends Phaser.Scene {
       this.shake(120,0.008);
       const tg=this.aliveOf(c.side==='hero'?'enemy':'hero'); tg.forEach(f=>{ if(f.alive) this.damage(c,f,Object.assign({aoeHit:true},opt)); });
       // 被動・奧術精通（aoeBonus）：命中 2+ 敵時追加一輪較弱全體傷害
-      if(this.hasSkillType(c,'aoeBonus') && tg.length>=2){ this.floatLabel(c.baseX,c.baseY-58,'奧術連鎖!','#c9a0ff');
+      if(this.hasSkillType(c,'aoeBonus') && tg.length>=2){ const _s=this.getSkill(c,'aoeBonus'); if(_s)this.skillProc(c,_s.name,{throttle:1200}); this.floatLabel(c.baseX,c.baseY-58,'奧術連鎖!','#c9a0ff');
         this.time.delayedCall(160,()=>{ if(this.over||!c.alive) return; this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.damage(c,f,{aoeHit:true,weak:0.5}); }); }); }
     }});
   }
@@ -269,12 +270,13 @@ class Battle extends Phaser.Scene {
     const critLow=this.hasSkillType(c,'critHealLow');         // 被動・聖療：對半血以下治療翻倍
     const shieldOnHeal=this.getSkill(c,'shieldOnHeal');       // 被動・聖盾：被治療者得護盾
     const cleanse=this.hasSkillType(c,'cleanseOnHeal');       // 被動・神恩：治療解暈
-    const healOne=(a)=>{ let amt=baseAmt; if(critLow && a.hp/a.maxHp<0.5) amt*=2; amt=Math.round(amt);
+    const sCritHeal=this.getSkill(c,'critHealLow'), sCleanse=this.getSkill(c,'cleanseOnHeal');
+    const healOne=(a)=>{ let amt=baseAmt; if(critLow && a.hp/a.maxHp<0.5){ amt*=2; if(sCritHeal)this.skillProc(c,sCritHeal.name,{throttle:1500}); } amt=Math.round(amt);
       const over=Math.max(0,(a.hp+amt)-a.maxHp); a.hp=Math.min(a.maxHp,a.hp+amt); this.bar(a);
       pixelNum(this,a.container.x,a.container.y-34,'+'+amt,0x7dff9a);
       if(this._healToShield && over>0){ a.shield=(a.shield||0)+over; pixelNum(this,a.container.x,a.container.y-52,'🛡+'+over,0x9fd0ff); }   // 遺物・遺忘之鈴
-      if(shieldOnHeal){ a.shield=(a.shield||0)+(shieldOnHeal.amt||12); }
-      if(cleanse && a.stunned){ a.stunUntil=0; a.stunned=false; if(a.stunStar){a.stunStar.destroy(); a.stunStar=null;} if(a.alive) a.spr.clearTint(); }
+      if(shieldOnHeal){ a.shield=(a.shield||0)+(shieldOnHeal.amt||12); this.skillProc(c,shieldOnHeal.name,{throttle:1500}); }
+      if(cleanse && a.stunned){ a.stunUntil=0; a.stunned=false; if(a.stunStar){a.stunStar.destroy(); a.stunStar=null;} if(a.alive) a.spr.clearTint(); if(sCleanse)this.skillProc(c,sCleanse.name,{throttle:1200}); }
       if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
       const ring=this.add.circle(a.container.x,a.container.y,10,0x7dff9a,0.5).setDepth(40);
       this.tweens.add({targets:ring,radius:36,alpha:0,duration:450,onComplete:()=>ring.destroy()}); };
@@ -293,8 +295,8 @@ class Battle extends Phaser.Scene {
     if(!crit && c.side==='hero'){
       if(c.killCrit){ crit=true; mult=2; c.killCrit=false; }                                       // 遺物・低語石板（殺意）
       else if(c.markCrit){ crit=true; mult=2; c.markCrit=false; }                                  // 羈絆・掩護射擊
-      else if(this.hasSkillType(c,'critVsFull') && target.hp>=target.maxHp){ crit=true; mult=2; }   // 被動・鷹眼
-      else if(this.hasSkillType(c,'critVsStunned') && target.stunned){ crit=true; mult=2; }         // 被動・致命
+      else if(this.hasSkillType(c,'critVsFull') && target.hp>=target.maxHp){ crit=true; mult=2; const _s=this.getSkill(c,'critVsFull'); if(_s)this.skillProc(c,_s.name,{throttle:1400}); }   // 被動・鷹眼
+      else if(this.hasSkillType(c,'critVsStunned') && target.stunned){ crit=true; mult=2; const _s=this.getSkill(c,'critVsStunned'); if(_s)this.skillProc(c,_s.name,{throttle:1400}); }         // 被動・致命
       else if((this._firstHitCrit||this._cookFirstCrit) && !c.firstHitDone){ crit=true; mult=2; }   // 遺物・永燃聖燭／料理
     }
     if(c.side==='hero') c.firstHitDone=true;
@@ -303,8 +305,10 @@ class Battle extends Phaser.Scene {
     let tdef=target.def;
     if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
     if(target.side==='hero'){
-      const lowDef=(this._lastStand && target.hp/target.maxHp<0.25) || (this.hasSkillType(target,'lowHpDef') && target.hp/target.maxHp<0.30);
+      const _lowHp=this.hasSkillType(target,'lowHpDef') && target.hp/target.maxHp<0.30;
+      const lowDef=(this._lastStand && target.hp/target.maxHp<0.25) || _lowHp;
       if(lowDef) tdef*=2;
+      if(_lowHp){ const _s=this.getSkill(target,'lowHpDef'); if(_s)this.skillProc(target,_s.name,{throttle:2600}); }
     }
     const raw=Math.max(1, atk - tdef);
     // 羈絆・以信護盾：無敵時間內完全格擋
@@ -315,7 +319,7 @@ class Battle extends Phaser.Scene {
     if(target.shield>0){ absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed; }
     // 免死（被動・護體罩）：每場第一次受致命傷殘留 1 HP
     if(target.side==='hero' && dmg>=target.hp && this.hasSkillType(target,'deathSave') && !target.deathSaveUsed){
-      target.deathSaveUsed=true; dmg=Math.max(0,target.hp-1); this.floatLabel(target.baseX,target.baseY-60,'免死!','#ffd24a'); this.screenFlash(0xffd24a,0.2,200); }
+      target.deathSaveUsed=true; dmg=Math.max(0,target.hp-1); const _s=this.getSkill(target,'deathSave'); if(_s)this.skillProc(target,_s.name); this.floatLabel(target.baseX,target.baseY-60,'免死!','#ffd24a'); this.screenFlash(0xffd24a,0.2,200); }
     target.hp=Math.max(0,target.hp-dmg); this.bar(target);
     const heavy = !!c.boss || dmg>=20;
     const base = target.boss?6:SCALE;
@@ -341,7 +345,7 @@ class Battle extends Phaser.Scene {
     if(target.side==='hero' && c.side==='enemy' && c.alive && dmg>0){
       let refl=0; const rs=(target.skills||[]).find(s=>s.type==='reflect'); if(rs) refl+=(rs.frac||0.25);
       if(target.armorTrait&&target.armorTrait.thorns) refl+=target.armorTrait.thorns;
-      if(refl>0){ const rd=Math.max(1,Math.round(dmg*refl)); c.hp=Math.max(0,c.hp-rd); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'-'+rd,0xff9a3a); if(c.hp<=0) this.die(c); } }
+      if(refl>0){ const rd=Math.max(1,Math.round(dmg*refl)); c.hp=Math.max(0,c.hp-rd); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'-'+rd,0xff9a3a); if(rs)this.skillProc(target,rs.name,{throttle:1500}); if(c.hp<=0) this.die(c); } }
     // 武器・週期暈（戰弓）
     if(c.alive && c.weaponTrait&&c.weaponTrait.stunCycle && target.hp>0 && c.atkI % c.weaponTrait.stunCycle===0){ this.stun(target,{name:'眩',dur:800},c); }
     // 濺射（遺物・破碎神像）：我方每第 3 擊對其他敵人造成 50% 濺射
@@ -423,7 +427,7 @@ class Battle extends Phaser.Scene {
         const count = (node&&node.type==='elite'?2:1) + (re.extraLoot||0);   // 古神之眼／創世殘頁：額外掉落
         const got=[], full=[];
         for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
-          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); got.push(it); } else full.push(it); }
+          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); got.push(it); } else full.push(it); }
         RUN.pendingReward={got,full,xp,levelups:ups};
         this.scene.start('Map');
       }

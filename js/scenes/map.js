@@ -228,7 +228,7 @@ class MapScene extends Phaser.Scene {
     box.add(txt(this,0,-70,'發現寶箱！',20,TH.gold));
     let msg, color=TH.text;
     if(RUN.cargo.length>=RUN.slots){ msg=`貨車已滿，只能忍痛放棄\n${item.icon} ${item.name}`; color=TH.red; }
-    else { RUN.cargo.push(item); msg=`獲得 ${item.icon} ${item.name}\n（${item.kind}・價值 ${item.value}）`; color= item.kind==='遺物'?TH.cyan:TH.green; }
+    else { RUN.cargo.push(item); discover(item.name); msg=`獲得 ${item.icon} ${item.name}\n（${item.kind}・價值 ${item.value}）`; color= item.kind==='遺物'?TH.cyan:TH.green; }
     box.add(txt(this,0,-10,msg,16,color));
     const canEquip = item.gear && RUN.cargo.includes(item);
     if(canEquip){
@@ -247,7 +247,7 @@ class MapScene extends Phaser.Scene {
       {title:'⛲ 治療之泉', text:'飲下清泉，全隊回復 40% 體力', btn:'飲用', cond:()=>true,
         act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); return '清泉沁入，全隊回復了體力'; } },
       {title:'🧙 流浪商人', text:'花 ＄80 購入 2 瓶治療藥水', btn:'購買（＄80）', cond:()=>GUILD.funds>=80 && RUN.cargo.length<RUN.slots,
-        act:()=>{ GUILD.funds-=80; saveGuild(); let n2=0; for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); n2++; } } return `購入治療藥水 ×${n2}`; } },
+        act:()=>{ GUILD.funds-=80; saveGuild(); let n2=0; for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); n2++; } } return `購入治療藥水 ×${n2}`; } },
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>e.cond())) || pool[1];
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
@@ -287,7 +287,7 @@ function useConsumable(item){
     if(h.hp<=0){ if(item.name==='復活之種'){ h.hp=Math.round(mx*0.5); revived++; } }
     else { const before=h.hp; h.hp=Math.min(mx, h.hp+Math.round(mx*pct)); if(h.hp>before) healed++; }
   });
-  const i=RUN.cargo.indexOf(item); if(i>=0) RUN.cargo.splice(i,1);
+  discover(item.name); const i=RUN.cargo.indexOf(item); if(i>=0) RUN.cargo.splice(i,1);
   return `使用 ${item.name}：`+(revived?`復活 ${revived} 人、`:'')+`回復 ${healed} 人`;
 }
 function rollItem(risk, kind){
@@ -309,7 +309,7 @@ function equipSwap(item, heroIndex){
   const h=RUN.heroes[heroIndex], slot=item.kind==='武器'?'weapon':'armor', old=h[slot];
   if(!gearClassOK(h.sprite,item)) return;
   const oldMax=heroStat(h).maxHp;
-  h[slot]=item.gear;
+  h[slot]=item.gear; ownGear(item.name); discover(old.name);
   const newMax=heroStat(h).maxHp;
   h.hp=Math.max(1, Math.min(newMax, (h.hp||newMax)+(newMax-oldMax)));
   const ci=RUN.cargo.indexOf(item); if(ci>=0) RUN.cargo.splice(ci,1);
