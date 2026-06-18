@@ -427,7 +427,7 @@ class Battle extends Phaser.Scene {
         const count = (node&&node.type==='elite'?2:1) + (re.extraLoot||0);   // 古神之眼／創世殘頁：額外掉落
         const got=[], full=[];
         for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
-          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); got.push(it); } else full.push(it); }
+          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); got.push(it); } else full.push(it); }
         RUN.pendingReward={got,full,xp,levelups:ups};
         this.scene.start('Map');
       }

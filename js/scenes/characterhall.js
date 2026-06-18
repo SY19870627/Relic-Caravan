@@ -1,13 +1,14 @@
 // ========================= 角色所（技能說明・職業裝備）v0.9 =========================
 class CharacterHall extends Phaser.Scene {
   constructor(){ super('CharacterHall'); }
-  create(){
+  create(data){
     if(!RUN) initRun();
     syncDiscovered();
+    this.from=(data&&data.from)||'GuildHall';
     const W=this.scale.width;
     sceneBg(this,{glow:0x56d6c6});
     sceneHeader(this,'角 色 所','',{accent:'teal'});
-    button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
+    button(this, 70, 20, 120, 28, this.from==='Map'?'返回地城':'返回大廳', ()=>this.scene.start(this.from), {variant:'info', size:12, icon:'home', iconSize:13});
     button(this, W-92, 20, 160, 28, '作弊：全隊 +1 級', ()=>{ ROSTER.forEach(r=>r.level++); saveGuild(); this.selectHero(this.selHero); this.toast('全隊職業等級 +1'); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a6b, color:UI.dim, icon:'bug', iconSize:12, radius:8});
 
     this.selHero=0; this.heroCards=[];
@@ -109,7 +110,9 @@ class CharacterHall extends Phaser.Scene {
     const hit=this._gadd(this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true}));
     hit.on('pointerover',()=>this.showGearDetail(item,kind));
     hit.on('pointerdown',()=>{ if(!lvOK){ this.toast(h.name+' 職業等級不足，需 Lv'+item.lvReq); this.showGearDetail(item,kind); return; }
-      if(kind==='武器') h.weapon=item; else h.armor=item; persistLoadout(); this.selectHero(this.selHero); });
+      const oldMax=heroStat(h).maxHp; if(kind==='武器') h.weapon=item; else h.armor=item; const newMax=heroStat(h).maxHp;
+      if(h.hp>0) h.hp=Math.max(1, Math.min(newMax, h.hp+(newMax-oldMax)));
+      persistLoadout(); this.selectHero(this.selHero); });
   }
   showGearDetail(item,kind){
     if(this._gdet) this._gdet.forEach(o=>o.destroy()); this._gdet=[];

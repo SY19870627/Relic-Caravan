@@ -69,7 +69,7 @@ class MapScene extends Phaser.Scene {
       this.tweens.add({targets:t,alpha:0,delay:1100,duration:600,onComplete:()=>t.destroy()}); }
 
     button(this, W-90, H-34, 150, 36, '⮌ 撤退收工', ()=>this.retreat(), {size:14,fill:0x6b3a3a,stroke:0xd05a5a,hover:0x8c4c4c});
-    button(this, 100, H-34, 150, 36, '🎒 整理裝備', ()=>{ RUN.equipOpen=true; RUN.equipSel=null; this.scene.restart(); }, {size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
+    button(this, 100, H-34, 150, 36, '🎒 角色／裝備', ()=>this.scene.start('CharacterHall',{from:'Map'}), {size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     button(this, 268, H-34, 116, 36, '⚔ 隊形', ()=>this.scene.start('FormationHall',{from:'Map'}), {size:13,fill:0x4a3f63,stroke:0x9a7fd0,hover:0x6a5d8a});
     if(hasLeader()||hasCampstove()) button(this, 400, H-34, 116, 36, '🍳 料理', ()=>{ RUN.cookOpen=true; this.scene.restart(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
     // 工匠・商隊帳房（ledger）：途中變賣貴重物品換資金
@@ -99,7 +99,7 @@ class MapScene extends Phaser.Scene {
     const hasGear = pr.got.some(it=>it.gear);
     if(hasGear){
       button(this,W/2-90,by,140,34,'收下',()=>this.scene.restart(),{size:14,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(92);
-      button(this,W/2+90,by,160,34,'🎒 立即裝備',()=>{ RUN.equipOpen=true; RUN.equipSel=null; this.scene.restart(); },{size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}).setDepth(92);
+      button(this,W/2+90,by,160,34,'🎒 立即裝備',()=>this.scene.start('CharacterHall',{from:'Map'}),{size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}).setDepth(92);
     } else {
       button(this,W/2,by,150,34,'收下',()=>this.scene.restart(),{size:14,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(92);
     }
@@ -228,12 +228,12 @@ class MapScene extends Phaser.Scene {
     box.add(txt(this,0,-70,'發現寶箱！',20,TH.gold));
     let msg, color=TH.text;
     if(RUN.cargo.length>=RUN.slots){ msg=`貨車已滿，只能忍痛放棄\n${item.icon} ${item.name}`; color=TH.red; }
-    else { RUN.cargo.push(item); discover(item.name); msg=`獲得 ${item.icon} ${item.name}\n（${item.kind}・價值 ${item.value}）`; color= item.kind==='遺物'?TH.cyan:TH.green; }
+    else { RUN.cargo.push(item); discover(item.name); if(item.gear) ownGear(item.name); msg=`獲得 ${item.icon} ${item.name}\n（${item.kind}・價值 ${item.value}）`; color= item.kind==='遺物'?TH.cyan:TH.green; }
     box.add(txt(this,0,-10,msg,16,color));
     const canEquip = item.gear && RUN.cargo.includes(item);
     if(canEquip){
       button(this,0,0,140,36,'收下',()=>this.scene.restart(),{size:15,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(92).setPosition(W/2-85,H/2+70);
-      button(this,0,0,170,36,'🎒 立即裝備',()=>{ RUN.equipOpen=true; RUN.equipSel=null; this.scene.restart(); },{size:14,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}).setDepth(92).setPosition(W/2+85,H/2+70);
+      button(this,0,0,170,36,'🎒 立即裝備',()=>this.scene.start('CharacterHall',{from:'Map'}),{size:14,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}).setDepth(92).setPosition(W/2+85,H/2+70);
     } else {
       button(this,0,0,160,36,'收下，繼續',()=>this.scene.restart(),{size:15,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(92).setPosition(W/2,H/2+70);
     }
