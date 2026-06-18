@@ -416,17 +416,25 @@ class Battle extends Phaser.Scene {
         if(re.fullHealAfterBattle){ h.hp=mx; }
         else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); } });
       if(RUN.isBoss){
+        // v0.9：擊敗守衛取得遺物，但「回到基地才入庫」→ 標記遺物室已清、回地圖折返
         const rel=rollRelicForDest(RUN.destIndex||0);
-        if(rel) RUN.cargo.push(rel);
-        else RUN.cargo.push({kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue});
-        this.scene.start('Result',{outcome:'clear'});
+        const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};
+        const got=[], full=[];
+        if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(drop); if(drop.kind!=='遺物') discover(drop.name); got.push(drop); } else full.push(drop);
+        if(RUN.node) RUN.node.done=true;
+        RUN.isBoss=false;
+        RUN.itemToast = rel? ('🏛 取得遺物：'+rel.name+'！駕車折返基地才算帶回') : '🏛 擊敗守護者！';
+        RUN.pendingReward={got,full,xp,levelups:ups};
+        this.scene.start('Map');
       }
       else {
+        if(RUN.node) RUN.node.done=true;   // 戰鬥節點清除：回程安全通過
         // 工匠・貨車第二層（deck2）：清掉精英戰後開啟，貨格 +3
         if(node&&node.type==='elite' && hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; RUN.itemToast='📦 貨車第二層開啟！貨格 +3'; }
         const count = (node&&node.type==='elite'?2:1) + (re.extraLoot||0);   // 古神之眼／創世殘頁：額外掉落
+        const lootKind=(node&&node.type==='elite')?'貴重物品':'道具';   // 掉落分流：一般戰→道具、菁英→貴重物品
         const got=[], full=[];
-        for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
+        for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1, lootKind);
           if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); got.push(it); } else full.push(it); }
         RUN.pendingReward={got,full,xp,levelups:ups};
         this.scene.start('Map');

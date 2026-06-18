@@ -47,12 +47,13 @@ class Result extends Phaser.Scene {
     this.listGroup=[];
     this.renderList();
     button(this,W/2,524,240,42,'帶回公會',()=>{
+      let newRelics=0;
       RUN.cargo.forEach(it=>{
-        if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)) GUILD.relics.push(it.relicId); }
+        if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
         else if(it.kind==='素材'){ addMaterial(it.matId); }
         else if(it.kind==='食材'){ addIngredient(it.ingId); }
-        else if(it.kind==='武器'||it.kind==='防具'){ if(gearOwned(it.name)) GUILD.funds+=it.value; else ownGear(it.name); }
-        else { discover(it.name); if(it._keep) GUILD.stash.push(it); else GUILD.funds+=it.value; } });
+        else { discover(it.name); } });   // 其餘戰利品：本趟已可在地城商店變現為 💰，回會不再入庫
+      addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));   // 新遺物＋平安折返 → 賺聲望
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{variant:'go',size:17,icon:'home',iconSize:16});
   }

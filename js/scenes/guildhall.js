@@ -25,7 +25,7 @@ class GuildHall extends Phaser.Scene {
 
     add(button(this, 68, 20, 112, 26, '重置存檔', ()=>{ resetSave(); initRun(); this.render(); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));
     add(button(this, W-76, 20, 128, 26, '作弊：+資源', ()=>{
-      GUILD.funds+=500; const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
+      GUILD.funds+=500; addRep(20); const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
       if(left.length) GUILD.relics.push(Phaser.Utils.Array.GetRandom(left).id);
       const w=Phaser.Utils.Array.GetRandom(WEAPONS); ownGear(w.name);
       saveGuild(); this.render();
@@ -33,13 +33,11 @@ class GuildHall extends Phaser.Scene {
 
     // 資源列（含隊形 / 隊伍提示）
     const specs=[
-      {label:'＄ '+GUILD.funds, accent:'gold', icon:'coin', size:12, h:26},
+      {label:'⭐ 聲望 '+reputation(), accent:'gold', icon:'star', size:12, h:26},
       {label:'遺物 '+GUILD.relics.length+'/'+relicTotalCount(), accent:'violet', icon:'relic', size:12, h:26},
-      {label:'倉庫 '+GUILD.stash.length, accent:'teal', icon:'bag', size:12, h:26},
-      {label:'聲望 '+reputation()+' · T'+reputationTier(), accent:'gold', icon:'star', size:12, h:26},
+      {label:'隊伍 '+partySizeCap()+'/5 人', accent:'teal', icon:'person', size:12, h:26},
+      {label:'隊形 · '+currentFormation().name, accent:'violet', icon:'formation', size:12, h:26},
     ];
-    if(activeRoster().length<3) specs.push({label:'缺人！招募所湊滿 3 人', accent:'ember', icon:'recruit', size:12, h:26, filled:true, textColor:UI.white});
-    else specs.push({label:'隊形 · '+currentFormation().name, accent:'violet', icon:'formation', size:12, h:26});
     const chips=specs.map(s=>chip(this,0,0,s)); const gap=10; let tot=chips.reduce((a,c)=>a+c.w,0)+gap*(chips.length-1);
     let cx=W/2-tot/2; chips.forEach(c=>{ c.setX(cx); c.setY(62); add(c); cx+=c.w+gap; });
 
@@ -63,9 +61,9 @@ class GuildHall extends Phaser.Scene {
       {x:ex, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
       {x:gx, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬、項目強化、補給', s:'WagonHall'},
       {x:midx, y:row2, accent:'gold', icon:'bag', title:'倉庫', desc:'收藏：武器／防具／道具／貴重', s:'WarehouseHall'},
-      {x:ex, y:row2, accent:'gold', icon:'scales', title:'商會', desc:'賣出倉庫物品換取資金', s:'MerchantHall'},
+      {x:ex, y:row2, accent:'gold', icon:'recruit', title:(partySizeCap()<5?('解鎖隊員（⭐'+partySlotCost()+'）'):'隊伍已滿（5）'), desc:'花聲望擴充出戰人數 1→5', onClick:()=>{ if(unlockPartySlot()) this.render(); else this.flash(partySizeCap()>=5?'已達 5 人上限':('聲望不足，需 ⭐'+partySlotCost())); } },
     ];
-    cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:()=>this.scene.start(c.s)})));
+    cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 
     add(button(this, W/2, 510, 330, 46, '前往整備出發', ()=>this.scene.start('Outfit'), {variant:'go', size:18, icon:'play', iconSize:18}));
   }

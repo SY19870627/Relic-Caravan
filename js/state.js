@@ -24,7 +24,7 @@ function armorClassLabel(a){ const cs=ARMOR_CLASSES[a.name]; return (!cs||cs.len
 
 // 跨輪保存的公會狀態
 function defaultGuild(){ return {
-  funds:0, stash:[], relics:[],
+  funds:0, stash:[], relics:[], reputation:0, repEarned:0, partySize:1,   // funds 停用；reputation 可花費、repEarned 累計門檻；partySize 1→5
   facilities:{ temple:1, outfit:1 },
   wagon:0, wagonUp:[0,0,0], formation:0,
   horse:1,                       // 馬匹：0力量/1均衡/2耐力（預設均衡）
@@ -38,18 +38,22 @@ let GUILD = defaultGuild();
 
 // 五個職業槽：unlocked＝是否已加入出戰、tier＝占位者階級（決定等級上限）、level/xp、weapon/armor、skills（隨機雙技能，Phase D）
 function newRosterSlot(unlocked){ return {unlocked:!!unlocked, tier:0, level:1, xp:0, weapon:null, armor:null, skills:null}; }
-function defaultRoster(){ return [ newRosterSlot(true), newRosterSlot(false), newRosterSlot(false), newRosterSlot(false), newRosterSlot(false) ]; }
+function defaultRoster(){ return [ newRosterSlot(true), newRosterSlot(true), newRosterSlot(true), newRosterSlot(true), newRosterSlot(true) ]; }   // v0.9：五職業固定皆可用，由 partySize 決定帶幾個
 let ROSTER = defaultRoster();   // 開局只有戰士；其餘於招募所解鎖
 function ensureRoster(){ while(ROSTER.length<CLASS_ORDER.length) ROSTER.push(newRosterSlot(false));
   ROSTER.forEach((r,i)=>{ if(r.unlocked==null)r.unlocked=false; if(r.tier==null)r.tier=0; if(r.level==null)r.level=1; if(r.xp==null)r.xp=0;
-    if(r.unlocked && !Array.isArray(r.skills)) rollRecruitSkills(i); }); }
-function activeRoster(){ const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) out.push(i); }); return out.length?out:[0]; }
+    if(r.unlocked && !Array.isArray(r.skills)) r.skills=[]; }); }
+function activeRoster(){ const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) out.push(i); }); const list=out.length?out:[0]; return list.slice(0, Math.max(1, GUILD.partySize||1)); }
 
 let BATTLE_SPEED = 1;   // 戰鬥速度倍率（1/2/4），跨場記住
 
 // ---- 存檔持久化（localStorage）。SAVE_KEY 升 v2：舊檔不遷移、直接以新結構重置 ----
-const SAVE_KEY = 'relicCaravanSave_v3';   // v0.8 去數據化改版：結構變動，舊檔不遷移、直接重置
-function saveGuild(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify({GUILD,ROSTER})); }catch(e){} }
+const SAVE_KEY = 'relicCaravanSave_v4';   // v0.9 roguelike：只持久化公會資產；隊伍免洗、跑地城不存檔
+// 只持久化「公會資產」。ROSTER 僅存永久部分（解鎖、起始裝階 tier）；本趟 level/xp/裝備/技能不存。
+function saveGuild(){ try{
+  const slim = ROSTER.map(r=>({unlocked:!!r.unlocked, tier:r.tier||0}));
+  localStorage.setItem(SAVE_KEY, JSON.stringify({GUILD, ROSTER:slim}));
+}catch(e){} }
 function loadGuild(){ try{
   const s=JSON.parse(localStorage.getItem(SAVE_KEY));
   if(s&&s.GUILD){
@@ -63,12 +67,18 @@ function loadGuild(){ try{
     if(!GUILD.owned) GUILD.owned={};
     if(GUILD.horse==null) GUILD.horse=1;
     if(GUILD.wagon==null) GUILD.wagon=0;
+    if(GUILD.partySize==null) GUILD.partySize=1;
+    if(GUILD.reputation==null) GUILD.reputation=0;
+    if(GUILD.repEarned==null) GUILD.repEarned=GUILD.reputation||0;
     if(!Array.isArray(GUILD.wagonUp)) GUILD.wagonUp=[0,0,0];
     if(GUILD.formation==null||GUILD.formation>=FORMATIONS.length) GUILD.formation=0;
-    if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){ ROSTER=s.ROSTER; ensureRoster(); }
+    if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){
+      ROSTER = s.ROSTER.map(r=>{ const slot=newRosterSlot(!!r.unlocked); slot.tier=(r&&r.tier)||0; return slot; });
+      ensureRoster();
+    }
   }
 }catch(e){} }
-function resetSave(){ try{ localStorage.removeItem(SAVE_KEY); localStorage.removeItem('relicCaravanSave_v2'); localStorage.removeItem('relicCaravanSave_v1'); }catch(e){}
+function resetSave(){ try{ ['relicCaravanSave_v4','relicCaravanSave_v3','relicCaravanSave_v2','relicCaravanSave_v1'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
   GUILD=defaultGuild(); ROSTER=defaultRoster(); ensureRoster(); }
 loadGuild(); ensureRoster();
 
@@ -85,10 +95,11 @@ function upgradeEffectTotal(){ let food=0,slots=0; UPGRADES.forEach(u=>{ if(GUIL
 function wagonStats(){ const h=HORSES[GUILD.horse]||HORSES[1]; const up=upgradeEffectTotal();
   return { name:'探險馬車', horse:h.name, horseDesc:h.desc, food:h.food+up.food, slots:h.slots+up.slots, upFood:up.food, upSlots:up.slots }; }
 function upgradeOwned(id){ return !!(GUILD.upgrades&&GUILD.upgrades[id]); }
-function canBuyUpgrade(u){ if(upgradeOwned(u.id)) return false; if(craftsmanTier()<u.craftReq) return false; if(GUILD.funds<u.cost.funds) return false;
+function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0); }
+function canBuyUpgrade(u){ if(upgradeOwned(u.id)) return false; if(craftsmanTier()<u.craftReq) return false; if(!canSpendRep(upgradeRepCost(u))) return false;
   const m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]) return false; } return true; }
-function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; GUILD.funds-=u.cost.funds; const m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]; } GUILD.upgrades[u.id]=true; saveGuild(); return true; }
-function upgradeCostText(u){ const parts=['＄'+u.cost.funds]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]}`); } return parts.join(' '); }
+function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; spendRep(upgradeRepCost(u)); const m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]; } GUILD.upgrades[u.id]=true; saveGuild(); return true; }
+function upgradeCostText(u){ const parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]}`); } return parts.join(' '); }
 // 素材／食材 掉落物件（探險中入貨車，結算自動入庫；全滅則失）
 function makeMaterialItem(di){ const m=MATERIAL_BY_DEST[di]; if(!m) return null; return {kind:'素材', matId:m.id, name:m.name, icon:m.icon, value:20}; }
 function makeIngredientItem(di){ const g=INGREDIENT_BY_DEST[di]; if(!g) return null; return {kind:'食材', ingId:g.id, name:g.name, icon:g.icon, value:12}; }
@@ -145,9 +156,20 @@ function makeRelicItem(r){ return {kind:'遺物', relicId:r.id, name:r.name, ico
 function rollRelicForDest(di){ const pool=uncollectedRelicsForDest(di); if(!pool.length) return null; return makeRelicItem(Phaser.Utils.Array.GetRandom(pool)); }
 
 // ---- 聲望與贊助：聲望 = 神殿遺物數，分級發放開局物資 ----
-function reputation(){ return GUILD.relics.length; }
-function reputationTier(){ const r=reputation(), th=CFG.reputation.thresholds; return r>=th[0]?3:(r>=th[1]?2:(r>=th[2]?1:0)); }
+// v0.9 雙軌經濟：⭐聲望＝可花費的公會升級貨幣（reputation 餘額）；repEarned＝歷史累計（門檻判定，不被花掉）
+function reputation(){ return GUILD.reputation||0; }
+function repEarned(){ return GUILD.repEarned||0; }
+function addRep(n){ n=n||0; GUILD.reputation=(GUILD.reputation||0)+n; GUILD.repEarned=(GUILD.repEarned||0)+n; }
+function spendRep(n){ n=n||0; if((GUILD.reputation||0)<n) return false; GUILD.reputation-=n; return true; }
+function canSpendRep(n){ return (GUILD.reputation||0)>=(n||0); }
+function reputationTier(){ const r=repEarned(), th=CFG.reputation.thresholds; return r>=th[0]?3:(r>=th[1]?2:(r>=th[2]?1:0)); }
 function sponsorship(){ return CFG.reputation.sponsorship[reputationTier()]; }
+function addGold(n){ if(typeof RUN!=='undefined'&&RUN) RUN.gold=(RUN.gold||0)+(n||0); }
+function spendGold(n){ if(typeof RUN==='undefined'||!RUN||(RUN.gold||0)<(n||0)) return false; RUN.gold-=(n||0); return true; }
+function partySizeCap(){ return GUILD.partySize||1; }
+function partySlotCost(){ const arr=CFG.repCost.partySlot||[]; const cur=GUILD.partySize||1; return arr[cur-1]; }
+function canUnlockPartySlot(){ const cur=GUILD.partySize||1; if(cur>=5) return false; const c=partySlotCost(); return c!=null && canSpendRep(c); }
+function unlockPartySlot(){ if(!canUnlockPartySlot()) return false; spendRep(partySlotCost()); GUILD.partySize=(GUILD.partySize||1)+1; saveGuild(); return true; }
 
 // ---- 隊員羈絆：成員皆在隊時生效（固定班底恆成立），回傳該 sprite 的加成 ----
 // 隊員羈絆（v0.8）：改為戰鬥行為觸發，bondBonus 已停用（保留空殼避免舊呼叫出錯）。
@@ -198,16 +220,14 @@ function formationMod(sprite){ const s=(currentFormation().slots||{})[sprite]||{
 // ---- 戰鬥成員：職業槽招募／升階／等級上限 ----
 function classDef(i){ return CFG.recruit.classes[CLASS_ORDER[i]]; }   // warrior 無此設定(=null)
 function classCap(i){ const caps=CFG.recruit.tierCaps; return caps[Math.min(ROSTER[i].tier||0, caps.length-1)]; }
-function canRecruitClass(i){ const d=classDef(i); if(!d||ROSTER[i].unlocked) return false; return GUILD.funds>=d.cost && reputation()>=d.repReq; }
+function canRecruitClass(i){ const d=classDef(i); if(!d||ROSTER[i].unlocked) return false; return canSpendRep(d.repReq||0); }
 function recruitClass(i){ const d=classDef(i); if(!d||ROSTER[i].unlocked) return false;
-  if(GUILD.funds<d.cost||reputation()<d.repReq) return false;
-  GUILD.funds-=d.cost; ROSTER[i].unlocked=true; ROSTER[i].tier=0; ROSTER[i].level=1; ROSTER[i].xp=0;
-  rollRecruitSkills(i); saveGuild(); return true; }
+  if(!spendRep(d.repReq||0)) return false;
+  ROSTER[i].unlocked=true; ROSTER[i].tier=0; ROSTER[i].level=1; ROSTER[i].xp=0;
+  ROSTER[i].skills=[]; ROSTER[i].skillPlus={}; saveGuild(); return true; }
 function tierUpDef(i){ const t=ROSTER[i].tier||0; return CFG.recruit.tierUp[t]; }   // t=0→升tier1、t=1→升tier2
-function canTierUp(i){ if(!ROSTER[i].unlocked) return false; const d=tierUpDef(i); if(!d) return false;
-  return GUILD.funds>=d.cost && reputation()>=d.repReq; }
-function tierUpClass(i){ const d=tierUpDef(i); if(!d) return false; if(GUILD.funds<d.cost||reputation()<d.repReq) return false;
-  GUILD.funds-=d.cost; ROSTER[i].tier=(ROSTER[i].tier||0)+1; saveGuild(); return true; }
+function canTierUp(i){ if(!ROSTER[i].unlocked) return false; const d=tierUpDef(i); if(!d) return false; const c=(CFG.repCost.tierUp||[])[ROSTER[i].tier||0]; return c!=null && canSpendRep(c); }
+function tierUpClass(i){ const d=tierUpDef(i); if(!d) return false; const c=(CFG.repCost.tierUp||[])[ROSTER[i].tier||0]; if(c==null||!spendRep(c)) return false; ROSTER[i].tier=(ROSTER[i].tier||0)+1; saveGuild(); return true; }
 // 隨機雙技能（Phase D 用；此處先建立資料：從該職業技能池抽 2 個）
 function rollRecruitSkills(i){ const pool=(SKILLS[CLASS_ORDER[i]]||[]).slice();
   if(pool.length<=2){ ROSTER[i].skills=pool.map(s=>s.name); return; }
@@ -221,53 +241,88 @@ function rollRecruitSkills(i){ const pool=(SKILLS[CLASS_ORDER[i]]||[]).slice();
 // ---- 後勤：工匠（階級0-3）與領隊 ----
 function craftsmanTier(){ return GUILD.staff.craftsman||0; }
 function craftsmanNextDef(){ const t=craftsmanTier(); return CFG.staff.craftsman[t]; }   // t=0→學徒…
-function canUpgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; return GUILD.funds>=d.cost && reputation()>=d.repReq; }
-function upgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; if(GUILD.funds<d.cost||reputation()<d.repReq) return false;
-  GUILD.funds-=d.cost; GUILD.staff.craftsman=craftsmanTier()+1; saveGuild(); return true; }
+function canUpgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; const c=(CFG.repCost.craftsman||[])[craftsmanTier()]; return c!=null && canSpendRep(c); }
+function upgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; const c=(CFG.repCost.craftsman||[])[craftsmanTier()]; if(c==null||!spendRep(c)) return false; GUILD.staff.craftsman=craftsmanTier()+1; saveGuild(); return true; }
 function hasLeader(){ return (GUILD.staff.leader||0)>0; }
-function canHireLeader(){ if(hasLeader()) return false; const d=CFG.staff.leader; return GUILD.funds>=d.cost && reputation()>=d.repReq; }
-function hireLeader(){ if(hasLeader()) return false; const d=CFG.staff.leader; if(GUILD.funds<d.cost||reputation()<d.repReq) return false;
-  GUILD.funds-=d.cost; GUILD.staff.leader=1; saveGuild(); return true; }
+function canHireLeader(){ if(hasLeader()) return false; return canSpendRep(CFG.repCost.leader); }
+function hireLeader(){ if(hasLeader()) return false; if(!spendRep(CFG.repCost.leader)) return false; GUILD.staff.leader=1; saveGuild(); return true; }
 
 function xpNeed(lv){ return CFG.xp.base + lv*CFG.xp.perLevel; }
 function gainXP(amount){
   const ups=[];
+  if(RUN && !Array.isArray(RUN.pendingLevelups)) RUN.pendingLevelups=[];
   activeRoster().forEach(i=>{ const r=ROSTER[i], cap=classCap(i); r.xp+=amount;
     while(r.level<cap && r.xp>=xpNeed(r.level)){ r.xp-=xpNeed(r.level); r.level++; ups.push(`${HERO_BASE[i].name} → Lv${r.level}`);
-      (SKILLS[HERO_BASE[i].sprite]||[]).filter(s=>s.lv===r.level).forEach(s=>ups.push(`🎓 ${HERO_BASE[i].name} 習得「${s.name}」`));
+      if(RUN) RUN.pendingLevelups.push(i);   // 每升一級＝一次升級三選一（戰後結算抉擇，P2）
       const pk=perkAtLevel(r.level); if(pk) ups.push(`✨ ${HERO_BASE[i].name} ${pk.label}`); }
-    if(r.level>=cap){ r.xp=Math.min(r.xp, xpNeed(r.level)-1); }   // 達上限：經驗封頂、不再升
+    if(r.level>=cap){ r.xp=Math.min(r.xp, xpNeed(r.level)-1); }
   });
   return ups;
+}
+// ---- v0.9 升級三選一：技能取得/強化，每人最多 2 個技能槽 ----
+function skillWithPlus(base, plus){ if(!plus) return base; const s=Object.assign({}, base);
+  if(s.cd!==undefined){ s.uses=(s.uses||1)+plus; s.cd=Math.max(800, Math.round(s.cd*Math.pow(0.85,plus))); }
+  if(s.mult!==undefined) s.mult=+(s.mult+0.2*plus).toFixed(2);
+  if(s.frac!==undefined) s.frac=+(s.frac+0.1*plus).toFixed(2);
+  if(s.amt!==undefined) s.amt=s.amt+4*plus;
+  if(s.dur!==undefined) s.dur=s.dur+200*plus;
+  s.plus=plus; return s; }
+function equippedSkills(idx){ return Array.isArray(ROSTER[idx]&&ROSTER[idx].skills)?ROSTER[idx].skills:[]; }
+// 回傳本次升級的 3 個選項：2 個新技能 ＋ 1 個強化已裝（無已裝則補第 3 個新技能）
+function rollLevelChoices(idx){
+  const sprite=HERO_BASE[idx].sprite, pool=(SKILLS[sprite]||[]);
+  const eq=equippedSkills(idx);
+  const avail=pool.filter(s=>!eq.includes(s.name)).slice();
+  for(let i=avail.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=avail[i]; avail[i]=avail[j]; avail[j]=t; }
+  const choices=[];
+  avail.slice(0,2).forEach(s=>choices.push({type:'newSkill', name:s.name, label:'習得：'+s.name, desc:s.desc||''}));
+  if(eq.length){ const up=eq[Math.floor(Math.random()*eq.length)]; choices.push({type:'upgrade', name:up, label:'強化：'+up, desc:'多 1 次使用 / 縮短冷卻 / 加強效果'}); }
+  else if(avail[2]){ const s=avail[2]; choices.push({type:'newSkill', name:s.name, label:'習得：'+s.name, desc:s.desc||''}); }
+  return choices;
+}
+// 套用一個升級選項；newSkill 滿 2 格時用 replaceName 指定替換（預設替換第 1 個）
+function applyLevelChoice(idx, choice, replaceName){
+  if(!choice||!ROSTER[idx]) return false;
+  if(!Array.isArray(ROSTER[idx].skills)) ROSTER[idx].skills=[];
+  if(!ROSTER[idx].skillPlus) ROSTER[idx].skillPlus={};
+  if(choice.type==='upgrade'){ ROSTER[idx].skillPlus[choice.name]=(ROSTER[idx].skillPlus[choice.name]||0)+1; return true; }
+  if(choice.type==='newSkill'){ const sk=ROSTER[idx].skills;
+    if(sk.includes(choice.name)) return false;
+    if(sk.length<2){ sk.push(choice.name); return true; }
+    let ri = replaceName? sk.indexOf(replaceName) : 0; if(ri<0) ri=0; sk[ri]=choice.name; return true; }
+  return false;
 }
 function initRun(){
   RUN = {
     wagon: null,
     heroes: activeRoster().map(idx=>{ const h=HERO_BASE[idx];
-      // 還原上次的配裝（跨輪保存）；找不到才用預設起手裝
-      const wName=ROSTER[idx]&&ROSTER[idx].weapon, aName=ROSTER[idx]&&ROSTER[idx].armor;
-      const weapon = WEAPONS.find(w=>w.name===wName) || WEAPONS[h.defWeapon];
-      const armor  = ARMORS.find(a=>a.name===aName) || ARMORS[h.defArmor];
+      // 免洗隊伍：每趟重置為 Lv1、職業起始裝、技能清空（技能改由地城升級取得，P2）
+      ROSTER[idx].level=1; ROSTER[idx].xp=0; ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
+      const weapon = startKitWeapon(idx);
+      const armor  = startKitArmor(idx);
+      ROSTER[idx].weapon=weapon.name; ROSTER[idx].armor=armor.name;
       return {...h, idx, weapon, armor, hp:0};
     }),
-    cargo: [], food: 0, slots: 0,
-    map: null, encounter:null, isBoss:false,
+    cargo: [], food: 0, slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
+    map: null, encounter:null, isBoss:false, pos:null, visited:{},
     cookBuff:{atk:0,def:0},
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
-    cookShield:0, reviveCharge:0, cookFirstCrit:false,
+    cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
     trampleUsed:false, starveImmuneUsed:false, deckExpanded:false,
   };
 }
-// 保存目前配裝（武器/防具名稱）到 ROSTER，跨輪不重置
-function persistLoadout(){ if(!RUN) return; RUN.heroes.forEach(h=>{ if(ROSTER[h.idx]){ ROSTER[h.idx].weapon=h.weapon.name; ROSTER[h.idx].armor=h.armor.name; } }); saveGuild(); }
+// 起始裝：免洗隊每趟出發的基礎武防（P4 將依該職業 tier 升級）
+function startKitWeapon(idx){ const h=HERO_BASE[idx]; return WEAPONS[h.defWeapon]; }
+function startKitArmor(idx){ const h=HERO_BASE[idx]; return ARMORS[h.defArmor]; }
+// 免洗：本趟配裝不跨輪保存（heroes 內即時生效即可）
+function persistLoadout(){ /* no-op：disposable party */ }
 function heroStat(h){
   const lv=ROSTER[h.idx].level;
-  const rolled=ROSTER[h.idx].skills;   // 招募預抽的雙技能（名稱陣列）；達等級才生效
-  let sk=(SKILLS[h.sprite]||[]).filter(s=>lv>=s.lv);
-  if(Array.isArray(rolled)) sk=sk.filter(s=>rolled.includes(s.name));
+  // v0.9：技能＝本趟由升級三選一取得（最多 2 個，存 ROSTER.skills 名稱）；skillPlus 為強化次數
+  const equipped = Array.isArray(ROSTER[h.idx].skills)? ROSTER[h.idx].skills : [];
+  const plusMap = ROSTER[h.idx].skillPlus || {};
+  let sk = equipped.map(name=>{ const base=(SKILLS[h.sprite]||[]).find(s=>s.name===name); return base? skillWithPlus(base, plusMap[name]||0) : null; }).filter(Boolean);
   let pdef=0, healB=0, patk=0, phpB=0;
-  sk.forEach(s=>{ if(s.type==='passiveDef') pdef+=s.def; if(s.type==='healBoost') healB+=s.amt;
-    if(s.type==='passiveAtk') patk+=(s.atk||0); if(s.type==='passiveHp') phpB+=(s.hp||0); });
   const bl=guildBlessing();   // 遺物即時效果（數值部分；規則部分由戰鬥讀取）
   const bo=formationMod(h.sprite); // 隊形站位加減成（取代固定羈絆）
   // 遺物・神王冠冕（寡兵越強）：每空一個出戰席位，全隊 ATK/DEF +3、HP +20

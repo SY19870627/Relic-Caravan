@@ -62,7 +62,7 @@ const CFG = {
   },
 
   // 飢餓懲罰：糧食透支時，每次對全隊扣除的最大 HP 比例
-  starve: { damage:0.15 },
+  starve: { damage:0.10 },   // v0.9：食物 0 後每次移動 -10% 最大 HP（可致死）
 
   // 掉落：機率與價值（tier 由風險與目的地階級決定）
   loot: {
@@ -79,4 +79,9 @@ const CFG = {
 
   // 地圖節點機率（每層 roll）：< battle 為戰鬥、< event 為事件、< chest 為寶箱，其餘為精英
   map: { battleRoll:0.42, eventRoll:0.62, chestRoll:0.84 },
+
+  // v0.9 雙軌經濟（數值為架構草案，平衡期再調）
+  gold: { stipendBase:40, stipendPerParty:20, sellRate:0.7 },   // 出發補給金（每趟）、商店賣出回收率
+  repCost: { partySlot:[3,5,8,12], tierUp:[2,4], craftsman:[2,4,6], leader:3, upgradeBase:2, upgradePerCraft:2 },
+  repEarn: { perRelic:3, perReturn:1 },   // 帶回新遺物 +3、平安折返 +1
 };

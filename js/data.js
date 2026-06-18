@@ -158,8 +158,8 @@ const INGREDIENT_BY_DEST={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_DEST[m.dest]
 // ===== 領隊探路：節點天氣／地形／陷阱 =====
 const WEATHERS = [
   {id:'clear', name:'晴',  icon:'☀'},
-  {id:'rain',  name:'雨',  icon:'🌧', eff:{allAtk:-2}, note:'雨：雙方 ATK -2'},
-  {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, note:'霧：敵方 DEF +2'},
+  {id:'rain',  name:'雨',  icon:'🌧', eff:{allAtk:-2}, travelFood:1, note:'雨：雙方 ATK -2、移動 +1 糧'},
+  {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, travelFood:1, note:'霧：敵方 DEF +2、移動 +1 糧'},
 ];
 const TERRAINS = [
   {id:'plain',  name:'平地', icon:'🟫'},
@@ -209,8 +209,9 @@ const TH = { bg:'#0e0a14', panel:0x1d1528, panel2:0x2a2038, gold:'#e7c14a', gold
 
 // 地圖節點外觀 / 圖示 / 角色簡介
 const NODE_INFO = {
-  start:{ch:'起',col:0x6a6a7a}, battle:{ch:'戰',col:0xc23b3b}, chest:{ch:'寶',col:0xe7c14a},
-  elite:{ch:'精',col:0x9a5ad0}, relic:{ch:'遺',col:0x6fd0e0}, event:{ch:'？',col:0x4f8f6f},
+  start:{ch:'起',col:0x6a6a7a}, home:{ch:'家',col:0x56d6c6}, battle:{ch:'戰',col:0xc23b3b}, chest:{ch:'寶',col:0xe7c14a},
+  elite:{ch:'精',col:0x9a5ad0}, relic:{ch:'遺',col:0x6fd0e0}, event:{ch:'？',col:0x4f8f6f}, camp:{ch:'營',col:0xf0975a},
+  shopFood:{ch:'糧',col:0x6ee29a}, shopItem:{ch:'藥',col:0x56d6c6}, shopWeapon:{ch:'武',col:0xf2c14e}, shopArmor:{ch:'防',col:0x6aa6f0}, temple:{ch:'殿',col:0xa98bff},
 };
 const KIND_ICON = {'貴重物品':'💎','道具':'🧪','武器':'⚔','防具':'🛡','遺物':'🏛'};
 const BIO = {

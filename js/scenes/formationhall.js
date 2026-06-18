@@ -10,7 +10,7 @@ class FormationHall extends Phaser.Scene {
     txt(this,W/2,48,'選擇陣形：站位固定，各位置有加減成；前排易被集火、後排被保護',12,TH.dim);
     button(this, 96, 26, 150, 28, '← 返回', ()=>this.scene.start(this.from), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     this.listBtns=FORMATIONS.map((f,i)=> button(this, 165, 118+i*50, 230, 42, f.name, ()=>{
-        if(reputation()<(f.repReq||0)){ this.flash(`需聲望 ${f.repReq} 才能使用`); return; }
+        if(repEarned()<(f.repReq||0)){ this.flash(`需聲望 ${f.repReq} 才能使用`); return; }
         GUILD.formation=i; saveGuild(); this.render();
       }, {size:15,fill:0x4a3f63,stroke:0x7a6f93,hover:0x6a5d8a}));
     this.render();
@@ -18,7 +18,7 @@ class FormationHall extends Phaser.Scene {
   render(){
     if(this._ui) this._ui.forEach(o=>o.destroy()); this._ui=[];
     const add=o=>{this._ui.push(o);return o;};
-    const cur=GUILD.formation||0, rep=reputation();
+    const cur=GUILD.formation||0, rep=repEarned();
     this.listBtns.forEach((b,i)=>{ const locked=rep<(FORMATIONS[i].repReq||0);
       b.bg.setStrokeStyle(i===cur?3:2, locked?0x8a3a3a:(i===cur?0xe7c14a:0x7a6f93)); b.setAlpha(locked?0.5:1);
       b.label.setText(locked?`🔒 ${FORMATIONS[i].name}`:FORMATIONS[i].name);

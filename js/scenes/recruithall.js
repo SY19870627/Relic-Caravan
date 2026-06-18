@@ -22,7 +22,7 @@ class RecruitHall extends Phaser.Scene {
     // 分頁高亮
     this.tabBtns[0].bg.setStrokeStyle(this.tab==='battle'?3:2, this.tab==='battle'?0xe7c14a:0x9a7fd0);
     this.tabBtns[1].bg.setStrokeStyle(this.tab==='logistics'?3:2, this.tab==='logistics'?0xe7c14a:0x9a7fd0);
-    add(txt(this,W/2,118,`公會資金 ＄${GUILD.funds}　⭐ 聲望 ${reputation()}（已收集遺物）`,13,TH.gold));
+    add(txt(this,W/2,118,`⭐ 聲望 ${reputation()}（可花費）　·　隊伍 ${partySizeCap()}/5 人`,13,TH.gold));
     if(this.tab==='battle') this.renderBattle(); else this.renderLogistics();
   }
   renderBattle(){

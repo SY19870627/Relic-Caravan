@@ -1,34 +1,69 @@
 // ========================= 地城地圖 =========================
-function genMap(){
-  const layout=[1,2,3,2,2,1]; let nodes=[], id=0;
-  layout.forEach((cnt,layer)=>{
-    for(let i=0;i<cnt;i++){
-      let type,risk;
-      if(layer===0){ type='start'; risk=0; }
-      else if(layer===layout.length-1){ type='relic'; risk=4; }
-      else { const roll=Math.random(); type=roll<CFG.map.battleRoll?'battle':(roll<CFG.map.eventRoll?'event':(roll<CFG.map.chestRoll?'chest':'elite')); risk=Math.min(3,layer); if(type==='elite')risk=3; if(type==='event')risk=0; }
-      const food = layer===0?0 : 1 + (layer>=3?1:0) + (Math.random()<0.25?1:0); // 越深越耗糧，銳化「跑遠 vs 滿載」
-      let lootKind=null;
-      if(type==='chest'){ const lk=Math.random(); lootKind = lk<0.34?'貴重物品':(lk<0.6?'防具':(lk<0.8?'武器':(lk<0.92?'道具':'遺物'))); }
-      // 領隊探路屬性：天氣／地形／陷阱
-      const weather = layer===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id;
-      const terrain = layer===0?'plain':Phaser.Utils.Array.GetRandom(TERRAINS).id;
-      const trap = (layer>0 && type!=='relic' && Math.random()<0.22) ? 0.12 : 0;
-      nodes.push({id:id++,layer,i,cnt,type,risk,food,lootKind,weather,terrain,trap,next:[],done:false});
-    }
-  });
-  const byLayer=l=>nodes.filter(n=>n.layer===l);
-  for(let l=0;l<layout.length-1;l++){
-    const cur=byLayer(l), nxt=byLayer(l+1);
-    cur.forEach((n,ci)=>{
-      const ratio=nxt.length/cur.length; let j=Math.min(nxt.length-1,Math.floor(ci*ratio));
-      n.next.push(nxt[j].id);
-      if(Math.random()<0.6){ const j2=Math.min(nxt.length-1,j+1); if(j2!==j) n.next.push(nxt[j2].id); }
-      if(Math.random()<0.3 && j>0) n.next.push(nxt[j-1].id);
-    });
-    nxt.forEach((m,mi)=>{ if(!cur.some(n=>n.next.includes(m.id))){ const src=cur[Math.min(cur.length-1,Math.round(mi*cur.length/nxt.length))]; src.next.push(m.id);} });
+// ========================= 程序生成長征地圖（v0.9，取代分層 genMap）=========================
+// 依配額（隨 tier／人數分級）隨機生成連通節點圖；每條邊有食物花費；保證 home↔relic 連通。
+function MAP_RECIPE(tier, partySize){
+  const t=Math.max(1,tier||1), big=Math.max(1,partySize||1);
+  return {
+    battle: 2 + t + Math.floor(big/2),
+    elite:  Math.max(0, t-1) + (big>=4?1:0),
+    chest:  1 + Math.floor(t/2),
+    event:  1 + Math.floor(t/2),
+    camp:   1 + (big>=3?1:0),
+    shopFood: 1, shopItem: 1,
+    shopWeapon: t>=2?1:0, shopArmor: t>=2?1:0,
+    temple: t>=2?1:0,
+  };
+}
+function edgeFood(map,a,b){ const e=(map&&map.edges||[]).find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)); return e?e.food:1; }
+function genWorld(tier, partySize){
+  tier=Math.max(1,tier||1); partySize=Math.max(1,partySize||1);
+  const rec=MAP_RECIPE(tier, partySize);
+  const pool=[]; Object.keys(rec).forEach(k=>{ for(let i=0;i<rec[k];i++) pool.push(k); });
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+  const midLayers=Math.max(2, Math.round(pool.length/2));
+  const layers=[['home']];
+  const mids=[]; for(let l=0;l<midLayers;l++) mids.push([]);
+  pool.forEach((tp,i)=>{ mids[i%midLayers].push(tp); });
+  mids.forEach(l=>{ if(l.length) layers.push(l); });
+  layers.push(['relic']);
+  let id=0; const nodes=[];
+  layers.forEach((layer,li)=>{ layer.forEach((type,k)=>{
+    const node={ id:id++, layer:li, i:k, cnt:layer.length, type, done:false, adj:[], next:[],
+      weather: li===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id, terrain:'plain', trap:0, food:0 };
+    if(type==='battle') node.risk=Math.min(3, 1+Math.floor(li/2));
+    else if(type==='elite') node.risk=3;
+    else if(type==='relic') node.risk=4;
+    else node.risk=0;
+    if(type==='chest'){ const lk=Math.random(); node.lootKind = lk<0.6?'武器':'防具'; }
+    nodes.push(node);
+  }); });
+  const byLayer=li=>nodes.filter(n=>n.layer===li);
+  const edges=[];
+  function link(a,b){ if(!a||!b||a.adj.includes(b.id)) return; const food=1+Math.floor(Math.random()*3); a.adj.push(b.id); b.adj.push(a.id); a.next.push(b.id); edges.push({a:a.id,b:b.id,food}); }
+  for(let li=0; li<layers.length-1; li++){
+    const cur=byLayer(li), nxt=byLayer(li+1);
+    cur.forEach((n,ci)=>{ const j=Math.min(nxt.length-1, Math.floor(ci*nxt.length/Math.max(1,cur.length))); link(n,nxt[j]);
+      if(Math.random()<0.5 && nxt[j+1]) link(n,nxt[j+1]); });
+    nxt.forEach((m,mi)=>{ if(!cur.some(n=>n.adj.includes(m.id))){ link(cur[Math.min(cur.length-1, Math.floor(mi*cur.length/Math.max(1,nxt.length)))], m); } });
   }
-  return {nodes, current: nodes[0].id, started:false};
+  const home=nodes.find(n=>n.type==='home'), relic=nodes.find(n=>n.type==='relic');
+  return { nodes, edges, current:home.id, homeId:home.id, relicId:relic.id, started:false, tier };
+}
+// 相容別名（舊呼叫點）
+function genMap(){ return genWorld((typeof RUN!=='undefined'&&RUN&&RUN.destTier)||1, (GUILD&&GUILD.partySize)||1); }
+// ---- 移動／食物／飢餓（可測試的純邏輯，MapScene 呼叫）----
+function weatherTravelFood(wid){ const w=WEATHER_BY_ID[wid]; return (w&&w.travelFood)||0; }
+function travelCost(map, fromId, toId){ const to=(map.nodes||[]).find(n=>n.id===toId); return edgeFood(map,fromId,toId) + weatherTravelFood(to&&to.weather); }
+function starveTick(){ if(typeof RUN==='undefined'||!RUN) return; RUN.heroes.forEach(h=>{ if(h.hp>0) h.hp=Math.max(0, h.hp-Math.round(heroStat(h).maxHp*CFG.starve.damage)); }); }
+// 沿邊移動到 toId：扣食物（含天氣；潮汐之冠免）；食物見底每步挨餓扣血、可致死。回傳 {died,cost,node,starved}
+function doTravel(toId){
+  const map=RUN.map; const free=relicEffects().noFoodDrain;
+  const cost=free?0:travelCost(map, map.current, toId);
+  RUN.food-=cost; let starved=false, died=false;
+  if(RUN.food<0){ RUN.food=0; starveTick(); starved=true; if(RUN.heroes.every(h=>h.hp<=0)) died=true; }
+  map.current=toId; if(!RUN.visited)RUN.visited={}; RUN.visited[toId]=true;
+  const node=(map.nodes||[]).find(n=>n.id===toId); RUN.node=node;
+  return {died, cost, node, starved};
 }
 class MapScene extends Phaser.Scene {
   constructor(){ super('Map'); }
@@ -42,19 +77,20 @@ class MapScene extends Phaser.Scene {
     const m=RUN.map;
     const layCount=Math.max(...m.nodes.map(n=>n.layer))+1;
     m.nodes.forEach(n=>{
-      const x=80+n.layer*((W-160)/(layCount-1));
-      const y=n.cnt===1?300:(180+n.i*(260/(n.cnt-1)));
+      const x=80+n.layer*((W-160)/Math.max(1,(layCount-1)));
+      const y=n.cnt===1?300:(180+n.i*(260/Math.max(1,(n.cnt-1))));
       this.nodePos[n.id]={x,y};
     });
-    // 連線
-    const gfx=this.add.graphics();
-    m.nodes.forEach(n=>n.next.forEach(nid=>{
-      const a=this.nodePos[n.id], bsel=this.nodePos[nid];
-      gfx.lineStyle(3, 0x3a3150, 1).beginPath(); gfx.moveTo(a.x,a.y); gfx.lineTo(bsel.x,bsel.y); gfx.strokePath();
-    }));
-    // 節點
     const cur=m.nodes.find(n=>n.id===m.current);
-    const reachable = m.started ? cur.next : cur.next; // start 也是往下一層
+    const reachable=(cur.adj||cur.next||[]);
+    // 連線（雙向）＋ 每段食物花費
+    const gfx=this.add.graphics();
+    const free=relicEffects().noFoodDrain;
+    (m.edges||[]).forEach(e=>{ const a=this.nodePos[e.a], b=this.nodePos[e.b]; if(!a||!b) return;
+      const onPath=(e.a===m.current||e.b===m.current);
+      gfx.lineStyle(onPath?4:3, onPath?0x6a5a3a:0x33304a, 1).beginPath(); gfx.moveTo(a.x,a.y); gfx.lineTo(b.x,b.y); gfx.strokePath();
+      txt(this,(a.x+b.x)/2,(a.y+b.y)/2-2, free?'🍖0':('🍖'+e.food), 10.5, onPath?'#ffcf9a':TH.dim).setDepth(5); });
+    // 節點（current 的鄰居皆可前往；已清節點＝安全通過）
     m.nodes.forEach(n=>this.drawNode(n, reachable.includes(n.id), n.id===m.current));
 
     // 道具列（task4：消耗品可在地圖上使用，回復/復活隊伍）
@@ -81,9 +117,42 @@ class MapScene extends Phaser.Scene {
         {size:11,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c}); }
     if(!m.started){ m.started=true; }
     if(RUN.pendingReward){ const pr=RUN.pendingReward; RUN.pendingReward=null; this.showReward(pr); }
+    else if(RUN.pendingLevelups && RUN.pendingLevelups.length){ this.openLevelup(); }
     if(RUN.equipOpen){ this.openEquip(RUN.equipSel); }
     if(RUN.cookOpen){ this.openCook(); }
   }
+  // v0.9 升級三選一：2 新技能＋1 強化已裝；技能槽滿 2 時先選替換
+  openLevelup(){
+    const W=this.scale.width,H=this.scale.height;
+    const idx=RUN.pendingLevelups[0];
+    if(idx==null){ RUN.pendingLevelups.shift(); this.scene.restart(); return; }
+    if(!RUN._lvChoices) RUN._lvChoices=rollLevelChoices(idx);
+    const choices=RUN._lvChoices, hero=HERO_BASE[idx];
+    this.add.rectangle(0,0,W,H,0x000000,0.72).setOrigin(0).setDepth(90).setInteractive();
+    panel(this,W/2,H/2,560,380,{accent:'gold'}).setDepth(91);
+    txt(this,W/2,H/2-162,'⬆ '+hero.name+' 升級！',22,TH.gold).setDepth(95);
+    const cur=((ROSTER[idx]&&ROSTER[idx].skills)||[]).join('、')||'（尚無技能）';
+    txt(this,W/2,H/2-134,'目前技能：'+cur+'（最多 2 個）',12,TH.cyan).setDepth(95);
+    if(RUN._lvReplace){
+      txt(this,W/2,H/2-100,'技能槽已滿，選擇替換掉哪一個：',14,'#ffd24a').setDepth(95);
+      ((ROSTER[idx]&&ROSTER[idx].skills)||[]).forEach((nm,i)=>{
+        button(this,W/2,H/2-50+i*60,420,46,'替換掉：'+nm,()=>{ applyLevelChoice(idx,RUN._lvReplace,nm); this._finishLevelup(); },
+          {size:15,fill:0x6b3a3a,stroke:0xd05a5a,hover:0x8c4c4c}).setDepth(95);
+      });
+      button(this,W/2,H/2+130,150,34,'取消',()=>{ RUN._lvReplace=null; this.scene.restart(); },{size:13,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(95);
+      return;
+    }
+    choices.forEach((c,i)=>{ const y=H/2-78+i*74;
+      button(this,W/2,y,470,44,c.label,()=>{
+        const eq=(ROSTER[idx]&&ROSTER[idx].skills)||[];
+        if(c.type==='newSkill' && eq.length>=2 && !eq.includes(c.name)){ RUN._lvReplace=c; this.scene.restart(); return; }
+        applyLevelChoice(idx,c); this._finishLevelup();
+      },{size:15, fill:c.type==='upgrade'?0x4a3f63:0x3a5f3a, stroke:c.type==='upgrade'?0x9a7fd0:0x5ad06a, hover:c.type==='upgrade'?0x6a5d8a:0x4c8c4c}).setDepth(95);
+      txt(this,W/2,y+26,c.desc||'',10.5,TH.dim).setDepth(96).setWordWrapWidth(440);
+    });
+    if(RUN.pendingLevelups.length>1) txt(this,W/2,H/2+150,'尚有 '+(RUN.pendingLevelups.length-1)+' 次升級待選',11,TH.dim).setDepth(95);
+  }
+  _finishLevelup(){ RUN.pendingLevelups.shift(); RUN._lvChoices=null; RUN._lvReplace=null; this.scene.restart(); }
   showReward(pr){
     const W=this.scale.width,H=this.scale.height;
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
@@ -147,37 +216,29 @@ class MapScene extends Phaser.Scene {
     const g=this.add.graphics(); g.fillStyle(UI.panelN,0.92); g.fillRoundedRect(10,52,W-20,38,10); g.lineStyle(1.5,UI.lineN,0.7); g.strokeRoundedRect(10,52,W-20,38,10);
     chip(this,22,71,{label:'食物 '+RUN.food, accent: RUN.food<=1?'red':'green', icon:'flame', size:12, h:26});
     chip(this,128,71,{label:'貨格 '+RUN.cargo.length+'/'+RUN.slots, accent: RUN.cargo.length>=RUN.slots?'red':'teal', icon:'box', size:12, h:26});
-    let x=270; const step=RUN.heroes.length>=5?120:150;
+    chip(this,238,71,{label:'💰 '+(RUN.gold||0), accent:'gold', icon:'coin', size:12, h:26});
+    let x=336; const step=RUN.heroes.length>=5?112:140;
     RUN.heroes.forEach(h=>{ const s=heroStat(h); const dead=h.hp<=0;
       icon(this,x,71,'heart',13, dead?UI.redN:UI.greenN);
       txt(this,x+12,71,h.name+' '+Math.max(0,Math.round(h.hp))+'/'+s.maxHp,11, dead?UI.red:UI.text,0); x+=step; });
   }
   drawNode(n, reach, isCur){
-    const p=this.nodePos[n.id], info=NODE_INFO[n.type];
+    const p=this.nodePos[n.id], info=NODE_INFO[n.type]||{ch:'？',col:0x6a6a7a};
     const c=this.add.container(p.x,p.y);
-    const circle=this.add.circle(0,0,24, info.col, n.done?0.25:(reach||isCur?1:0.4)).setStrokeStyle(isCur?4:2, isCur?0xffffff:0x140d18);
-    const ch=txt(this,0,0,info.ch,18,'#fff');
-    c.add([circle,ch]);
-    // 寶箱類型先標示
-    if(n.type==='chest' && !n.done){ c.add(txt(this,0,-40,(KIND_ICON[n.lootKind]||'')+' '+n.lootKind,11,'#ffe08a')); }
-    if(n.type==='event' && !n.done){ c.add(txt(this,0,-40,'❓ 事件',11,'#9fe8a0')); }
-    // 斥候情報：抉擇點風險可視化（遊俠探路，戰鬥/精英/王戰標出風險等級與敵情）
+    const circle=this.add.circle(0,0,22, info.col, n.done?0.3:(reach||isCur?1:0.45)).setStrokeStyle(isCur?4:2, isCur?0xffffff:0x140d18);
+    c.add([circle, txt(this,0,0,info.ch,16,'#fff')]);
+    if(n.type==='home'){ c.add(txt(this,0,-38,'🏠 基地',10.5,'#9fe8ff')); }
+    if(n.type==='chest' && !n.done){ c.add(txt(this,0,-38,(KIND_ICON[n.lootKind]||'🎁')+' '+(n.lootKind||'寶箱'),10.5,'#ffe08a')); }
+    if(n.type==='event' && !n.done){ c.add(txt(this,0,-38,'❓ 事件',10.5,'#9fe8a0')); }
+    if(n.type==='camp' && !n.done){ c.add(txt(this,0,-38,'🔥 營火',10.5,'#ffcf9a')); }
     if(!n.done && (n.type==='battle'||n.type==='elite'||n.type==='relic')){
       const lv = n.type==='relic'?4:(n.type==='elite'?3:Math.max(1,n.risk));
       const words=['','低','中','高','極高'][lv], cols=['','#9adf6a','#ffd24a','#ff9a3a','#ff5a5a'][lv];
-      const tag = n.type==='relic'?'👑 首領':(n.type==='elite'?'⚔ 精英(2掉落)':'⚔ 戰鬥');
-      c.add(txt(this,0,-42,`${tag}・風險${words}`,11,cols).setAlpha(reach||isCur?1:0.45));
+      const tag = n.type==='relic'?'👑 守衛戰':(n.type==='elite'?'☠ 精英':'⚔ 戰鬥');
+      c.add(txt(this,0,-40,`${tag}・風險${words}`,10.5,cols).setAlpha(reach||isCur?1:0.5));
     }
-    // 領隊探路：揭露天氣／地形／陷阱（無領隊只見 ❓）
-    if(!n.done && n.layer>0){
-      if(hasLeader()){ const w=WEATHER_BY_ID[n.weather], t=TERRAIN_BY_ID[n.terrain];
-        c.add(txt(this,0,-60,`${w?w.icon:''}${t?t.icon:''}${n.trap?'⚠':''}`,12, n.trap?'#ff9a3a':'#9fd0ff')); }
-      else { c.add(txt(this,0,-60,'❓',11,TH.dim)); }
-    }
-    if(n.risk>0 && !n.done){ for(let k=0;k<n.risk;k++) c.add(this.add.star(-12+k*12,30,4,3,6,0xe7c14a)); }
-    // 路程：前往此格的食物消耗（潮汐之冠時不耗）
-    if(reach && !isCur){ const free=relicEffects().noFoodDrain, short = !free && RUN.food-n.food<0;
-      c.add(txt(this,0,46, free?`路程 ${n.food} 天　🍖−0`:`路程 ${n.food} 天　🍖−${n.food}`, 11, short?TH.red:'#cdeecd')); }
+    if(n.risk>0 && !n.done){ for(let k=0;k<n.risk;k++) c.add(this.add.star(-12+k*12,28,4,3,6,0xe7c14a)); }
+    if(n.done&&!isCur){ c.add(txt(this,0,30,'已清',10,TH.dim)); }
     if(reach && !isCur){
       circle.setInteractive({useHandCursor:true})
         .on('pointerover',()=>this.tweens.add({targets:c,scale:1.15,duration:120}))
@@ -187,34 +248,60 @@ class MapScene extends Phaser.Scene {
     }
   }
   enterNode(n){
-    RUN.map.current=n.id; RUN.node=n; RUN.cookOpen=false;
-    const forage = horseFeature()==='forage';   // 耐力馬
-    if(!relicEffects().noFoodDrain){ RUN.food-=n.food;   // 潮汐之冠：探索不耗食物
-      const tx=TERRAIN_BY_ID[n.terrain]; if(tx&&tx.eff&&tx.eff.foodPlus && !forage) RUN.food-=tx.eff.foodPlus; }  // 水域：多耗糧（耐力馬免）
-    if(RUN.food<0){
-      if(forage && !RUN.starveImmuneUsed){ RUN.starveImmuneUsed=true; RUN.food=0; RUN.itemToast='🐴 耐力馬撐過了糧盡'; }   // 耐力馬：首次糧盡免傷
-      else { this.starve(); if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; } } }
-    // 陷阱：有領隊或「拆陷阱機關」拆除、無則觸發扣血
-    if(n.trap){ if(hasLeader()||hasAutotrap()){ RUN.itemToast = hasLeader()?'🧭 領隊拆除了陷阱':'🔧 拆陷阱機關拆除了陷阱'; }
-      else { RUN.heroes.forEach(h=>{ if(h.hp>0) h.hp=Math.max(0, h.hp-Math.round(heroStat(h).maxHp*n.trap)); });
-        if(RUN.heroes.every(h=>h.hp<=0)){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; }
-        RUN.itemToast='⚠ 觸發陷阱！全隊受創'; } }
-    // 馬匹・力量馬（碾過）：每趟免戰穿越第一個一般戰鬥節點
-    if(n.type==='battle' && horseFeature()==='trample' && !RUN.trampleUsed){
-      RUN.trampleUsed=true; n.done=true;
-      const xp=CFG.battleXp.base+(n.risk||1)*CFG.battleXp.perRisk; const ups=gainXP(xp); saveGuild();
-      RUN.itemToast='🐎 力量馬碾過了敵陣（免戰）'+((ups&&ups.length)?'　'+ups[0]:'');
-      this.scene.restart(); return;
-    }
-    if(n.type==='battle'||n.type==='elite'){
-      RUN.encounter=buildEncounter(n); RUN.isBoss=false; this.scene.start('Battle');
-    } else if(n.type==='relic'){
-      RUN.encounter=buildBoss(); RUN.isBoss=true; this.scene.start('Battle');
-    } else if(n.type==='event'){
-      n.done=true; this.openEvent(n);
-    } else if(n.type==='chest'){
-      n.done=true; this.openChest(n);
-    }
+    RUN.cookOpen=false;
+    if(n.id===RUN.map.current) return;
+    const res=doTravel(n.id);
+    if(res.starved) RUN.itemToast='⚠ 斷糧！全隊挨餓 −'+Math.round(CFG.starve.damage*100)+'% HP';
+    if(res.died){ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); return; }
+    if(n.type==='home'){ this.scene.start('Result',{outcome:'retreat'}); return; }
+    if(n.done){ this.scene.restart(); return; }   // 已清節點：安全通過
+    if(n.type==='battle'||n.type==='elite'){ RUN.encounter=buildEncounter(n); RUN.isBoss=false; this.scene.start('Battle'); }
+    else if(n.type==='relic'){ RUN.encounter=buildBoss(); RUN.isBoss=true; this.scene.start('Battle'); }
+    else if(n.type==='event'){ n.done=true; this.openEvent(n); }
+    else if(n.type==='chest'){ n.done=true; this.openChest(n); }
+    else if(n.type==='camp'){ n.done=true; this.openCamp(n); }
+    else if(n.type==='shopFood'||n.type==='shopItem'||n.type==='shopWeapon'||n.type==='shopArmor'){ this.openShop(n); }
+    else if(n.type==='temple'){ this.openTemple(n); }
+    else { n.done=true; this.scene.restart(); }
+  }
+  openCamp(n){
+    RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx, h.hp+Math.round(mx*0.5)); } });
+    RUN.itemToast='🔥 營火休息：存活成員回復 50% HP'; this.scene.restart();
+  }
+  openShop(n){
+    const W=this.scale.width,H=this.scale.height;
+    this.add.rectangle(0,0,W,H,0x000000,0.7).setOrigin(0).setDepth(90).setInteractive();
+    panel(this,W/2,H/2,660,420,{accent:'gold'}).setDepth(91);
+    const names={shopFood:'🥩 食物商',shopItem:'🧪 道具商',shopWeapon:'⚔ 武器商',shopArmor:'🛡 防具商'};
+    txt(this,W/2,H/2-188,names[n.type]||'商店',20,TH.gold).setDepth(95);
+    txt(this,W/2,H/2-162,'💰 '+RUN.gold+'　（賣出回收 ×'+CFG.gold.sellRate+'）',13,'#ffe08a').setDepth(95);
+    let by=H/2-122;
+    const buyBtn=(label,cost,fn)=>{ const ok=RUN.gold>=cost;
+      button(this,W/2-160,by,300,40,label+'（💰'+cost+'）',()=>{ if(RUN.gold<cost){ RUN.itemToast='💰 不足'; this.scene.restart(); return; } spendGold(cost); fn(); this.scene.restart(); },
+        {size:13,fill:ok?0x3a5f3a:0x33323a,stroke:ok?0x5ad06a:0x55555f,hover:ok?0x4c8c4c:0x33323a}).setDepth(95); by+=48; };
+    if(n.type==='shopFood'){ buyBtn('補給食物 +3',18,()=>{ RUN.food+=3; }); buyBtn('補給食物 +6',32,()=>{ RUN.food+=6; }); }
+    else if(n.type==='shopItem'){ buyBtn('治療藥水（回 30%）',20,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); } }); buyBtn('聖水（回 50%）',40,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'聖水',icon:'🧪',value:60}); discover('聖水'); } }); }
+    else { const isW=n.type==='shopWeapon'; const pool=(isW?WEAPONS:ARMORS).filter(x=>!x.starter);
+      buyBtn('購入一件'+(isW?'武器':'防具'),45,()=>{ if(RUN.cargo.length<RUN.slots && pool.length){ const it=Phaser.Utils.Array.GetRandom(pool); RUN.cargo.push({kind:isW?'武器':'防具',name:it.name,icon:isW?'⚔':'🛡',value:60,gear:it}); discover(it.name); } }); }
+    txt(this,W/2+180,H/2-128,'出售貨車物品換 💰',12,TH.cyan).setDepth(95);
+    const sellable=RUN.cargo.filter(it=>it.kind==='貴重物品'||it.kind==='道具'||it.kind==='武器'||it.kind==='防具');
+    if(!sellable.length) txt(this,W/2+180,H/2-94,'（無可賣物品）',11,TH.dim).setDepth(95);
+    sellable.slice(0,7).forEach((it,i)=>{ const price=Math.max(1,Math.round((it.value||10)*CFG.gold.sellRate));
+      button(this,W/2+180,H/2-96+i*38,280,32, '賣 '+(it.icon||'')+it.name+' +💰'+price, ()=>{ addGold(price); const idx=RUN.cargo.indexOf(it); if(idx>=0)RUN.cargo.splice(idx,1); this.scene.restart(); },
+        {size:11,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c}).setDepth(95); });
+    button(this,W/2-160,H/2+182,150,36,'離開商店',()=>{ this.scene.restart(); },{size:14,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(95);
+  }
+  openTemple(n){
+    const W=this.scale.width,H=this.scale.height;
+    this.add.rectangle(0,0,W,H,0x000000,0.72).setOrigin(0).setDepth(90).setInteractive();
+    panel(this,W/2,H/2,500,320,{accent:'violet'}).setDepth(91);
+    txt(this,W/2,H/2-128,'⛪ 神殿',20,'#c9a0ff').setDepth(95);
+    txt(this,W/2,H/2-102,'💰 '+RUN.gold,13,'#ffe08a').setDepth(95);
+    const pray=(label,cost,fn)=>{ const ok=RUN.gold>=cost; button(this,W/2,this._py=(this._py||H/2-60),320,44,label+'（💰'+cost+'）',()=>{ if(RUN.gold<cost){ RUN.itemToast='💰 不足'; this.scene.restart(); return; } spendGold(cost); fn(); this.scene.restart(); },{size:14,fill:ok?0x4a3f63:0x33323a,stroke:ok?0x9a7fd0:0x55555f}).setDepth(95); this._py+=56; };
+    this._py=H/2-60;
+    pray('祈禱轉晴（全圖未訪天氣放晴）',30,()=>{ (RUN.map.nodes||[]).forEach(nd=>{ if(!nd.done) nd.weather='clear'; }); RUN.itemToast='⛪ 天氣放晴了'; });
+    pray('祈福（存活成員回 25% HP）',25,()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.25)); } }); RUN.itemToast='⛪ 神恩沐浴全隊'; });
+    button(this,W/2,H/2+120,150,36,'離開',()=>{ this.scene.restart(); },{size:14,fill:0x4a3f63,stroke:0x7a6f93}).setDepth(95);
   }
   starve(){
     RUN.heroes.forEach(h=>{ if(h.hp>0) h.hp=Math.max(0, h.hp - Math.round(heroStat(h).maxHp*CFG.starve.damage)); });
@@ -295,7 +382,7 @@ function rollItem(risk, kind){
   const L=CFG.loot;
   const wantRelic = kind==='遺物' || (!kind && Math.random()<L.relicChanceBase+risk*L.relicChancePerRisk+(relicEffects().drop||0));
   if(wantRelic){ const it=rollRelicForDest(RUN.destIndex||0); if(it) return it; }   // 已收齊則改掉其他戰利品
-  if(!kind){ const rr=Math.random();   // 素材／食材：特定關掉特定資源
+  if(!kind || kind==='道具' || kind==='貴重物品'){ const rr=Math.random();   // 素材／食材也可從一般戰/菁英掉，供強化與料理
     if(rr<0.14){ const m=makeMaterialItem(RUN.destIndex||0); if(m) return m; }
     else if(rr<0.24){ const g=makeIngredientItem(RUN.destIndex||0); if(g) return g; }
   }

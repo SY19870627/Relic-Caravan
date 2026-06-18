@@ -13,10 +13,10 @@ class WorldMap extends Phaser.Scene {
     ];
     const chips=specs.map(s=>chip(this,0,0,s)); let tot=chips.reduce((a,c)=>a+c.w,0)+10*(chips.length-1); let cx=W/2-tot/2; chips.forEach(c=>{c.setX(cx);c.setY(74);cx+=c.w+10;});
 
-    const rep=reputation(), accs=['teal','gold','violet','red'];
+    const rep=repEarned(), accs=['teal','gold','violet','red'];
     DESTINATIONS.forEach((d,i)=>{
       const cy=120+i*98, ac=accent(accs[d.tier-1]||'teal');
-      const lockedRep=rep<d.repReq, lockedFood=(RUN.food-d.travel)<1, ok=!lockedRep&&!lockedFood;
+      const lockedRep=rep<d.repReq, lockedFood=false, ok=!lockedRep;   // v0.9：食物改逐段扣，不在上路前先扣
       const L=W/2-380, w=760, h=86, top=cy-h/2;
       const g=this.add.graphics();
       g.fillStyle(0x000000,0.34); g.fillRoundedRect(L,top+4,w,h,12);
@@ -42,9 +42,8 @@ class WorldMap extends Phaser.Scene {
   }
   go(d){
     const di = DESTINATIONS.indexOf(d);
-    if(!relicEffects().noFoodDrain) RUN.food -= d.travel;
     RUN.destTier = d.tier; RUN.destName = d.name; RUN.destIndex = di;
-    RUN.map = genMap();
+    RUN.map = genWorld(d.tier, GUILD.partySize||1);   // 每趟重畫；食物逐段扣
     this.scene.start('Map');
   }
 }
