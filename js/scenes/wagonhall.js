@@ -17,20 +17,26 @@ class WagonHall extends Phaser.Scene {
     const ws=wagonStats();
     // 資源列
     const matStr=MATERIALS.map(m=>`${m.icon}${m.name} ${matCount(m.id)}`).join('　');
-    add(txt(this,W/2,72,`🛠 工匠：${cnames[ct]}　馬車貨格：📦${ws.slots}`,13,TH.gold));
+    add(txt(this,W/2,72,`🛠 工匠：${cnames[ct]}　馬車貨格：📦${ws.slots}　⭐聲望 ${reputation()}`,13,TH.gold));
     add(txt(this,W/2,92,`素材：${matStr}`,11,TH.cyan));
 
-    // 選馬
-    add(txt(this,W/2,114,'── 選擇馬匹 ──',12,TH.gold));
+    // 選馬（普通／均衡免費；耐力／力量需聲望解鎖）
+    add(txt(this,W/2,112,'── 選擇馬匹（🔒 需聲望解鎖）──',12,TH.gold));
+    const pitch=216, x0=W/2-1.5*pitch;
     HORSES.forEach((h,i)=>{
-      const cx=180+i*270, cy=176, sel=(GUILD.horse||0)===i;
+      const cx=x0+i*pitch, cy=180, sel=(GUILD.horse||0)===i, unlocked=horseUnlocked(i);
       const c=this.add.container(cx,cy); add(c);
-      c.add(this.add.rectangle(0,0,250,96,TH.panel,1).setStrokeStyle(sel?3:2, sel?0xe7c14a:0x5a8cd0));
-      c.add(txt(this,0,-32,h.name,16,TH.gold));
-      c.add(txt(this,0,-10,`📦 貨格 ${h.slots}`,15,TH.text));
-      c.add(txt(this,0,16,h.desc,10,TH.dim).setWordWrapWidth(238));
-      if(sel) c.add(txt(this,0,34,'✓ 目前選用',12,'#5ad06a'));
-      else c.add(button(this,0,34,120,24,'選用',()=>{ GUILD.horse=i; saveGuild(); this.render(); },{size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}));
+      c.add(this.add.rectangle(0,0,202,112,TH.panel, unlocked?1:0.7).setStrokeStyle(sel?3:2, !unlocked?0x8a7a3a:(sel?0xe7c14a:0x5a8cd0)));
+      c.add(txt(this,0,-42,unlocked?h.name:`🔒 ${h.name}`,15,TH.gold));
+      c.add(txt(this,0,-21,`📦 貨格 ${h.slots}`,14,TH.text));
+      c.add(txt(this,0,4,h.desc,9.5,TH.dim).setWordWrapWidth(188));
+      if(!unlocked){ const ok=canUnlockHorse(i);
+        c.add(button(this,0,42,154,26,`解鎖 ⭐${horseCost(i)}`,()=>{
+          if(!canUnlockHorse(i)){ this.flash(`聲望不足，需 ⭐${horseCost(i)}`); return; }
+          unlockHorse(i); this.flash(`已解鎖 ${h.name}`,TH.green); this.render();
+        },{size:12, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));
+      } else if(sel) c.add(txt(this,0,44,'✓ 目前選用',12,'#5ad06a'));
+      else c.add(button(this,0,44,120,24,'選用',()=>{ GUILD.horse=i; saveGuild(); this.render(); },{size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}));
     });
 
     // 項目化強化

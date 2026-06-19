@@ -719,20 +719,106 @@ class Battle extends Phaser.Scene {
       o.add(button(this,W/2,y,440,38,(it.icon||'🧪')+it.name+' ×'+cnt+'　'+(CONSUM_INFO[it.name]||''),()=>{ const one=RUN.cargo.find(x=>x.kind==='道具'&&x.name===it.name); if(one){ this._lastUse=useConsumable(one); this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updatePotions(); } this._renderItems(); },{size:11,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c})); });
     if(this._lastUse) o.add(txt(this,W/2,H/2+130,this._lastUse,12,'#9fe8a0'));
     o.add(button(this,W/2,H/2+162,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
-  evShop(){ const W=this.scale.width,H=this.scale.height; const o=this.mkOverlay({accent:'gold',w:560,h:320});
-    o.add(txt(this,W/2,H/2-128,'🧙 商人',20,TH.gold)); const gt=txt(this,W/2,H/2-104,'💰 '+(RUN.gold||0),13,'#ffe08a'); o.add(gt);
-    const buy=(label,cost,y,fn)=>{ const bb=button(this,W/2,y,380,38,label+'（💰'+cost+'）',()=>{ if((RUN.gold||0)<cost) return; spendGold(cost); fn(); gt.setText('💰 '+(RUN.gold||0)); this.refreshHud(); },{size:13,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c}); o.add(bb); };
-    buy('治療藥水（回 30%）',20,H/2-58,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); } });
-    buy('聖水（回 50%）',40,H/2-14,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'聖水',icon:'🧪',value:60}); discover('聖水'); } });
-    buy('購入一件裝備',45,H/2+30,()=>{ const pool=(Math.random()<0.5?WEAPONS:ARMORS).filter(x=>!x.starter); if(pool.length&&RUN.cargo.length<RUN.slots){ const it=Phaser.Utils.Array.GetRandom(pool); const isW=!!it.atkSeq; RUN.cargo.push({kind:isW?'武器':'防具',name:it.name,icon:isW?'⚔':'🛡',value:60,gear:it}); discover(it.name);} });
-    o.add(button(this,W/2,H/2+96,160,40,'離開',()=>this.advanceStep(),{variant:'info',size:14})); }
+  // 遇見商人：隨機成為「藥水商／武器商／防具商」之一，並用「升級選技能」同款卡片 UI 呈現
+  //  藥水商＝治療藥水/聖水（可重複買）｜武器商／防具商＝排除「基礎款」與「已擁有」的隨機 3 種
+  //  裝備定價：30 + lvReq×15；購買後標記為已擁有 → 不再出現、也不能再買第二次（避免買重複虧錢）
+  _hasGear(name){ return gearOwned(name)
+      || (RUN.cargo||[]).some(it=>it.name===name)
+      || (RUN.heroes||[]).some(h=>(h.weapon&&h.weapon.name===name)||(h.armor&&h.armor.name===name)); }
+  evShop(){ const price=g=>30+((g.lvReq||1)*15);
+    const wPool=WEAPONS.filter(x=>!x.starter && !this._hasGear(x.name));
+    const aPool=ARMORS.filter(x=>!x.starter && !this._hasGear(x.name));
+    const r=Math.random(); let type=r<1/3?'potion':(r<2/3?'weapon':'armor');
+    if(type==='weapon' && !wPool.length) type = aPool.length?'armor':'potion';   // 該類已無可賣 → 改賣別類
+    else if(type==='armor' && !aPool.length) type = wPool.length?'weapon':'potion';
+    if(type==='potion'){
+      this._shopTitle='🧪 藥水商'; this._shopHint='販售補給藥水（可重複購買）';
+      this._shopGoods=[
+        {kind:'道具',name:'治療藥水',tag:'藥水',cost:20,value:30,lines:['戰鬥外使用','回復全隊 30% HP']},
+        {kind:'道具',name:'聖水',    tag:'藥水',cost:40,value:60,lines:['戰鬥外使用','回復全隊 50% HP']},
+      ];
+    } else if(type==='weapon'){
+      this._shopTitle='⚔ 武器商'; this._shopHint='精煉武器（排除基礎與已擁有）';
+      Phaser.Utils.Array.Shuffle(wPool);
+      this._shopGoods=wPool.slice(0,3).map(w=>({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
+        req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
+        lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), w.traitDesc||'']}));
+    } else {
+      this._shopTitle='🛡 防具商'; this._shopHint='堅實防具（排除基礎與已擁有）';
+      Phaser.Utils.Array.Shuffle(aPool);
+      this._shopGoods=aPool.slice(0,3).map(a=>({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
+        req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
+        lines:['DEF '+a.def+'　HP +'+a.hp, a.traitDesc||'']}));
+    }
+    this._shopMsg=''; this._shopMsgC='#9fe8a0'; this._renderShop();
+  }
+  _renderShop(){ const W=this.scale.width,H=this.scale.height, goods=this._shopGoods||[];
+    const o=this.mkOverlay({accent:'gold', w:640, h:476});
+    o.add(txt(this,W/2,H/2-208,this._shopTitle||'🧙 商人',22,TH.gold));
+    o.add(txt(this,W/2,H/2-180,'💰 持有 '+(RUN.gold||0)+'　·　'+(this._shopHint||'點選卡片購買'),12,TH.cyan));
+    if(!goods.length){
+      o.add(txt(this,W/2,H/2-12,'這裡沒有你還缺的款式',15,TH.dim));
+      o.add(txt(this,W/2,H/2+16,'（你已擁有所有可購買的裝備）',12,TH.dim));
+    } else {
+      const cw=178, gap=18, n=goods.length, x0=W/2-((n-1)*(cw+gap))/2, cy=H/2-2;
+      goods.forEach((it,i)=>{ this.shopCard(o, x0+i*(cw+gap), cy, cw, 268, it); });
+    }
+    if(this._shopMsg) o.add(txt(this,W/2,H/2+150,this._shopMsg,13,this._shopMsgC||'#9fe8a0'));
+    o.add(button(this,W/2,H/2+196,170,40,'離開商人',()=>this.advanceStep(),{variant:'info',size:14}));
+  }
+  // 商店卡片（與升級選技能同款）；裝備若已擁有則灰階顯示「已擁有」且不可購買
+  shopCard(o, x, y, w, h, it){
+    const isGear=(it.kind==='武器'||it.kind==='防具'), have=isGear&&this._hasGear(it.name);
+    const vis=itemVisual(it.name), ac=have?accent('slate'):accent(vis.accent), top=-h/2;
+    const afford=(RUN.gold||0)>=it.cost, full=RUN.cargo.length>=RUN.slots;
+    const card=this.add.container(x,y); o.add(card);
+    const g=this.add.graphics(); card.add(g);
+    const draw=(hov)=>{ g.clear();
+      g.fillStyle(0x000000,0.42); g.fillRoundedRect(-w/2,top+5,w,h,14);
+      g.fillStyle(hov?UI.hoverN:UI.raisedN, have?0.45:1); g.fillRoundedRect(-w/2,top,w,h,14);
+      g.fillStyle(ac.deep, hov?0.55:0.30); g.fillRoundedRect(-w/2,top,w,Math.round(h*0.30),14);
+      g.lineStyle(hov?3:2, ac.num, have?0.5:(hov?1:0.85)); g.strokeRoundedRect(-w/2,top,w,h,14);
+      g.fillStyle(ac.deep,0.55); g.fillCircle(0,top+62,27); g.lineStyle(2,ac.num,0.9); g.strokeCircle(0,top+62,27);
+    };
+    draw(false);
+    card.add(txt(this,0,top+22,have?'已擁有':(it.tag||'商品'),12,ac.hex));
+    card.add(icon(this,0,top+62,vis.icon,34,ac.num));
+    card.add(txt(this,0,top+102,it.name,17,ac.hex));
+    let ly=top+126;
+    if(it.req){ card.add(txt(this,0,ly,it.req,11.5, have?UI.dim:'#9fd0ff')); ly+=20; }   // 職業／等級限制
+    (it.lines||[]).forEach(line=>{ if(line){ card.add(txt(this,0,ly,line,11.5,have?UI.dim:UI.text,0.5,0).setWordWrapWidth(w-26).setAlign('center')); ly+=18; } });
+    card.add(txt(this,0,top+h-26, have?'　已擁有　':('💰 '+it.cost), 16, have?UI.dim:(afford?UI.gold:UI.red)));
+    const hit=this.add.rectangle(0,0,w,h,0xffffff,0.001).setInteractive({useHandCursor:true}); card.add(hit);
+    hit.on('pointerover',()=>{ draw(true); if(!have) this.tweens.add({targets:card,y:y-7,duration:110,ease:'Quad.out'}); });
+    hit.on('pointerout',()=>{ draw(false); if(!have) this.tweens.add({targets:card,y:y,duration:110,ease:'Quad.out'}); });
+    hit.on('pointerdown',()=>{
+      if(have){ this._shopMsg='⚠ 已擁有 '+it.name+'，無需重複購買'; this._shopMsgC='#ffd27a'; this._renderShop(); return; }
+      if(!afford){ this._shopMsg='⚠ 金幣不足（需 💰'+it.cost+'）'; this._shopMsgC='#ff8a8a'; this._renderShop(); return; }
+      if(full){ this._shopMsg='⚠ 貨車已滿，先用掉或捨棄道具'; this._shopMsgC='#ff8a8a'; this._renderShop(); return; }
+      spendGold(it.cost);
+      const cargoIcon=it.kind==='武器'?'⚔':(it.kind==='防具'?'🛡':'🧪');
+      RUN.cargo.push({kind:it.kind,name:it.name,icon:cargoIcon,value:it.value||60,gear:it.gear});
+      if(isGear) ownGear(it.name); else discover(it.name);   // 裝備：標記已擁有 → 不再出現、也擋第二次購買
+      this.refreshHud();
+      this._shopMsg='✓ 已購入 '+it.name; this._shopMsgC='#9fe8a0'; this._renderShop();
+    });
+    return card;
+  }
   evEvent(){ const W=this.scale.width,H=this.scale.height;
     const pool=[
-      {t:'⛲ 治療之泉',d:'飲下清泉，全隊回復 40% 體力',b:'飲用',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
+      {t:'⛲ 治療之泉',d:'飲下清泉，全隊回復 40% 體力',b:'飲用',auto:true,act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
       {t:'🧙 流浪商人',d:'花 💰60 購入 2 瓶治療藥水',b:'購買 💰60',cond:()=>(RUN.gold||0)>=60&&RUN.cargo.length<RUN.slots,act:()=>{ spendGold(60); for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); } } }},
       {t:'🏛 古老祭壇',d:'供奉 💰120，換得本關一件未尋得的遺物',b:'供奉 💰120',cond:()=>(RUN.gold||0)>=120&&RUN.cargo.length<RUN.slots&&uncollectedRelicsForDest(RUN.destIndex||0).length>0,act:()=>{ spendGold(120); const it=rollRelicForDest(RUN.destIndex||0); if(it) RUN.cargo.push(it); }},
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];
+    if(ev.auto){   // 治療之泉等：不跳選擇，直接生效後自動前進
+      ev.act(); this.refreshHud();
+      const oa=this.mkOverlay({accent:'green',w:460,h:184});
+      oa.add(txt(this,W/2,H/2-34,ev.t,19,'#9fe8a0'));
+      oa.add(txt(this,W/2,H/2+2,ev.d,13,TH.text).setWordWrapWidth(400));
+      oa.add(txt(this,W/2,H/2+38,'清泉已飲用，全隊回復',12,'#9fe8a0'));
+      this.time.delayedCall(1200,()=>this.advanceStep()); return;
+    }
     const o=this.mkOverlay({accent:'green',w:460,h:220});
     o.add(txt(this,W/2,H/2-64,ev.t,19,'#9fe8a0')); o.add(txt(this,W/2,H/2-28,ev.d,13,TH.text).setWordWrapWidth(400));
     o.add(button(this,W/2-92,H/2+40,156,40,ev.b,()=>{ ev.act(); this.refreshHud(); this.advanceStep(); },{variant:'go',size:13}));
@@ -747,6 +833,7 @@ class Battle extends Phaser.Scene {
     o.add(txt(this,W/2,H/2-196,'⬆ '+hero.name+' 升級！',22,TH.gold));
     const cur=((ROSTER[idx]&&ROSTER[idx].skills)||[]).join('、')||'（尚無技能）';
     o.add(txt(this,W/2,H/2-168,'選擇一項　·　目前技能：'+cur+'（最多 2 個）',12,TH.cyan));
+    o.add(txt(this,W/2,H/2-150,'🟢 綠卡＝習得新技能　·　🟡 金卡＝強化現有技能',11,TH.dim));
     const cw=174, gap=18, n=choices.length, x0=W/2-((n-1)*(cw+gap))/2, cy=H/2+14;
     choices.forEach((c,i)=>{ this.levelCard(o, x0+i*(cw+gap), cy, cw, 250, c, ()=>{
       const eq=(ROSTER[idx]&&ROSTER[idx].skills)||[];
@@ -757,7 +844,8 @@ class Battle extends Phaser.Scene {
   }
   // 單張技能卡（圖示＋名稱＋說明＋習得/強化標籤；hover 浮起）
   levelCard(o, x, y, w, h, c, onPick){
-    const sv=skillVisual(c.name), ac=accent(c.accentName||sv.accent), top=-h/2;
+    // 配色一眼區分：習得新技能＝綠、強化現有技能＝金；替換卡沿用紅（accentName）
+    const sv=skillVisual(c.name), ac=accent(c.accentName || (c.type==='upgrade'?'gold':'green')), top=-h/2;
     const card=this.add.container(x,y); o.add(card);
     const g=this.add.graphics(); card.add(g);
     const draw=(hov)=>{ g.clear();
@@ -768,7 +856,7 @@ class Battle extends Phaser.Scene {
       g.fillStyle(ac.deep,0.55); g.fillCircle(0,top+64,27); g.lineStyle(2,ac.num,0.9); g.strokeCircle(0,top+64,27);
     };
     draw(false);
-    card.add(txt(this,0,top+22,(c.tag||(c.type==='upgrade'?'強化':'習得')),12,ac.hex));
+    card.add(txt(this,0,top+22,(c.tag||(c.type==='upgrade'?'▲ 強化技能':'＋ 習得新技能')),13,ac.hex));
     card.add(icon(this,0,top+64,sv.icon,34,ac.num));
     card.add(txt(this,0,top+106,c.name,18,ac.hex));
     card.add(txt(this,0,top+138,c.desc||'',11.5,UI.text,0.5,0).setWordWrapWidth(w-26).setAlign('center'));

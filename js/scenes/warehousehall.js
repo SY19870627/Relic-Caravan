@@ -6,7 +6,7 @@ class WarehouseHall extends Phaser.Scene {
     syncDiscovered();
     const W=this.scale.width;
     sceneBg(this,{glow:0xf2c14e});
-    sceneHeader(this,'倉 庫 ・ 收 藏','',{accent:'gold'});
+    sceneHeader(this,'圖 鑑 ・ 收 藏','',{accent:'gold'});
     button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
 
 

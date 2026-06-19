@@ -27,7 +27,9 @@ function defaultGuild(){ return {
   settings:{ autoSip:true },
   relics:[], reputation:0, repEarned:0, partySize:1,   // reputation 可花費、repEarned 累計門檻；partySize 1→5
   formation:0,
-  horse:1,                       // 馬匹：0力量/1均衡/2耐力（預設均衡）
+  formationsUnlocked:{},        // 已用聲望解鎖的隊形索引（基礎三角 cost0 永遠可用）
+  horse:0,                       // 馬匹：0普通(預設)/1均衡(免費)/2耐力/3力量
+  horsesUnlocked:{},            // 已用聲望解鎖的馬匹索引（普通馬／均衡馬 cost0 永遠可用）
   materials:{},                 // 素材（工坊強化用，跨趟保留）；食材改為每趟隨身、不入公會
   staff:{ craftsman:0, leader:0 },// 後勤：工匠階級0-3、領隊0/1
   upgrades:{},                   // 項目化強化已解鎖項目 {id:true}
@@ -61,8 +63,10 @@ function loadGuild(){ try{
     if(!GUILD.upgrades) GUILD.upgrades={};
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
+    if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={};
+    if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={};
     if(!GUILD.settings) GUILD.settings={autoSip:true};
-    if(GUILD.horse==null) GUILD.horse=1;    if(GUILD.partySize==null) GUILD.partySize=1;
+    if(GUILD.horse==null) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
     if(GUILD.repEarned==null) GUILD.repEarned=GUILD.reputation||0;    if(GUILD.formation==null||GUILD.formation>=FORMATIONS.length) GUILD.formation=0;
     if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){
@@ -146,6 +150,16 @@ function partySizeCap(){ return GUILD.partySize||1; }
 function partySlotCost(){ const arr=CFG.repCost.partySlot||[]; const cur=GUILD.partySize||1; return arr[cur-1]; }
 function canUnlockPartySlot(){ const cur=GUILD.partySize||1; if(cur>=5) return false; const c=partySlotCost(); return c!=null && canSpendRep(c); }
 function unlockPartySlot(){ if(!canUnlockPartySlot()) return false; spendRep(partySlotCost()); GUILD.partySize=(GUILD.partySize||1)+1; saveGuild(); return true; }
+// ---- 隊形解鎖（除基礎三角 cost0 外，其餘用聲望買斷）----
+function formationCost(i){ const f=FORMATIONS[i]; return (f&&f.cost)||0; }
+function formationUnlocked(i){ if(formationCost(i)<=0) return true; return !!(GUILD.formationsUnlocked&&GUILD.formationsUnlocked[i]); }
+function canUnlockFormation(i){ return !formationUnlocked(i) && canSpendRep(formationCost(i)); }
+function unlockFormation(i){ if(!canUnlockFormation(i)) return false; spendRep(formationCost(i)); if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={}; GUILD.formationsUnlocked[i]=true; saveGuild(); return true; }
+// ---- 馬匹解鎖（普通馬／均衡馬 cost0 免費，耐力/力量用聲望買斷）----
+function horseCost(i){ const h=HORSES[i]; return (h&&h.cost)||0; }
+function horseUnlocked(i){ if(horseCost(i)<=0) return true; return !!(GUILD.horsesUnlocked&&GUILD.horsesUnlocked[i]); }
+function canUnlockHorse(i){ return !horseUnlocked(i) && canSpendRep(horseCost(i)); }
+function unlockHorse(i){ if(!canUnlockHorse(i)) return false; spendRep(horseCost(i)); if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={}; GUILD.horsesUnlocked[i]=true; saveGuild(); return true; }
 
 // 某羈絆觸發（healInvuln/stunMark/killCdCut）是否生效：兩名成員都在出戰名單
 function bondTriggerActive(trigger){ const act=new Set(activeRoster().map(i=>CLASS_ORDER[i]));

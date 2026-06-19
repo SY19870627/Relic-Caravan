@@ -21,6 +21,7 @@ class Result extends Phaser.Scene {
       button(this,W/2,470,240,46,'回公會大廳',()=>{ initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
       return;
     }
+    if(o==='clear' || o==='retreat'){ this.renderClear(o, acc); return; }   // 完整通關／撤退：只看角色血量＋獲得遺物
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
     const resources=RUN.cargo.filter(i=>i.kind==='素材');
     // 武器/防具：唯一擁有——新裝備納入收藏、重複只能賣出
@@ -56,6 +57,39 @@ class Result extends Phaser.Scene {
       addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));   // 新遺物＋平安折返 → 賺聲望
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{variant:'go',size:17,icon:'home',iconSize:16});
+  }
+  // 完整通關／撤退精簡結算：角色血量 + 獲得遺物（其餘戰利品照常入庫，只是不顯示）
+  renderClear(outcome, acc){
+    const W=this.scale.width,H=this.scale.height;
+    const relics=RUN.cargo.filter(i=>i.kind==='遺物');
+    const heroes=RUN.heroes||[];
+    const pTitle=(outcome==='retreat'?'撤退收工':'凱旋歸來')+'　·　隊伍狀態與遺物收穫';
+    const pnl=panel(this,W/2,308,760,316,{accent:acc||'gold',title:pTitle,icon:'star',titleSize:15});
+    txt(this,W/2,pnl.bodyTop+6,'隊員血量',12,UI.dim);
+    const n=Math.max(1,heroes.length), cw=Math.min(150,Math.floor(700/n)), x0=W/2-(n*cw)/2+cw/2, y=pnl.bodyTop+44;
+    heroes.forEach((h,i)=>{ const s=heroStat(h), mx=s.maxHp, hp=Math.max(0,Math.round(h.hp||0)), alive=hp>0, cx=x0+i*cw;
+      this.add.image(cx,y,h.sprite).setScale(2.4).setAlpha(alive?1:0.35);
+      txt(this,cx,y+40,h.name,13, alive?UI.gold:UI.dim);
+      statBar(this,cx-52,y+60,104,8,hp,mx,{accent:alive?'green':'red'});
+      txt(this,cx,y+76,alive?(hp+' / '+mx):'倒下',11, alive?UI.green:UI.red);
+    });
+    const ry=pnl.bodyTop+182;
+    if(relics.length){
+      txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏即時生效',13,UI.violet);
+      txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
+    } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
+    button(this,W/2,528,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
+  }
+  bankAndReturn(){
+    let newRelics=0;
+    RUN.cargo.forEach(it=>{
+      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
+      else if(it.kind==='素材'){ addMaterial(it.matId); }
+      else if(it.kind==='食材'){ /* 隨身消耗，不入庫 */ }
+      else { discover(it.name); }
+    });
+    addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
+    saveGuild(); initRun(); this.scene.start('GuildHall');
   }
   renderList(){
     const W=this.scale.width;

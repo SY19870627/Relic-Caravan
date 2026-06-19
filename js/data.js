@@ -104,27 +104,27 @@ const BONDS = [
 
 // 隊形（取代固定羈絆）：每隊形固定站位（像素座標）＋每站位加減成；row 決定被鎖定權重
 const FORMATIONS = [
-  { name:'基礎三角', desc:'攻守均衡的基本站位，戰士在前扛傷', slots:{
+  { name:'基礎三角', desc:'攻守均衡的基本站位，戰士在前扛傷（初始免費）', cost:0, slots:{
      warrior:{x:330,y:360,row:'front', def:3},
      ranger :{x:200,y:255,row:'back',  atk:4},
      priest :{x:200,y:440,row:'back',  heal:5, hp:8}, mage:{x:130,y:360,row:'back', atk:3}, rogue:{x:265,y:255,row:'mid', atk:3} } },
-  { name:'護駕', desc:'戰士遊俠雙前排護住後方牧師，火力全開但前排吃傷', slots:{
+  { name:'護駕', desc:'戰士遊俠雙前排護住後方牧師，火力全開但前排吃傷（解鎖 ⭐2）', cost:2, slots:{
      warrior:{x:340,y:300,row:'front', atk:4},
      ranger :{x:340,y:420,row:'front', atk:8, def:-2},
      priest :{x:190,y:360,row:'back',  heal:6}, mage:{x:150,y:280,row:'back', atk:5}, rogue:{x:300,y:240,row:'mid', atk:6, def:-1} } },
-  { name:'警戒前行', desc:'謹慎推進、重防禦，輸出較低', slots:{
+  { name:'警戒前行', desc:'謹慎推進、重防禦，輸出較低（解鎖 ⭐2）', cost:2, slots:{
      warrior:{x:300,y:360,row:'front', def:6},
      ranger :{x:170,y:260,row:'back',  def:3, atk:-2},
      priest :{x:170,y:460,row:'back',  heal:4, def:3}, mage:{x:150,y:360,row:'back', def:2, atk:2}, rogue:{x:235,y:255,row:'mid', def:2, atk:1} } },
-  { name:'急行軍', desc:'全員拉開散開，傷害被均攤', slots:{
+  { name:'急行軍', desc:'全員拉開散開，傷害被均攤（解鎖 ⭐2）', cost:2, slots:{
      warrior:{x:280,y:360,row:'mid',  def:2},
      ranger :{x:160,y:300,row:'back', atk:6},
      priest :{x:160,y:420,row:'back', heal:5}, mage:{x:130,y:360,row:'back', atk:5}, rogue:{x:235,y:300,row:'mid', atk:5} } },
-  { name:'守護方陣', desc:'極致防禦，戰士死守前方（需聲望 3）', repReq:3, slots:{
+  { name:'守護方陣', desc:'極致防禦，戰士死守前方（解鎖 ⭐3）', cost:3, slots:{
      warrior:{x:320,y:360,row:'front', def:9},
      ranger :{x:185,y:265,row:'back',  def:3},
      priest :{x:185,y:455,row:'back',  heal:5, hp:12, def:3}, mage:{x:150,y:360,row:'back', def:3, hp:8}, rogue:{x:240,y:255,row:'mid', def:3, hp:6} } },
-  { name:'突擊縱列', desc:'全員壓上猛攻，極高輸出但極脆（需聲望 5）', repReq:5, slots:{
+  { name:'突擊縱列', desc:'全員壓上猛攻，極高輸出但極脆（解鎖 ⭐5）', cost:5, slots:{
      warrior:{x:345,y:300,row:'front', atk:6},
      ranger :{x:360,y:360,row:'front', atk:12, def:-3},
      priest :{x:330,y:420,row:'front', heal:5, def:-2}, mage:{x:355,y:475,row:'front', atk:8, def:-3}, rogue:{x:380,y:240,row:'front', atk:11, def:-3} } },
@@ -132,10 +132,12 @@ const FORMATIONS = [
 const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重：前排越容易被集火
 // ===== 馬匹（單一馬車＋選馬）=====
 // 三隻馬各有專屬功能（feature）與不同貨格數，讓選馬＝選旅途玩法。
+// cost＝解鎖所需聲望（0＝免費）；index 0 為初始預設馬（普通馬）
 const HORSES = [
-  {name:'力量馬', slots:4, feature:'vanguard',   desc:'先鋒衝鋒：每場戰鬥開場全隊 +20 護盾；貨格較少（4）'},
-  {name:'均衡馬', slots:6, feature:'initiative', desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）；貨格 6'},
-  {name:'耐力馬', slots:9, feature:'recovery',   desc:'耐久長征：每場戰後存活成員多回復 12% HP；貨格最多（9）'},
+  {name:'普通馬', slots:6, feature:null,         cost:0, desc:'最尋常的駑馬，沒有特殊本領；貨格 6（初始預設）'},
+  {name:'均衡馬', slots:6, feature:'initiative', cost:0, desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）；貨格 6'},
+  {name:'耐力馬', slots:9, feature:'recovery',   cost:3, desc:'耐久長征：每場戰後存活成員多回復 12% HP；貨格 9（解鎖 ⭐3）'},
+  {name:'力量馬', slots:12, feature:'vanguard',  cost:4, desc:'先鋒衝鋒：每場戰鬥開場全隊 +20 護盾；貨格 12（解鎖 ⭐4）'},
 ];
 // ===== 素材（強化用）：特定關出特定素材 =====
 const MATERIALS = [
