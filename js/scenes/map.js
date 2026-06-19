@@ -38,7 +38,8 @@ function buildEncounter(n){
   const t=RUN.destTier||1;
   const p=Math.max(1, activeRoster().length);
   const partyMul=0.5+0.13*p;   // v0.9：敵人強度隨出戰人數縮放（solo≈0.63、5人≈1.15），讓 1 人開局可玩
-  const scale=(1+n.layer*CFG.enemy.layerScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
+  const prog=(RUN.exped&&RUN.exped.plan&&RUN.exped.plan.length)? Math.min(1, RUN.exped.i/RUN.exped.plan.length) : 0;
+  const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
   const mk=(sprite,name,hp,atkSeq,def,interval,ranged,extra)=>Object.assign(
     {sprite,name,hp:Math.round(hp*scale),atkSeq:atkSeq.map(a=>Math.round(a*scale)),def,interval,ranged,healer:false,heal:0}, extra||{});
   const normalWave=()=>{ const r=Math.random();

@@ -5,8 +5,8 @@ class Battle extends Phaser.Scene {
   create(){
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
     const W=this.scale.width, H=this.scale.height;
-    this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
-    this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
+    this.bgWall=this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
+    this.bgFloor=this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
     this.add.rectangle(0,360,W,3,0x0a0710).setOrigin(0);
     const _hb=this.add.graphics().setDepth(59); _hb.fillStyle(UI.bg2,0.8); _hb.fillRoundedRect(8,8,W-16,62,10); _hb.lineStyle(1.5,UI.lineN,0.6); _hb.strokeRoundedRect(8,8,W-16,62,10);
     this.torch(120,150); this.torch(W-120,150);
@@ -64,11 +64,12 @@ class Battle extends Phaser.Scene {
       const pk=heroPerks(h.idx);
       const interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1)));
       const useBonus=(pk.useBonus||0);
-      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
+      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
       c.shield=startShield; return c;
     });
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
+    if(RUN.exped && RUN.exped.i>0){ this.heroes.forEach(c=>{ const tx=c.container.x; c.container.x=tx-90; this.tweens.add({targets:c.container,x:tx,duration:520,ease:'Quad.out'}); }); }
     if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }
     this.enemies=[]; this.all=[...this.heroes];
     this.updatePctBar();
@@ -98,8 +99,12 @@ class Battle extends Phaser.Scene {
     const msg = this.waveIndex===0
       ? (RUN.isBoss ? (this.totalWaves>1?'遺物室守衛攔路！':'守護者現身！') : '遭遇敵人！')
       : (RUN.isBoss&&isLast ? '守護者現身！' : `第 ${this.waveIndex+1} 波來襲！`);
-    this.banner.setText(msg).setAlpha(1);
-    this.tweens.add({targets:this.banner,alpha:0,delay:850,duration:450,onComplete:()=>this.banner.setText('')});
+    if(RUN.isBoss && isLast){ this.screenFlash(0xff5a5a,0.34,540); this.shake(540,0.015);
+      this.banner.setText(msg).setAlpha(1).setScale(0.5);
+      this.tweens.add({targets:this.banner,scale:1.3,duration:430,ease:'Back.out'});
+      this.tweens.add({targets:this.banner,alpha:0,delay:1400,duration:520,onComplete:()=>{ this.banner.setScale(1).setText(''); }}); }
+    else { this.banner.setText(msg).setAlpha(1);
+      this.tweens.add({targets:this.banner,alpha:0,delay:850,duration:450,onComplete:()=>this.banner.setText('')}); }
   }
   torch(x,y){
     this.add.rectangle(x,y,8,22,0x4d3019).setDepth(5);
@@ -426,9 +431,10 @@ class Battle extends Phaser.Scene {
       const xp = wasBoss?CFG.battleXp.boss:(CFG.battleXp.base+(node?node.risk:1)*CFG.battleXp.perRisk);
       gainXP(xp); saveGuild();
       const re=relicEffects();
+      const rec=horseFeature()==='recovery'?0.12:0;
       RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;
         if(re.fullHealAfterBattle){ h.hp=mx; }
-        else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); } });
+        else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*(CFG.battle.postHealAlive+rec))) : Math.round(mx*CFG.battle.postHealRevive); } });
       if(wasBoss){
         const rel=rollRelicForDest(RUN.destIndex||0);
         const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};
@@ -446,6 +452,8 @@ class Battle extends Phaser.Scene {
   }
   marchNext(){
     this.updatePctBar();
+    if(this.bgWall) this.tweens.add({targets:[this.bgWall,this.bgFloor], tilePositionX:'+=240', duration:780, ease:'Sine.inOut'});
+    (this.heroes||[]).forEach(c=>{ if(c&&c.alive&&c.container) this.tweens.add({targets:c.container, x:c.container.x+46, duration:740, ease:'Sine.in'}); });
     this.banner.setText('▶ 前進中…').setAlpha(1);
     this.tweens.add({targets:this.banner,alpha:0,delay:650,duration:350,onComplete:()=>this.banner.setText('')});
     this.time.delayedCall(820,()=>{

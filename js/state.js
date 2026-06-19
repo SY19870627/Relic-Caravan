@@ -80,9 +80,9 @@ function matCount(name){ return GUILD.materials[name]||0; }
 function cargoIngCount(id){ const c=(typeof RUN!=='undefined'&&RUN&&RUN.cargo)?RUN.cargo:[]; return c.filter(it=>it.kind==='食材'&&it.ingId===id).length; }
 
 // ---- 馬匹（單馬車＋選馬）＋ 工匠項目化強化：最終食物/貨格 ----
-function upgradeEffectTotal(){ let food=0,slots=0; UPGRADES.forEach(u=>{ if(GUILD.upgrades&&GUILD.upgrades[u.id]){ food+=u.effect.food||0; slots+=u.effect.slots||0; } }); return {food,slots}; }
+function upgradeEffectTotal(){ let slots=0; UPGRADES.forEach(u=>{ if(GUILD.upgrades&&GUILD.upgrades[u.id]){ slots+=u.effect.slots||0; } }); return {slots}; }
 function wagonStats(){ const h=HORSES[GUILD.horse]||HORSES[1]; const up=upgradeEffectTotal();
-  return { name:'探險馬車', horse:h.name, horseDesc:h.desc, food:h.food+up.food, slots:h.slots+up.slots, upFood:up.food, upSlots:up.slots }; }
+  return { name:'探險馬車', horse:h.name, horseDesc:h.desc, slots:h.slots+up.slots, upSlots:up.slots }; }
 function upgradeOwned(id){ return !!(GUILD.upgrades&&GUILD.upgrades[id]); }
 function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0); }
 function canBuyUpgrade(u){ if(upgradeOwned(u.id)) return false; if(craftsmanTier()<u.craftReq) return false; if(!canSpendRep(upgradeRepCost(u))) return false;

@@ -128,9 +128,9 @@ const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重
 // ===== 馬匹（單一馬車＋選馬，沿用食物⇄貨格取捨）=====
 // v0.8：三隻馬除了食物⇄貨格取捨，各加一個專屬功能（feature），讓選馬＝選旅途玩法。
 const HORSES = [
-  {name:'力量馬', food:5,  slots:8, feature:'trample',    desc:'力大馱重：貨格多、走不遠。每趟可免戰穿越第一個一般戰鬥節點'},
-  {name:'均衡馬', food:7,  slots:6, feature:'initiative', desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）'},
-  {name:'耐力馬', food:10, slots:4, feature:'forage',     desc:'耐久長征：走得遠、裝得少。水域不額外耗糧，且首次糧盡免傷'},
+  {name:'力量馬', slots:4, feature:'vanguard',   desc:'先鋒衝鋒：每場戰鬥開場全隊 +20 護盾；貨格較少（4）'},
+  {name:'均衡馬', slots:6, feature:'initiative', desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）；貨格 6'},
+  {name:'耐力馬', slots:9, feature:'recovery',   desc:'耐久長征：每場戰後存活成員多回復 12% HP；貨格最多（9）'},
 ];
 // ===== 素材（強化用）：特定關出特定素材 =====
 const MATERIALS = [
@@ -175,7 +175,7 @@ const UPGRADES = [
   {id:'trapkit',  cat:'wagon',  name:'拆陷阱機關', craftReq:1, effect:{feature:'autotrap'}, cost:{mats:{wood:2}},             desc:'無領隊也能自動拆除地城陷阱'},
   {id:'deck2',    cat:'wagon',  name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},             desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
   // 整備所類（共用工匠）
-  {id:'feedbag',  cat:'outfit', name:'加大草料袋', craftReq:1, effect:{food:2},             cost:{mats:{wood:2}},             desc:'食物 +2'},
+  {id:'feedbag',  cat:'outfit', name:'加大車廂', craftReq:1, effect:{slots:2},             cost:{mats:{wood:2}},             desc:'貨格 +2'},
   {id:'campstove',cat:'outfit', name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}},   desc:'無領隊也能在途中烹煮料理'},
   {id:'ledger',   cat:'outfit', name:'商隊帳房',   craftReq:3, effect:{feature:'ledger'},   cost:{mats:{crystal:2,voidore:1}}, desc:'途中可把貴重物品就地變賣為 💰'},
 ];
