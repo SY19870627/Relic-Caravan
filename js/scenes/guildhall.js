@@ -25,7 +25,7 @@ class GuildHall extends Phaser.Scene {
 
     add(button(this, 68, 20, 112, 26, '重置存檔', ()=>{ resetSave(); initRun(); this.render(); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));
     add(button(this, W-76, 20, 128, 26, '作弊：+資源', ()=>{
-      GUILD.funds+=500; addRep(20); const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
+      addRep(20); const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
       if(left.length) GUILD.relics.push(Phaser.Utils.Array.GetRandom(left).id);
       const w=Phaser.Utils.Array.GetRandom(WEAPONS); ownGear(w.name);
       saveGuild(); this.render();
@@ -53,15 +53,13 @@ class GuildHall extends Phaser.Scene {
     this.rdetY=P.bodyTop+108; this._rdet=[];
     this.showRelicDetail(null);
 
-    // ====== 導覽卡（移除訓練所；商隊工坊接手其位置）======
-    const cw=278, ch=58, gx=16+cw/2, midx=W/2, ex=W-16-cw/2, row1=378, row2=442;
+    // ====== 導覽卡（角色所改由地城內進入；解鎖隊員移至招募所）======
+    const cw=278, ch=58, colL=W/2-cw/2-12, colR=W/2+cw/2+12, row1=378, row2=442;
     const cards=[
-      {x:gx, y:row1, accent:'teal', icon:'person', title:'角色所', desc:'查看技能、調整武器與防具', s:'CharacterHall'},
-      {x:midx, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'招募新成員、占位者升階', s:'RecruitHall'},
-      {x:ex, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
-      {x:gx, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬、項目強化、補給', s:'WagonHall'},
-      {x:midx, y:row2, accent:'gold', icon:'bag', title:'倉庫', desc:'收藏：武器／防具／道具／貴重', s:'WarehouseHall'},
-      {x:ex, y:row2, accent:'gold', icon:'recruit', title:(partySizeCap()<5?('解鎖隊員（⭐'+partySlotCost()+'）'):'隊伍已滿（5）'), desc:'花聲望擴充出戰人數 1→5', onClick:()=>{ if(unlockPartySlot()) this.render(); else this.flash(partySizeCap()>=5?'已達 5 人上限':('聲望不足，需 ⭐'+partySlotCost())); } },
+      {x:colL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
+      {x:colR, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
+      {x:colL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬、項目強化、補給', s:'WagonHall'},
+      {x:colR, y:row2, accent:'gold', icon:'bag', title:'倉庫', desc:'收藏：武器／防具／道具／貴重', s:'WarehouseHall'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 

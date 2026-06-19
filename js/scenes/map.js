@@ -29,7 +29,7 @@ function genWorld(tier, partySize){
   let id=0; const nodes=[];
   layers.forEach((layer,li)=>{ layer.forEach((type,k)=>{
     const node={ id:id++, layer:li, i:k, cnt:layer.length, type, done:false, adj:[], next:[],
-      weather: li===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id, terrain:'plain', trap:0, food:0 };
+      weather: li===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id, food:0 };
     if(type==='battle') node.risk=Math.min(3, 1+Math.floor(li/2));
     else if(type==='elite') node.risk=3;
     else if(type==='relic') node.risk=4;
@@ -49,8 +49,6 @@ function genWorld(tier, partySize){
   const home=nodes.find(n=>n.type==='home'), relic=nodes.find(n=>n.type==='relic');
   return { nodes, edges, current:home.id, homeId:home.id, relicId:relic.id, started:false, tier };
 }
-// 相容別名（舊呼叫點）
-function genMap(){ return genWorld((typeof RUN!=='undefined'&&RUN&&RUN.destTier)||1, (GUILD&&GUILD.partySize)||1); }
 // ---- 移動／食物／飢餓（可測試的純邏輯，MapScene 呼叫）----
 function weatherTravelFood(wid){ const w=WEATHER_BY_ID[wid]; return (w&&w.travelFood)||0; }
 function travelCost(map, fromId, toId){ const to=(map.nodes||[]).find(n=>n.id===toId); return edgeFood(map,fromId,toId) + weatherTravelFood(to&&to.weather); }
@@ -108,12 +106,12 @@ class MapScene extends Phaser.Scene {
     button(this, 100, H-34, 150, 36, '🎒 角色／裝備', ()=>this.scene.start('CharacterHall',{from:'Map'}), {size:13,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     button(this, 268, H-34, 116, 36, '⚔ 隊形', ()=>this.scene.start('FormationHall',{from:'Map'}), {size:13,fill:0x4a3f63,stroke:0x9a7fd0,hover:0x6a5d8a});
     if(hasLeader()||hasCampstove()) button(this, 400, H-34, 116, 36, '🍳 料理', ()=>{ RUN.cookOpen=true; this.scene.restart(); }, {size:12,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c});
-    // 工匠・商隊帳房（ledger）：途中變賣貴重物品換資金
+    // 工匠・商隊帳房（ledger）：途中變賣貴重物品換 💰
     if(hasLedger()){ const nVal=RUN.cargo.filter(it=>it.kind==='貴重物品').length;
       button(this, 532, H-34, 140, 36, `💰 帳房變賣(${nVal})`, ()=>{ const v=RUN.cargo.filter(it=>it.kind==='貴重物品');
         if(!v.length){ RUN.itemToast='沒有可變賣的貴重物品'; this.scene.restart(); return; }
         let g=0; v.forEach(it=>{ g+=Math.round(it.value*CFG.merchant.sellRate); const i=RUN.cargo.indexOf(it); if(i>=0)RUN.cargo.splice(i,1); });
-        GUILD.funds+=g; saveGuild(); RUN.itemToast=`帳房變賣 ${v.length} 件，得 ＄${g}`; this.scene.restart(); },
+        addGold(g); RUN.itemToast=`帳房變賣 ${v.length} 件，得 💰${g}`; this.scene.restart(); },
         {size:11,fill:0x6b5a3a,stroke:0xd0b05a,hover:0x8c7a4c}); }
     if(!m.started){ m.started=true; }
     if(RUN.pendingReward){ const pr=RUN.pendingReward; RUN.pendingReward=null; this.showReward(pr); }
@@ -333,8 +331,8 @@ class MapScene extends Phaser.Scene {
         act:()=>{ RUN.food-=2; const it=rollRelicForDest(RUN.destIndex||0); if(!it) return '祭壇沉寂，無物可得'; RUN.cargo.push(it); return `獻祭成功，獲得 ${it.icon} ${it.name}`; } },
       {title:'⛲ 治療之泉', text:'飲下清泉，全隊回復 40% 體力', btn:'飲用', cond:()=>true,
         act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); return '清泉沁入，全隊回復了體力'; } },
-      {title:'🧙 流浪商人', text:'花 ＄80 購入 2 瓶治療藥水', btn:'購買（＄80）', cond:()=>GUILD.funds>=80 && RUN.cargo.length<RUN.slots,
-        act:()=>{ GUILD.funds-=80; saveGuild(); let n2=0; for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); n2++; } } return `購入治療藥水 ×${n2}`; } },
+      {title:'🧙 流浪商人', text:'花 💰80 購入 2 瓶治療藥水', btn:'購買（💰80）', cond:()=>(RUN.gold||0)>=80 && RUN.cargo.length<RUN.slots,
+        act:()=>{ spendGold(80); let n2=0; for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); n2++; } } return `購入治療藥水 ×${n2}`; } },
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>e.cond())) || pool[1];
     this.add.rectangle(0,0,W,H,0x000000,0.6).setOrigin(0).setDepth(90);
@@ -400,13 +398,13 @@ function equipSwap(item, heroIndex){
   const newMax=heroStat(h).maxHp;
   h.hp=Math.max(1, Math.min(newMax, (h.hp||newMax)+(newMax-oldMax)));
   const ci=RUN.cargo.indexOf(item); if(ci>=0) RUN.cargo.splice(ci,1);
-  RUN.cargo.push({kind: slot==='weapon'?'武器':'防具', name:old.name, icon: slot==='weapon'?'⚔':'🛡', value:25, gear:old});
-  persistLoadout();   // 途中換裝也跨輪保存
-}
+  RUN.cargo.push({kind: slot==='weapon'?'武器':'防具', name:old.name, icon: slot==='weapon'?'⚔':'🛡', value:25, gear:old});}
 // 回傳「波次陣列」：每個元素是一波敵人；清完一波才進下一波
 function buildEncounter(n){
   const t=RUN.destTier||1;
-  const scale=(1+n.layer*CFG.enemy.layerScale)*(1+(t-1)*CFG.enemy.tierScale);   // 越深、目的地階級越高 → 敵人越強
+  const p=Math.max(1, activeRoster().length);
+  const partyMul=0.5+0.13*p;   // v0.9：敵人強度隨出戰人數縮放（solo≈0.63、5人≈1.15），讓 1 人開局可玩
+  const scale=(1+n.layer*CFG.enemy.layerScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
   const mk=(sprite,name,hp,atkSeq,def,interval,ranged,extra)=>Object.assign(
     {sprite,name,hp:Math.round(hp*scale),atkSeq:atkSeq.map(a=>Math.round(a*scale)),def,interval,ranged,healer:false,heal:0}, extra||{});
   const normalWave=()=>{ const r=Math.random();
@@ -420,12 +418,12 @@ function buildEncounter(n){
       [mk('guardian','殘缺石衛',124,[16,21],4,1500,false,{skills:[{name:'重擊',type:'stun',cd:6000,uses:2,dur:1200}]}), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
     ]; return Phaser.Utils.Array.GetRandom(pool); };
   if(n.type==='elite'){
-    const w=2+(t>=3?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(eliteWave()); return waves;   // 2-3 波精英
+    const w=(p<=2?1:2)+(t>=3?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(eliteWave()); return waves;   // 小隊伍少一波
   }
-  const w=2+(t>=4?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(normalWave()); return waves;        // 2-3 波
+  const w=(p<=2?1:2)+(t>=4?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(normalWave()); return waves;        // 小隊伍少一波
 }
 function buildBoss(){
-  const t=RUN.destTier||1, s=1+(t-1)*CFG.enemy.bossTierScale;   // 目的地階級越高，王戰越強
+  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+(t-1)*CFG.enemy.bossTierScale)*(0.55+0.12*p);   // 王戰也隨人數縮放
   const bosses=[
     [{sprite:'guardian',name:'遺跡守護者',hp:360,atkSeq:[30,18,42],def:6,interval:1350,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'震地',type:'stun',cd:6000,uses:3,dur:1400}]},
      {sprite:'goblinArcher',name:'哥布林弓手',hp:64,atkSeq:[16,18],def:1,interval:1100,ranged:true,healer:false,heal:0}],

@@ -125,11 +125,6 @@ const FORMATIONS = [
      priest :{x:330,y:420,row:'front', heal:5, def:-2}, mage:{x:355,y:475,row:'front', atk:8, def:-3}, rogue:{x:380,y:240,row:'front', atk:11, def:-3} } },
 ];
 const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重：前排越容易被集火
-const WAGONS = [
-  {name:'輕便馬車', food:9, slots:4, desc:'跑得遠，裝得少'},
-  {name:'標準篷車', food:7, slots:6, desc:'均衡'},
-  {name:'重載貨車', food:5, slots:9, desc:'裝得多，跑不遠'},
-];
 // ===== 馬匹（單一馬車＋選馬，沿用食物⇄貨格取捨）=====
 // v0.8：三隻馬除了食物⇄貨格取捨，各加一個專屬功能（feature），讓選馬＝選旅途玩法。
 const HORSES = [
@@ -155,19 +150,13 @@ const INGREDIENTS = [
 ];
 const INGREDIENT_BY_ID={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_ID[m.id]=m; });
 const INGREDIENT_BY_DEST={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_DEST[m.dest]=m; });
-// ===== 領隊探路：節點天氣／地形／陷阱 =====
+// ===== 節點天氣（影響移動成本與戰鬥；可在地城神殿祈禱轉晴）=====
 const WEATHERS = [
   {id:'clear', name:'晴',  icon:'☀'},
   {id:'rain',  name:'雨',  icon:'🌧', eff:{allAtk:-2}, travelFood:1, note:'雨：雙方 ATK -2、移動 +1 糧'},
   {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, travelFood:1, note:'霧：敵方 DEF +2、移動 +1 糧'},
 ];
-const TERRAINS = [
-  {id:'plain',  name:'平地', icon:'🟫'},
-  {id:'rubble', name:'碎石', icon:'🪨', eff:{heroDef:2}, note:'碎石：我方 DEF +2'},
-  {id:'water',  name:'水域', icon:'💧', eff:{foodPlus:1}, note:'水域：進入多耗 1 糧'},
-];
 const WEATHER_BY_ID={}; WEATHERS.forEach(w=>{ WEATHER_BY_ID[w.id]=w; });
-const TERRAIN_BY_ID={}; TERRAINS.forEach(t=>{ TERRAIN_BY_ID[t.id]=t; });
 // ===== 領隊料理：食材→補血／增益（探險中使用，buff 持續整趟）=====
 // v0.8：料理 buff 從純 ATK/DEF 數值，改成「一次性功能」(grant)，保留補血。
 // grant：shield 下場開場護盾(amt)｜revive 下場一次陣亡復活充能｜firstCrit 下場全隊首擊必暴
@@ -182,13 +171,13 @@ const RECIPES = [
 // feature：autotrap 無領隊自動拆陷阱｜deck2 清掉精英戰後 +3 貨格｜campstove 無領隊也能料理｜ledger 途中變賣貴重物品
 const UPGRADES = [
   // 馬車類
-  {id:'rack1',    cat:'wagon',  name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{funds:150, mats:{wood:2}},             desc:'貨格 +2'},
-  {id:'trapkit',  cat:'wagon',  name:'拆陷阱機關', craftReq:1, effect:{feature:'autotrap'}, cost:{funds:180, mats:{wood:2}},             desc:'無領隊也能自動拆除地城陷阱'},
-  {id:'deck2',    cat:'wagon',  name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{funds:500, mats:{iron:2}},             desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
+  {id:'rack1',    cat:'wagon',  name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},             desc:'貨格 +2'},
+  {id:'trapkit',  cat:'wagon',  name:'拆陷阱機關', craftReq:1, effect:{feature:'autotrap'}, cost:{mats:{wood:2}},             desc:'無領隊也能自動拆除地城陷阱'},
+  {id:'deck2',    cat:'wagon',  name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},             desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
   // 整備所類（共用工匠）
-  {id:'feedbag',  cat:'outfit', name:'加大草料袋', craftReq:1, effect:{food:2},             cost:{funds:150, mats:{wood:2}},             desc:'食物 +2'},
-  {id:'campstove',cat:'outfit', name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{funds:400, mats:{iron:1,crystal:1}},   desc:'無領隊也能在途中烹煮料理'},
-  {id:'ledger',   cat:'outfit', name:'商隊帳房',   craftReq:3, effect:{feature:'ledger'},   cost:{funds:900, mats:{crystal:2,voidore:1}}, desc:'途中可把貴重物品就地變賣換資金'},
+  {id:'feedbag',  cat:'outfit', name:'加大草料袋', craftReq:1, effect:{food:2},             cost:{mats:{wood:2}},             desc:'食物 +2'},
+  {id:'campstove',cat:'outfit', name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}},   desc:'無領隊也能在途中烹煮料理'},
+  {id:'ledger',   cat:'outfit', name:'商隊帳房',   craftReq:3, effect:{feature:'ledger'},   cost:{mats:{crystal:2,voidore:1}}, desc:'途中可把貴重物品就地變賣為 💰'},
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
 // v0.8：調降每級 growthHp（不再讓升級＝一路堆血），改由升級 perk（state.js heroPerks）給功能。

@@ -29,7 +29,7 @@ class Result extends Phaser.Scene {
     this.others=RUN.cargo.filter(i=>i.kind==='道具'||i.kind==='貴重物品').sort((a,b)=> (a.kind==='貴重物品'?1:0)-(b.kind==='貴重物品'?1:0) || b.value-a.value);
     this.others.forEach(it=>{ if(it._keep===undefined) it._keep=(it.kind==='道具'); });
 
-    const pnl=panel(this,W/2,346,720,356,{accent:acc,title:'戰利品結算　·　勾選保留，其餘賣成資金',icon:'chest',titleSize:15});
+    const pnl=panel(this,W/2,346,720,356,{accent:acc,title:'戰利品結算　·　遺物入收藏、素材入庫、雜物登錄圖鑑',icon:'chest',titleSize:15});
     this.bodyTop=pnl.bodyTop;
     let yy=pnl.bodyTop+4;
     if(relics.length){ const rc=chip(this,0,yy+8,{label:'遺物 ×'+relics.length+'　'+relics.map(r=>r.name).join('、')+'　→ 入收藏即時生效',accent:'violet',icon:'relic',size:11,h:24}); rc.setX(W/2-rc.w/2); }
@@ -37,12 +37,12 @@ class Result extends Phaser.Scene {
     yy+=30;
     if(resources.length){ const rcc={}; resources.forEach(r=>rcc[r.name]=(rcc[r.name]||0)+1);
       const rs=chip(this,0,yy+8,{label:'素材／食材　'+Object.keys(rcc).map(k=>k+'×'+rcc[k]).join('  ')+'　→ 自動入庫',accent:'teal',size:11,h:22}); rs.setX(W/2-rs.w/2); yy+=26; }
-    if(this.gearNew.length||this.gearDup.length){ const dupVal=this.gearDup.reduce((a,b)=>a+(b.value||0),0);
-      const parts=[]; if(this.gearNew.length)parts.push('新裝備 '+this.gearNew.map(g=>g.name).join('、')+' 納入收藏'); if(this.gearDup.length)parts.push('重複 ×'+this.gearDup.length+' 賣出 ＄'+dupVal);
+    if(this.gearNew.length||this.gearDup.length){
+      const parts=[]; if(this.gearNew.length)parts.push('新裝備 '+this.gearNew.map(g=>g.name).join('、')+' 納入收藏'); if(this.gearDup.length)parts.push('重複 ×'+this.gearDup.length+'（已收藏）');
       const gs=chip(this,0,yy+8,{label:'裝備　'+parts.join('　·　'),accent:'gold',icon:'sword',size:11,h:22}); gs.setX(W/2-gs.w/2); yy+=26; }
 
     button(this, W/2-180, yy+12, 160, 28, '全部保留', ()=>{ this.others.forEach(it=>it._keep=true); this.renderList(); }, {variant:'go',size:12});
-    button(this, W/2+180, yy+12, 160, 28, '全部賣出', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {variant:'gold',size:12});
+    button(this, W/2+180, yy+12, 160, 28, '全部捨棄', ()=>{ this.others.forEach(it=>it._keep=false); this.renderList(); }, {variant:'gold',size:12});
     this.listTop=yy+40;
     this.listGroup=[];
     this.renderList();
@@ -72,13 +72,12 @@ class Result extends Phaser.Scene {
       this.listGroup.push(txt(this,W/2-296,y,it.name,13, gear?UI.teal:UI.text,0));
       this.listGroup.push(txt(this,W/2-120,y,it.kind,11,UI.dim,0));
       this.listGroup.push(txt(this,W/2-10,y,'價值 '+it.value,11,UI.green,0));
-      this.listGroup.push(button(this, W/2+255, y, 120,26, it._keep?'保留':'賣出', ()=>{ it._keep=!it._keep; this.renderList(); },
+      this.listGroup.push(button(this, W/2+255, y, 120,26, it._keep?'保留':'捨棄', ()=>{ it._keep=!it._keep; this.renderList(); },
         {variant: it._keep?'go':'gold', size:12}));
       y+=36;
     });
     if(this.others.length>cap){ this.listGroup.push(txt(this,W/2,y,'…及其餘 '+(this.others.length-cap)+' 件（依目前設定處理）',11,UI.dim)); y+=22; }
-    const sell=this.others.filter(i=>!i._keep).reduce((a,b)=>a+b.value,0);
     const kept=this.others.filter(i=>i._keep); const keptVal=kept.reduce((a,b)=>a+b.value,0);
-    this.listGroup.push(txt(this,W/2, 488, '賣出得 ＄'+sell+'（公會現有 ＄'+GUILD.funds+'）　·　保留 '+kept.length+' 件（價值 '+keptVal+'）',13,UI.green));
+    this.listGroup.push(txt(this,W/2, 488, '保留 '+kept.length+' 件（價值 '+keptVal+'）',13,UI.green));
   }
 }

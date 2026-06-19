@@ -173,9 +173,6 @@ const ICONS = {
     g.beginPath(); g.arc(x,y+s*0.5,s*0.34,Math.PI*1.05,Math.PI*1.95,false); g.lineTo(x+s*0.3,y+s*0.5); g.lineTo(x-s*0.3,y+s*0.5); g.closePath(); g.fillPath(); },
   recruit(g,x,y,s,c){ ICONS.person(g,x-s*0.1,y,s*0.9,c); g.lineStyle(Math.max(2,s*0.1),c,1); g.lineBetween(x+s*0.28,y-s*0.1,x+s*0.28,y+s*0.18); g.lineBetween(x+s*0.16,y+s*0.04,x+s*0.4,y+s*0.04); },
   formation(g,x,y,s,c){ g.fillStyle(c,1); g.fillCircle(x,y-s*0.26,s*0.13); g.fillCircle(x-s*0.3,y+s*0.22,s*0.13); g.fillCircle(x+s*0.3,y+s*0.22,s*0.13); g.lineStyle(Math.max(1.5,s*0.06),c,0.6); g.lineBetween(x,y-s*0.26,x-s*0.3,y+s*0.22); g.lineBetween(x,y-s*0.26,x+s*0.3,y+s*0.22); g.lineBetween(x-s*0.3,y+s*0.22,x+s*0.3,y+s*0.22); },
-  dumbbell(g,x,y,s,c){ g.lineStyle(Math.max(2.5,s*0.12),c,1); g.lineBetween(x-s*0.34,y,x+s*0.34,y); g.lineStyle(Math.max(2,s*0.1),c,1); g.lineBetween(x-s*0.34,y-s*0.2,x-s*0.34,y+s*0.2); g.lineBetween(x+s*0.34,y-s*0.2,x+s*0.34,y+s*0.2); g.lineBetween(x-s*0.46,y-s*0.12,x-s*0.46,y+s*0.12); g.lineBetween(x+s*0.46,y-s*0.12,x+s*0.46,y+s*0.12); },
-  scales(g,x,y,s,c){ g.lineStyle(Math.max(2,s*0.09),c,1); g.lineBetween(x,y-s*0.4,x,y+s*0.34); g.lineBetween(x-s*0.34,y-s*0.28,x+s*0.34,y-s*0.28); g.lineBetween(x-s*0.22,y+s*0.34,x+s*0.22,y+s*0.34);
-    g.beginPath(); g.arc(x-s*0.34,y-s*0.28,s*0.2,0,Math.PI,false); g.strokePath(); g.beginPath(); g.arc(x+s*0.34,y-s*0.28,s*0.2,0,Math.PI,false); g.strokePath(); },
   wagon(g,x,y,s,c){ const w=s*0.74,hh=s*0.4; g.lineStyle(Math.max(2,s*0.09),c,1); g.fillStyle(c,0.14);
     g.fillRoundedRect(x-w/2,y-hh*0.7,w,hh,s*0.08); g.strokeRoundedRect(x-w/2,y-hh*0.7,w,hh,s*0.08);
     g.beginPath(); g.arc(x,y-hh*0.7,w*0.5,Math.PI,0,false); g.strokePath();

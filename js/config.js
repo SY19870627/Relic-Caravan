@@ -8,28 +8,6 @@ const CFG = {
   // 戰後獲得經驗：王戰固定 boss；一般戰 = base + 風險*perRisk
   battleXp: { boss:200, base:40, perRisk:25 },
 
-  // 設施升級費用：cost = base + (目前等級-1)*step
-  cost: {
-    temple:  { base:120, step:120 },   // 神殿（+1 遺物槽）
-    outfit:  { base:100, step:100 },   // 整備所（+1 食物/貨格）
-    wagonUp: { base:80,  step:80  },   // 各馬車升級
-  },
-
-  // 招募：戰鬥成員職業槽。warrior 開局即有；其餘需 funds＋聲望(遺物種類數)門檻
-  // tierCaps：占位者各階(0/1/2)的等級上限；tierUp：升階成本(funds)與聲望門檻
-  recruit: {
-    classes: {
-      ranger: { cost:0,   repReq:0, name:'遊俠' },
-      priest: { cost:0,   repReq:0, name:'牧師' },
-      mage:   { cost:250, repReq:3, name:'法師' },
-      rogue:  { cost:400, repReq:5, name:'盜賊' },
-    },
-    tierCaps: [5, 8, 12],                 // tier0→Lv5、tier1→Lv8、tier2→Lv12
-    tierUp:   [ {cost:300, repReq:3}, {cost:700, repReq:6} ],  // 升 tier1 / tier2
-    // v0.8：升階除了拉高等級上限，另解鎖「功能位」(累計)。tier0 無、tier1 進階、tier2 精英。
-    tierPerks: [ {}, {useBonus:1, label:'技能每場多 1 次使用'}, {useBonus:1, startShield:15, label:'技能多 1 次使用＋開場護盾 15'} ],
-  },
-
   // 後勤：工匠（學徒1/師傅2/大師3）與領隊聘僱
   staff: {
     craftsman: [ {cost:200, repReq:0, name:'學徒工匠'}, {cost:600, repReq:4, name:'師傅工匠'}, {cost:1400, repReq:8, name:'大師工匠'} ],
@@ -39,17 +17,10 @@ const CFG = {
   // 商會賣價 = 物品價值 × sellRate
   merchant: { sellRate:0.7 },
 
-  // 訓練所方案：[名稱, 費用, 每人經驗, 顏色]
-  training: { plans:[ ['輕度特訓',60,50,'#9fd0a0'], ['標準特訓',150,140,'#9fe8ff'], ['精英特訓',400,400,'#ffd24a'] ] },
-
-  // 神殿祝福：每 valuePerTier 點遺物價值算 +1 階；各加成類型「每階」的量
-  // all = 未指定類型的通用遺物（同時加少量攻防血）
-  blessing: { valuePerTier:300, atk:2, def:2, hp:10, heal:3, drop:0.04, food:1, allAtk:1, allDef:1, allHp:6 },
-
   // 聲望：遺物數 >= thresholds 對應 Tier 3/2/1；各 Tier 的開局贊助
   reputation: {
     thresholds:[6,3,1],
-    sponsorship:[ {food:0,funds:0}, {food:1,funds:20}, {food:2,funds:50}, {food:3,funds:100} ],
+    sponsorship:[ {food:0}, {food:1}, {food:2}, {food:3} ],
   },
 
   // 戰鬥
@@ -82,6 +53,6 @@ const CFG = {
 
   // v0.9 雙軌經濟（數值為架構草案，平衡期再調）
   gold: { stipendBase:40, stipendPerParty:20, sellRate:0.7 },   // 出發補給金（每趟）、商店賣出回收率
-  repCost: { partySlot:[3,5,8,12], tierUp:[2,4], craftsman:[2,4,6], leader:3, upgradeBase:2, upgradePerCraft:2 },
+  repCost: { partySlot:[3,5,8,12], craftsman:[2,4,6], leader:3, upgradeBase:2, upgradePerCraft:2 },
   repEarn: { perRelic:3, perReturn:1 },   // 帶回新遺物 +3、平安折返 +1
 };

@@ -9,8 +9,6 @@ class WarehouseHall extends Phaser.Scene {
     sceneHeader(this,'倉 庫 ・ 收 藏','',{accent:'gold'});
     button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
 
-    // 庫存數量
-    this.cnt={}; (GUILD.stash||[]).forEach(it=>{ this.cnt[it.name]=(this.cnt[it.name]||0)+1; });
 
     const cats=[
       {label:'武器', accent:'teal', items:WEAPONS, kind:'武器'},
@@ -47,10 +45,6 @@ class WarehouseHall extends Phaser.Scene {
     g.lineStyle(2, disc?ac.num:UI.lineN, disc?0.9:0.35); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
     if(disc){ icon(this, x, y-2, v.icon, sz*0.52, ac.num); }
     else { txt(this, x, y, '?', sz*0.42, UI.faint); }
-    const count=this.cnt[item.name]||0;
-    if(disc && count>0 && kind!=='武器' && kind!=='防具'){ const cw=12+(''+count).length*7; const bg=this.add.graphics();
-      bg.fillStyle(ac.deep,1); bg.fillRoundedRect(x+sz/2-cw-3, y+sz/2-15, cw, 14, 5); bg.lineStyle(1,ac.num,1); bg.strokeRoundedRect(x+sz/2-cw-3, y+sz/2-15, cw, 14, 5);
-      txt(this, x+sz/2-3-cw/2, y+sz/2-8, '×'+count, 9, UI.white); }
     const hit=this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true});
     hit.on('pointerover',()=>this.showDetail(item,kind,disc));
   }
@@ -76,13 +70,13 @@ class WarehouseHall extends Phaser.Scene {
       add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.hp+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
       if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
     } else if(kind==='貴重物品'){
-      add(txt(this, tx, ty+38, '貴重物品 ・ 帶回公會後可在「商會」賣出換取資金', 12, UI.text, 0));
+      add(txt(this, tx, ty+38, '貴重物品 ・ 探險中可在地城商店變賣為 💰（每趟）', 12, UI.text, 0));
       add(txt(this, tx, ty+62, '越深的地城、階級越高的貴重物品越值錢', 12, UI.gold, 0));
     } else {
       add(txt(this, tx, ty+38, '道具 ・ 探險中使用', 12, UI.text, 0));
       add(txt(this, tx, ty+62, (CONSUM_INFO[item.name]||''), 12, UI.green, 0));
     }
     if(kind==='武器'||kind==='防具'){ add(txt(this, p.right-20, ty+10, '已擁有', 12, UI.green, 1)); }
-    else { const count=this.cnt[item.name]||0; add(txt(this, p.right-20, ty+10, count>0?('庫存 ×'+count):'庫存 0', 12, count>0?UI.green:UI.dim, 1)); }
+    else { add(txt(this, p.right-20, ty+10, disc?'已發現':'未發現', 12, disc?UI.green:UI.dim, 1)); }
   }
 }

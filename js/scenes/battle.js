@@ -19,22 +19,22 @@ class Battle extends Phaser.Scene {
     this.torch(120,150); this.torch(W-120,150);
     this.fxFlash=this.add.rectangle(0,0,W,H,0xffffff,1).setOrigin(0).setDepth(95).setAlpha(0); // 全螢幕閃光層
 
-    // 環境（天氣/地形）＋ 料理加成
-    const node=RUN.node||{}; const wx=WEATHER_BY_ID[node.weather], tx=TERRAIN_BY_ID[node.terrain]; const cb=RUN.cookBuff||{atk:0,def:0};
-    this._heroAtkMod=(cb.atk||0)+((wx&&wx.eff&&wx.eff.allAtk)||0);
-    this._heroDefMod=(cb.def||0)+((tx&&tx.eff&&tx.eff.heroDef)||0);
+    // 環境（天氣）
+    const node=RUN.node||{}; const wx=WEATHER_BY_ID[node.weather];
+    this._heroAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0);
+    this._heroDefMod=0;
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0);
     this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
-    const envParts=[]; if(wx&&wx.eff)envParts.push(wx.icon+wx.name); if(tx&&tx.eff)envParts.push(tx.icon+tx.name); if(cb.atk||cb.def)envParts.push('🍳料理');
+    const envParts=[]; if(wx&&wx.eff)envParts.push(wx.icon+wx.name);
     if(envParts.length) txt(this,W/2,57,'環境／加成　'+envParts.join('　'),11,UI.blue).setDepth(60);
     // 英雄
     this.heroes=RUN.heroes.map((h,idx)=>{ const s=heroStat(h), fs=formationSlot(h.sprite);
       const atkSeq=s.atkSeq.map(a=>Math.max(1,a+this._heroAtkMod)), def=s.def+this._heroDefMod;
-      // v0.8 升級 perk（疾行/護身/熟練）＋ 占位者升階功能位
-      const pk=heroPerks(h.idx), tp=tierPerk(h.idx);
+      // v0.8 升級 perk（疾行/護身/熟練）
+      const pk=heroPerks(h.idx);
       const interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1)));
-      const useBonus=(pk.useBonus||0)+(tp.useBonus||0);
-      const startShield=(this._startShield||0)+(pk.startShield||0)+(tp.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
+      const useBonus=(pk.useBonus||0);
+      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
       c.shield=startShield;
       return c;

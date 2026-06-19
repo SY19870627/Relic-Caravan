@@ -112,7 +112,7 @@ class CharacterHall extends Phaser.Scene {
     hit.on('pointerdown',()=>{ if(!lvOK){ this.toast(h.name+' 職業等級不足，需 Lv'+item.lvReq); this.showGearDetail(item,kind); return; }
       const oldMax=heroStat(h).maxHp; if(kind==='武器') h.weapon=item; else h.armor=item; const newMax=heroStat(h).maxHp;
       if(h.hp>0) h.hp=Math.max(1, Math.min(newMax, h.hp+(newMax-oldMax)));
-      persistLoadout(); this.selectHero(this.selHero); });
+      this.selectHero(this.selHero); });
   }
   showGearDetail(item,kind){
     if(this._gdet) this._gdet.forEach(o=>o.destroy()); this._gdet=[];

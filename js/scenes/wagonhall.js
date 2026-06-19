@@ -6,7 +6,7 @@ class WagonHall extends Phaser.Scene {
     this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
     txt(this,W/2,24,'馬 車 工 坊',22,TH.gold);
-    txt(this,W/2,46,'選馬（食物⇄貨格取捨）＋ 工匠項目化強化（需素材與資金）',12,TH.dim);
+    txt(this,W/2,46,'選馬（食物⇄貨格取捨）＋ 工匠項目化強化（需素材與聲望）',12,TH.dim);
     button(this, 96, 24, 150, 28, '← 公會大廳', ()=>this.scene.start('GuildHall'), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     this.render();
   }
@@ -17,7 +17,7 @@ class WagonHall extends Phaser.Scene {
     const ws=wagonStats();
     // 資源列
     const matStr=MATERIALS.map(m=>`${m.icon}${m.name} ${matCount(m.id)}`).join('　');
-    add(txt(this,W/2,72,`公會資金 ＄${GUILD.funds}　🛠 工匠：${cnames[ct]}　馬車：🍖${ws.food} 📦${ws.slots}`,13,TH.gold));
+    add(txt(this,W/2,72,`🛠 工匠：${cnames[ct]}　馬車：🍖${ws.food} 📦${ws.slots}`,13,TH.gold));
     add(txt(this,W/2,92,`素材：${matStr}`,11,TH.cyan));
 
     // 選馬
@@ -50,7 +50,6 @@ class WagonHall extends Phaser.Scene {
         else {
           c.add(button(this,108,0,140,34, upgradeCostText(u), ()=>{
             if(craftsmanTier()<u.craftReq){ this.flash(`需 ${u.craftReq===1?'學徒':u.craftReq===2?'師傅':'大師'} 工匠`); return; }
-            if(GUILD.funds<u.cost.funds){ this.flash('資金不足'); return; }
             const m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]){ this.flash(`素材不足：${MATERIAL_BY_ID[k].name}`); return; } }
             buyUpgrade(u); this.flash(`完成強化：${u.name}`,TH.green); this.render();
           },{size:10, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));

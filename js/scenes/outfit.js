@@ -9,8 +9,6 @@ class Outfit extends Phaser.Scene {
     button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
 
     const specs=[
-      {label:'＄ '+GUILD.funds, accent:'gold', icon:'coin', size:12, h:25},
-      {label:'倉庫 '+GUILD.stash.length+' 件', accent:'teal', icon:'bag', size:12, h:25},
       {label:'遺物 '+GUILD.relics.length+'/'+relicTotalCount(), accent:'violet', icon:'relic', size:12, h:25},
     ];
     const chips=specs.map(s=>chip(this,0,0,s)); let tot=chips.reduce((a,c)=>a+c.w,0)+10*(chips.length-1); let cx=W/2-tot/2; chips.forEach(c=>{c.setX(cx);c.setY(60);cx+=c.w+10;});
@@ -57,7 +55,6 @@ class Outfit extends Phaser.Scene {
     RUN.food = ws.food + sp.food + (relicEffects().food||0);
     RUN.slots = ws.slots;
     RUN.cargo=[];
-    if(sp.funds){ GUILD.funds += sp.funds; saveGuild(); }
     RUN.heroes.forEach(h=>{ h.hp=heroStat(h).maxHp; });
     this.scene.start('WorldMap');
   }
