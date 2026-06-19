@@ -22,7 +22,7 @@ class Result extends Phaser.Scene {
       return;
     }
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
-    const resources=RUN.cargo.filter(i=>i.kind==='素材'||i.kind==='食材');
+    const resources=RUN.cargo.filter(i=>i.kind==='素材');
     // 武器/防具：唯一擁有——新裝備納入收藏、重複只能賣出
     const gear=RUN.cargo.filter(i=>i.kind==='武器'||i.kind==='防具');
     this.gearNew=gear.filter(it=>!gearOwned(it.name)); this.gearDup=gear.filter(it=>gearOwned(it.name));
@@ -36,7 +36,7 @@ class Result extends Phaser.Scene {
     else txt(this,W/2,yy+8,'（本趟沒有帶回遺物）',12,UI.faint);
     yy+=30;
     if(resources.length){ const rcc={}; resources.forEach(r=>rcc[r.name]=(rcc[r.name]||0)+1);
-      const rs=chip(this,0,yy+8,{label:'素材／食材　'+Object.keys(rcc).map(k=>k+'×'+rcc[k]).join('  ')+'　→ 自動入庫',accent:'teal',size:11,h:22}); rs.setX(W/2-rs.w/2); yy+=26; }
+      const rs=chip(this,0,yy+8,{label:'素材　'+Object.keys(rcc).map(k=>k+'×'+rcc[k]).join('  ')+'　→ 自動入庫',accent:'teal',size:11,h:22}); rs.setX(W/2-rs.w/2); yy+=26; }
     if(this.gearNew.length||this.gearDup.length){
       const parts=[]; if(this.gearNew.length)parts.push('新裝備 '+this.gearNew.map(g=>g.name).join('、')+' 納入收藏'); if(this.gearDup.length)parts.push('重複 ×'+this.gearDup.length+'（已收藏）');
       const gs=chip(this,0,yy+8,{label:'裝備　'+parts.join('　·　'),accent:'gold',icon:'sword',size:11,h:22}); gs.setX(W/2-gs.w/2); yy+=26; }
@@ -51,7 +51,7 @@ class Result extends Phaser.Scene {
       RUN.cargo.forEach(it=>{
         if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
         else if(it.kind==='素材'){ addMaterial(it.matId); }
-        else if(it.kind==='食材'){ addIngredient(it.ingId); }
+        else if(it.kind==='食材'){ /* 食材為每趟隨身消耗，不帶回公會 */ }
         else { discover(it.name); } });   // 其餘戰利品：本趟已可在地城商店變現為 💰，回會不再入庫
       addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));   // 新遺物＋平安折返 → 賺聲望
       saveGuild(); initRun(); this.scene.start('GuildHall');

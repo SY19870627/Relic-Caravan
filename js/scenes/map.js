@@ -349,8 +349,8 @@ class MapScene extends Phaser.Scene {
     panel(this,W/2,H/2,560,430,{accent:'gold'}).setDepth(91);
     txt(this,W/2,H/2-190,'🍳 料理',20,'#ffd24a').setDepth(95);
     txt(this,W/2,H/2-165,'消耗食材換取補血或一次性功能（下一場戰鬥生效）',12,TH.dim).setDepth(95);
-    const ing=INGREDIENTS.filter(g=>ingCount(g.id)>0).map(g=>`${g.icon}${g.name}×${ingCount(g.id)}`).join('　')||'（庫存無食材）';
-    txt(this,W/2,H/2-140,'食材庫存：'+ing,12,TH.cyan).setDepth(95);
+    const ing=INGREDIENTS.filter(g=>cargoIngCount(g.id)>0).map(g=>`${g.icon}${g.name}×${cargoIngCount(g.id)}`).join('　')||'（貨車無食材）';
+    txt(this,W/2,H/2-140,'隨身食材：'+ing,12,TH.cyan).setDepth(95);
     const pend=[]; if(RUN.cookShield)pend.push('開場護盾+'+RUN.cookShield); if(RUN.reviveCharge)pend.push('復活充能×'+RUN.reviveCharge); if(RUN.cookFirstCrit)pend.push('首擊必暴');
     if(pend.length) txt(this,W/2,H/2-120,'下場待生效：'+pend.join('　'),11,'#9fe8a0').setDepth(95);
     RECIPES.forEach((r,i)=>{ const y=H/2-90+i*58; const ok=canCook(r);

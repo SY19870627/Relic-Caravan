@@ -27,7 +27,7 @@ function defaultGuild(){ return {
   relics:[], reputation:0, repEarned:0, partySize:1,   // reputation 可花費、repEarned 累計門檻；partySize 1→5
   formation:0,
   horse:1,                       // 馬匹：0力量/1均衡/2耐力（預設均衡）
-  materials:{}, ingredients:{},  // 新資源：素材（強化）、食材（料理）
+  materials:{},                 // 素材（工坊強化用，跨趟保留）；食材改為每趟隨身、不入公會
   staff:{ craftsman:0, leader:0 },// 後勤：工匠階級0-3、領隊0/1
   upgrades:{},                   // 項目化強化已解鎖項目 {id:true}
   discovered:{},                 // 收藏圖鑑：曾取得過的物品名稱
@@ -56,9 +56,7 @@ function saveGuild(){ try{
 function loadGuild(){ try{
   const s=JSON.parse(localStorage.getItem(SAVE_KEY));
   if(s&&s.GUILD){
-    GUILD=Object.assign(defaultGuild(), s.GUILD);    if(!GUILD.materials) GUILD.materials={};
-    if(!GUILD.ingredients) GUILD.ingredients={};
-    if(!GUILD.staff) GUILD.staff={craftsman:0,leader:0};
+    GUILD=Object.assign(defaultGuild(), s.GUILD);    if(!GUILD.materials) GUILD.materials={};    if(!GUILD.staff) GUILD.staff={craftsman:0,leader:0};
     if(!GUILD.upgrades) GUILD.upgrades={};
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
@@ -77,9 +75,9 @@ loadGuild(); ensureRoster();
 
 // ---- 素材 / 食材 資源存取（名稱→數量）----
 function addMaterial(name,n){ GUILD.materials[name]=(GUILD.materials[name]||0)+(n||1); }
-function addIngredient(name,n){ GUILD.ingredients[name]=(GUILD.ingredients[name]||0)+(n||1); }
 function matCount(name){ return GUILD.materials[name]||0; }
-function ingCount(name){ return GUILD.ingredients[name]||0; }
+// 食材：每趟隨身（貨車），料理直接消耗，不入公會
+function cargoIngCount(id){ const c=(typeof RUN!=='undefined'&&RUN&&RUN.cargo)?RUN.cargo:[]; return c.filter(it=>it.kind==='食材'&&it.ingId===id).length; }
 
 // ---- 馬匹（單馬車＋選馬）＋ 工匠項目化強化：最終食物/貨格 ----
 function upgradeEffectTotal(){ let food=0,slots=0; UPGRADES.forEach(u=>{ if(GUILD.upgrades&&GUILD.upgrades[u.id]){ food+=u.effect.food||0; slots+=u.effect.slots||0; } }); return {food,slots}; }
@@ -91,15 +89,15 @@ function canBuyUpgrade(u){ if(upgradeOwned(u.id)) return false; if(craftsmanTier
   const m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]) return false; } return true; }
 function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; spendRep(upgradeRepCost(u)); const m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]; } GUILD.upgrades[u.id]=true; saveGuild(); return true; }
 function upgradeCostText(u){ const parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]}`); } return parts.join(' '); }
-// 素材／食材 掉落物件（探險中入貨車，結算自動入庫；全滅則失）
+// 掉落物件（探險中入貨車）。素材：結算自動入庫；食材：每趟隨身、料理消耗、不入庫；全滅則失
 function makeMaterialItem(di){ const m=MATERIAL_BY_DEST[di]; if(!m) return null; return {kind:'素材', matId:m.id, name:m.name, icon:m.icon, value:20}; }
 function makeIngredientItem(di){ const g=INGREDIENT_BY_DEST[di]; if(!g) return null; return {kind:'食材', ingId:g.id, name:g.name, icon:g.icon, value:12}; }
 
 // ---- 領隊・料理：消耗食材（公會庫存）產生補血／本趟增益 ----
 function recipeNeedText(r){ return Object.keys(r.need).map(k=>{ const g=INGREDIENT_BY_ID[k]; return `${g?g.icon:''}${g?g.name:k}×${r.need[k]}`; }).join(' '); }
 // 可料理：有領隊，或工匠強化「隨車鍋」(campstove) 解鎖後也能煮
-function canCook(r){ if(!hasLeader() && !hasCampstove()) return false; for(const k in r.need){ if(ingCount(k)<r.need[k]) return false; } return true; }
-function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ GUILD.ingredients[k]-=r.need[k]; } saveGuild();
+function canCook(r){ if(!hasLeader() && !hasCampstove()) return false; for(const k in r.need){ if(cargoIngCount(k)<r.need[k]) return false; } return true; }
+function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ let need=r.need[k]; for(let i=RUN.cargo.length-1;i>=0&&need>0;i--){ if(RUN.cargo[i].kind==='食材'&&RUN.cargo[i].ingId===k){ RUN.cargo.splice(i,1); need--; } } }
   let msg='料理「'+r.name+'」：';
   if(r.heal && RUN){ let n=0; RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; const b=h.hp; h.hp=Math.min(mx,h.hp+Math.round(mx*r.heal)); if(h.hp>b)n++; } }); msg+=`回復 ${n} 人 `; }
   // v0.8：buff 從數值改成一次性功能（下一場戰鬥生效）
