@@ -17,7 +17,7 @@ class WagonHall extends Phaser.Scene {
     const ws=wagonStats();
     // 資源列
     const matStr=MATERIALS.map(m=>`${m.icon}${m.name} ${matCount(m.id)}`).join('　');
-    add(txt(this,W/2,72,`🛠 工匠：${cnames[ct]}　馬車：🍖${ws.food} 📦${ws.slots}`,13,TH.gold));
+    add(txt(this,W/2,72,`🛠 工匠：${cnames[ct]}　馬車貨格：📦${ws.slots}`,13,TH.gold));
     add(txt(this,W/2,92,`素材：${matStr}`,11,TH.cyan));
 
     // 選馬

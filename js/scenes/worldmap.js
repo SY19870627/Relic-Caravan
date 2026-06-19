@@ -4,10 +4,9 @@ class WorldMap extends Phaser.Scene {
   create(){
     const W=this.scale.width,H=this.scale.height;
     sceneBg(this,{glow:0xf2c14e});
-    sceneHeader(this,'世 界 地 圖','選擇目的地：越遠越危險、遺物階級越高；旅途會先消耗食物',{accent:'gold'});
+    sceneHeader(this,'世 界 地 圖','選擇目的地：越遠越危險、遺物階級越高',{accent:'gold'});
 
     const specs=[
-      {label:'本趟食物 '+RUN.food, accent:'green', icon:'flame', size:12, h:25},
       {label:'貨格 '+RUN.slots, accent:'teal', icon:'box', size:12, h:25},
       {label:'聲望 '+reputation(), accent:'gold', icon:'star', size:12, h:25},
     ];
@@ -16,7 +15,7 @@ class WorldMap extends Phaser.Scene {
     const rep=repEarned(), accs=['teal','gold','violet','red'];
     DESTINATIONS.forEach((d,i)=>{
       const cy=120+i*98, ac=accent(accs[d.tier-1]||'teal');
-      const lockedRep=rep<d.repReq, lockedFood=false, ok=!lockedRep;   // v0.9：食物改逐段扣，不在上路前先扣
+      const lockedRep=rep<d.repReq, ok=!lockedRep;
       const L=W/2-380, w=760, h=86, top=cy-h/2;
       const g=this.add.graphics();
       g.fillStyle(0x000000,0.34); g.fillRoundedRect(L,top+4,w,h,12);
@@ -30,11 +29,10 @@ class WorldMap extends Phaser.Scene {
       // 風險/遺物階級 pips + 旅途
       txt(this, L+62, top+66, '危險/遺物', 10.5, UI.faint, 0);
       pips(this, L+140, top+66, d.tier, ac.num);
-      const fc=chip(this, L+250, top+66, {label:'旅途 -'+d.travel+' 天 → 剩 '+Math.max(0,RUN.food-d.travel)+' 糧', accent: lockedFood?'red':'green', size:10.5, h:20});
       if(ok){
         button(this, L+w-90, cy, 150, 44, '前 往', ()=>this.go(d), {variant:'go', size:16, icon:'play', iconSize:15});
       } else {
-        const cc=chip(this, 0, cy, {label: lockedRep?'需聲望 '+d.repReq:'食物不足', accent:'red', size:13, h:30, filled:true, textColor:UI.white}); cc.setX(L+w-90-cc.w/2);
+        const cc=chip(this, 0, cy, {label: '需聲望 '+d.repReq, accent:'red', size:13, h:30, filled:true, textColor:UI.white}); cc.setX(L+w-90-cc.w/2);
       }
     });
 
@@ -43,7 +41,7 @@ class WorldMap extends Phaser.Scene {
   go(d){
     const di = DESTINATIONS.indexOf(d);
     RUN.destTier = d.tier; RUN.destName = d.name; RUN.destIndex = di;
-    RUN.map = genWorld(d.tier, GUILD.partySize||1);   // 每趟重畫；食物逐段扣
-    this.scene.start('Map');
+    initExpedition();          // v1.0：改為單一戰鬥畫面的遠征，探險 % 推進
+    this.scene.start('Battle');
   }
 }

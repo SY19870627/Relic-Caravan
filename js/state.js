@@ -251,6 +251,18 @@ function applyLevelChoice(idx, choice, replaceName){
     let ri = replaceName? sk.indexOf(replaceName) : 0; if(ri<0) ri=0; sk[ri]=choice.name; return true; }
   return false;
 }
+// ---- v1.0 遠征：單一戰鬥畫面，依「探險 %」推進的線性遭遇序列 ----
+// Stage 2：戰鬥／精英／寶箱／營火／商人／事件，尾端接遺物守衛者（王）。
+function initExpedition(){
+  const t=(RUN&&RUN.destTier)||1;
+  const plan=[]; const add=(type,n)=>{ for(let i=0;i<n;i++) plan.push(type); };
+  add('battle', 4+t); add('elite', Math.max(0,t-1));
+  add('chest', 1+Math.floor(t/2)); add('event', 1+Math.floor(t/2));
+  add('camp', 1+(t>=3?1:0)); add('shop', 1);
+  for(let i=plan.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=plan[i]; plan[i]=plan[j]; plan[j]=tmp; }
+  if(plan[0]!=='battle'){ const bi=plan.indexOf('battle'); if(bi>0){ const tmp=plan[0]; plan[0]=plan[bi]; plan[bi]=tmp; } }  // 開場保證戰鬥
+  RUN.exped={ pct:0, plan, i:0 };
+}
 function initRun(){
   RUN = {
     wagon: null,
@@ -262,7 +274,7 @@ function initRun(){
       ROSTER[idx].weapon=weapon.name; ROSTER[idx].armor=armor.name;
       return {...h, idx, weapon, armor, hp:0};
     }),
-    cargo: [], food: 0, slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
+    cargo: [], slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
     map: null, encounter:null, isBoss:false, pos:null, visited:{},
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
     cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
@@ -345,7 +357,8 @@ function itemDiscovered(name){ if(GUILD.discovered && GUILD.discovered[name]) re
   const w=WEAPONS.find(x=>x.name===name); if(w&&w.starter) return true; const a=ARMORS.find(x=>x.name===name); if(a&&a.starter) return true; return false; }
 // 把目前持有／裝備中／貨車內的物品補登為已發現（回溯既有存檔）
 function syncDiscovered(){ if(!GUILD.discovered) GUILD.discovered={}; if(!GUILD.owned) GUILD.owned={};
-  const own=(n)=>{ if(!n) return; GUILD.owned[n]=true; GUILD.discovered[n]=true; };  (ROSTER||[]).forEach(r=>{ own(r&&r.weapon); own(r&&r.armor); });
+  const own=(n)=>{ if(!n) return; GUILD.owned[n]=true; GUILD.discovered[n]=true; };
+  (ROSTER||[]).forEach(r=>{ own(r&&r.weapon); own(r&&r.armor); });
   if(typeof RUN!=='undefined' && RUN){ (RUN.cargo||[]).forEach(it=>{ if(it&&it.name) GUILD.discovered[it.name]=true; });
     (RUN.heroes||[]).forEach(h=>{ if(h.weapon) own(h.weapon.name); if(h.armor) own(h.armor.name); }); }
   saveGuild();

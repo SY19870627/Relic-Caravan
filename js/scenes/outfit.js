@@ -23,10 +23,9 @@ class Outfit extends Phaser.Scene {
     const ws=wagonStats();
     const p=panel(this, W/2, 376, 540, 96, {accent:'ember', title:'本趟商隊', icon:'wagon', titleSize:14});
     const c1=chip(this, 0, p.bodyTop+12, {label:'馬匹 · '+ws.horse, accent:'ember', icon:'wagon', size:12, h:26});
-    const c2=chip(this, 0, p.bodyTop+12, {label:'食物 '+ws.food+' 天', accent:'green', icon:'flame', size:12, h:26});
     const c3=chip(this, 0, p.bodyTop+12, {label:'貨格 '+ws.slots, accent:'teal', icon:'box', size:12, h:26});
-    let cw2=c1.w+c2.w+c3.w+24, sx=W/2-cw2/2; c1.setX(sx); c2.setX(sx+c1.w+12); c3.setX(sx+c1.w+12+c2.w+12);
-    txt(this, W/2, p.bodyTop+40, '在「商隊工坊」可換馬與項目強化（食物⇄貨格取捨）', 10.5, UI.dim);
+    let cw2=c1.w+c3.w+12, sx=W/2-cw2/2; c1.setX(sx); c3.setX(sx+c1.w+12);
+    txt(this, W/2, p.bodyTop+40, '在「商隊工坊」可換馬與項目強化', 10.5, UI.dim);
 
     button(this, W/2, 484, 300, 46, '出 發 探 險', ()=>this.depart(), {variant:'go', size:18, icon:'play', iconSize:18});
   }
@@ -52,7 +51,6 @@ class Outfit extends Phaser.Scene {
   depart(){
     const ws=wagonStats(), sp=sponsorship();
     RUN.wagon={name:ws.name, horse:ws.horse};
-    RUN.food = ws.food + sp.food + (relicEffects().food||0);
     RUN.slots = ws.slots;
     RUN.cargo=[];
     RUN.heroes.forEach(h=>{ h.hp=heroStat(h).maxHp; });
