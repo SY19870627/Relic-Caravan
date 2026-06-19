@@ -6,7 +6,7 @@ class Battle extends Phaser.Scene {
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
     // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
-    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null;
+    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null;
     const W=this.scale.width, H=this.scale.height;
     this.bgWall=this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
     this.bgFloor=this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
@@ -30,7 +30,7 @@ class Battle extends Phaser.Scene {
     this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
     this.potText = txt(this, 26, 54, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0).setDepth(62);
     this.waveText = txt(this,W/2,40,'',12,UI.gold).setDepth(60);
-    this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(100);
+    this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(90);   // 90<浮窗96：選單開啟時不會被戰鬥橫幅蓋住
     if(!RUN.exped) initExpedition();
     this.beginStep();
   }
@@ -48,6 +48,9 @@ class Battle extends Phaser.Scene {
   updateGold(){ if(this.goldText) this.goldText.setText('💰 '+((RUN&&RUN.gold)||0)); }
   healPotCount(){ const HP={'治療藥水':1,'聖水':1,'回復卷軸':1}; return (RUN&&RUN.cargo)? RUN.cargo.filter(it=>it.kind==='道具'&&HP[it.name]).length : 0; }
   updatePotions(){ if(this.potText) this.potText.setText('🧪 藥水 ×'+this.healPotCount()); }
+  refreshHud(){ (this.heroes||[]).forEach(c=>{ if(c&&c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updateGold(); this.updatePotions(); }
+  // 換裝後即時把新裝備數值套到場上戰鬥單位（不重置冷卻/站位）
+  restatHeroes(){ (this.heroes||[]).forEach(c=>{ if(!c||!c.ref) return; const s=heroStat(c.ref); c.maxHp=s.maxHp; c.atkSeq=s.atkSeq.map(a=>Math.max(1,a+(this._heroAtkMod||0))); c.def=s.def+(this._heroDefMod||0); c.heal=s.heal; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.hp=Math.max(0,Math.min(c.maxHp,c.ref.hp)); this.bar(c); }); }
   // 開始一場遭遇：戰鬥→生成敵人；非戰鬥→秀互動浮窗。英雄每場由 RUN.heroes 重建（HP 延續）。
   beginStep(){
     this.over=false; this.entering=false; this.waveClearing=false; this.waveIndex=0; this.hitstopUntil=0; this._advancing=false;
@@ -565,21 +568,23 @@ class Battle extends Phaser.Scene {
   }
   openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='shop') this.evShop(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
   togglePause(){ if(this._menuPaused) this.resumeGame(); else if(!this.infoUI) this.openPause(); }
-  openPause(){ if(this._menuPaused) return; this._menuPaused=true; this.paused=true; this.tweens.pauseAll(); this.time.paused=true; this._renderPause(); }
-  resumeGame(){ this._menuPaused=false; this.paused=false; this.tweens.resumeAll(); this.time.paused=false; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } }
+  openPause(){ if(this._menuPaused) return; this._menuPaused=true; this.paused=true; this.tweens.pauseAll(); this.time.paused=true; if(this.banner) this.banner.setText('').setAlpha(0); this._renderPause(); }
+  resumeGame(){ this._menuPaused=false; this.paused=false; this.tweens.resumeAll(); this.time.paused=false; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } if(this._gearFrom==='pause'){ this._gearFrom=null; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } } }
   _renderPause(){ const W=this.scale.width,H=this.scale.height;
     if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; }
     const c=this.add.container(0,0).setDepth(130); this.pauseUI=c;
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
-    c.add(panel(this,W/2,H/2,440,300,{accent:'gold'}));
-    c.add(txt(this,W/2,H/2-112,'⏸ 暫停',24,TH.gold));
-    c.add(txt(this,W/2,H/2-80,'遊戲暫停中 · 可調整設定',12,TH.dim));
+    c.add(panel(this,W/2,H/2,440,340,{accent:'gold'}));
+    c.add(txt(this,W/2,H/2-134,'⏸ 暫停',24,TH.gold));
+    c.add(txt(this,W/2,H/2-104,'遊戲暫停中 · 可調整設定',12,TH.dim));
     const on=!(GUILD.settings && GUILD.settings.autoSip===false);
-    c.add(this.add.rectangle(W/2,H/2-4,392,66,0x241a30,0.6).setStrokeStyle(2,0x55476b));
-    c.add(txt(this,W/2-176,H/2-16,'⚔ 戰鬥自動喝水',15,TH.text,0));
-    c.add(txt(this,W/2-176,H/2+8,'最低血隊員 <30% 自動喝補血藥水',10,TH.dim,0));
-    c.add(button(this,W/2+140,H/2-4,104,42, on?'開啟 ✓':'關閉', ()=>{ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoSip=!on; saveGuild(); this._renderPause(); }, {variant:on?'go':'info', size:14}));
-    c.add(button(this,W/2,H/2+96,220,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
+    c.add(this.add.rectangle(W/2,H/2-54,392,60,0x241a30,0.6).setStrokeStyle(2,0x55476b));
+    c.add(txt(this,W/2-176,H/2-64,'⚔ 戰鬥自動喝水',15,TH.text,0));
+    c.add(txt(this,W/2-176,H/2-42,'最低血隊員 <30% 自動喝補血藥水',10,TH.dim,0));
+    c.add(button(this,W/2+140,H/2-54,104,42, on?'開啟 ✓':'關閉', ()=>{ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoSip=!on; saveGuild(); this._renderPause(); }, {variant:on?'go':'info', size:14}));
+    if(!this.overlay){ const nG=(RUN&&RUN.cargo)?RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length:0;
+      c.add(button(this,W/2,H/2+18,240,42,'🎒 整裝（換裝備 '+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:15})); }
+    c.add(button(this,W/2,H/2+96,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
   }
   mkOverlay(o){ o=o||{}; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());
@@ -601,7 +606,7 @@ class Battle extends Phaser.Scene {
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
     const nIng=RUN.cargo.filter(it=>it.kind==='食材').length, canCookHere=(hasLeader()||hasCampstove());
     o.add(button(this,W/2,H/2-44,330,38, canCookHere?('🍳 料理（食材 '+nIng+'）'):'🍳 料理（需領隊或隨車鍋）',()=>this.evCook(),{variant:canCookHere?'go':'info',size:14}));
-    o.add(button(this,W/2-86,H/2+4,160,40,'整裝（'+nGear+'）',()=>this.evGear(),{variant:'info',size:13}));
+    o.add(button(this,W/2-86,H/2+4,160,40,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:13}));
     o.add(button(this,W/2+86,H/2+4,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
     o.add(button(this,W/2-86,H/2+56,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
     o.add(button(this,W/2+86,H/2+56,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
@@ -619,25 +624,91 @@ class Battle extends Phaser.Scene {
     });
     if(this._cookMsg) o.add(txt(this,W/2,H/2+150,this._cookMsg,12,'#9fe8a0').setWordWrapWidth(560));
     o.add(button(this,W/2,H/2+182,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
-  evGear(){ this._gearSel=null; this._renderGear(); }
+  evGear(){ this._gearHero=0; this._gearWSel=0; this._gearASel=0; this._renderGear(); }
   _renderGear(){ const W=this.scale.width,H=this.scale.height;
-    const o=this.mkOverlay({accent:'blue', w:840, h:500});
-    o.add(txt(this,W/2,H/2-228,'🎒 整裝 — 換上貨車裡的武器／防具',18,'#9fd0ff'));
-    const cargoGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具'), sel=this._gearSel;
-    const n=RUN.heroes.length, step=Math.min(180,Math.floor(780/Math.max(1,n))), x0=W/2-(n-1)*step/2;
-    RUN.heroes.forEach((h,i)=>{ const x=x0+i*step, y=H/2-118, s=heroStat(h), canRecv=sel!=null;
-      const bg=this.add.rectangle(x,y,step-12,150,0x241a30).setStrokeStyle(2,canRecv?0x5ad06a:0x3a3150); o.add(bg);
-      o.add(this.add.image(x,y-48,h.sprite).setScale(2.2));
-      o.add(txt(this,x,y-8,h.name+' Lv'+s.level,12,TH.gold));
-      o.add(txt(this,x,y+12,'⚔'+h.weapon.name,10,'#9fe8ff')); o.add(txt(this,x,y+28,'🛡'+h.armor.name,10,'#9fd0a0'));
-      if(canRecv){ const item=cargoGear[sel], req=(item.gear&&item.gear.lvReq)||1, clsOK=gearClassOK(h.sprite,item), ok=s.level>=req&&clsOK;
-        o.add(txt(this,x,y+50, ok?'▶ 換上':(clsOK?('需 Lv'+req):'職業不符'),11, ok?'#5ad06a':TH.red));
-        if(ok) bg.setInteractive({useHandCursor:true}).on('pointerdown',()=>{ equipSwap(item,i); this._gearSel=null; this._renderGear(); }); } });
-    o.add(txt(this,W/2,H/2+40,'貨車裝備（點選 → 再點隊員換上；換下的放回貨車）',12,TH.gold));
-    if(!cargoGear.length) o.add(txt(this,W/2,H/2+68,'目前沒有可換的武器或防具',12,TH.dim));
-    cargoGear.forEach((it,j)=>{ const x=W/2-330+(j%7)*95, y=H/2+96+Math.floor(j/7)*38;
-      o.add(button(this,x,y,88,32,(it.icon||'')+it.name,()=>{ this._gearSel=j; this._renderGear(); },{size:9, fill:j===sel?0x3a6b3a:0x33283f, stroke:j===sel?0x5ad06a:0x55476b})); });
-    o.add(button(this,W/2,H/2+210,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
+    if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
+    if(this.banner) this.banner.setText('').setAlpha(0);
+    const o=this.add.container(0,0).setDepth(96); this.overlay=o; const add=x=>{ o.add(x); return x; };
+    add(this.add.rectangle(0,0,W,H,0x000000,0.66).setOrigin(0).setInteractive());
+    const heroes=RUN.heroes||[]; if(this._gearHero==null||this._gearHero>=heroes.length) this._gearHero=0;
+    add(txt(this,W/2,20,'🎒 整裝 — 角色 · 技能 · 裝備',16,'#9fd0ff'));
+    add(button(this,W-66,22,116,30, this._gearFrom==='pause'?'返回':'返回營火',()=>{ if(this._gearFrom==='pause'){ this._gearFrom=null; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } this._renderPause(); } else this._renderCamp(); },{variant:'info',size:12}));
+    const n=heroes.length, tw=Math.min(150,Math.floor((840-(n-1)*10)/Math.max(1,n))), th=46, ty=62, tx0=W/2-(n*tw+(n-1)*10)/2+tw/2;
+    heroes.forEach((hh,i)=>{ const x=tx0+i*(tw+10), sel=i===this._gearHero, hs=heroStat(hh), g=this.add.graphics(); add(g);
+      g.fillStyle(sel?0x26324c:0x161122, sel?1:0.85); g.fillRoundedRect(x-tw/2,ty-th/2,tw,th,9);
+      g.lineStyle(sel?3:1.5, sel?0x6aa6f0:0x46406a, sel?1:0.7); g.strokeRoundedRect(x-tw/2,ty-th/2,tw,th,9);
+      add(this.add.image(x-tw/2+22,ty,hh.sprite).setScale(1.7));
+      add(txt(this,x-tw/2+42,ty-8,hh.name,12.5,sel?'#fff':TH.dim,0));
+      add(txt(this,x-tw/2+42,ty+9,'Lv'+hs.level,10.5,sel?'#9fd0ff':TH.dim,0));
+      const hit=this.add.rectangle(x,ty,tw,th,0,0).setInteractive({useHandCursor:true}); add(hit);
+      hit.on('pointerdown',()=>{ this._gearHero=i; this._gearWSel=0; this._gearASel=0; this._renderGear(); }); });
+    const h=heroes[this._gearHero]; if(!h) return; const s=heroStat(h);
+    const LP=panel(this,236,322,432,448,{accent:'blue',title:'基本數值 ／ 技能',icon:'person',titleSize:13}); add(LP);
+    const lx=LP.left+22; let ly=LP.bodyTop+6;
+    add(this.add.image(LP.left+44,ly+22,h.sprite).setScale(3));
+    add(txt(this,LP.left+82,ly+6,h.name,16,TH.gold,0)); add(txt(this,LP.left+82,ly+28,'Lv '+s.level,12,'#9fd0ff',0));
+    add(txt(this,LP.left+82,ly+47,'EXP',9,TH.dim,0)); add(statBar(this,LP.left+112,ly+50,184,7,(ROSTER[h.idx]&&ROSTER[h.idx].xp)||0,xpNeed(s.level),{accent:'violet'}));
+    ly+=72; const c2=lx+205, armorHp=h.armor.hp||0;
+    add(icon(this,lx+6,ly,'heart',13,UI.greenN)); add(txt(this,lx+20,ly,'HP '+s.maxHp+(armorHp?'（盾'+armorHp+'）':''),12,TH.text,0));
+    add(icon(this,c2+6,ly,'sword',13,UI.goldN)); add(txt(this,c2+20,ly,'ATK '+s.atkSeq.join('/'),12,TH.text,0));
+    ly+=22; add(icon(this,lx+6,ly,'shield',13,UI.blueN)); add(txt(this,lx+20,ly,'DEF '+s.def,12,TH.text,0));
+    if(s.heal){ add(icon(this,c2+6,ly,'heal',13,0x6ee29a)); add(txt(this,c2+20,ly,'治療 '+s.heal,12,TH.text,0)); }
+    ly+=30;
+    const perks=[]; Object.keys(PERKS).forEach(k=>{ if(s.level>=+k) perks.push((PERKS[k].label||'').split('：')[0]); });
+    if(perks.length){ add(icon(this,lx+6,ly,'star',12,0xf2c14e)); add(txt(this,lx+20,ly,'能力：'+perks.join('・'),11,TH.cyan,0).setWordWrapWidth(372)); ly+=24; }
+    add(txt(this,lx,ly,'技能',12,TH.gold,0)); ly+=20;
+    const sk=s.skills||[];
+    if(!sk.length) add(txt(this,lx,ly,'尚無技能 — 升級時習得',11,TH.dim,0));
+    sk.slice(0,4).forEach(skill=>{ const sv=skillVisual(skill), ac=accent(sv.accent), g=this.add.graphics(); add(g);
+      g.fillStyle(0x07060f,0.45); g.fillRoundedRect(lx,ly,386,40,8); g.lineStyle(1.5,ac.num,0.55); g.strokeRoundedRect(lx,ly,386,40,8);
+      add(icon(this,lx+20,ly+20,sv.icon,17,ac.num));
+      add(txt(this,lx+40,ly+9,skill.name+(skill.plus?' +'+skill.plus:''),12,ac.hex,0));
+      add(txt(this,lx+40,ly+25,skill.desc||'',9,TH.dim,0).setWordWrapWidth(336));
+      ly+=44; });
+    const RP=panel(this,682,322,416,448,{accent:'gold',title:'裝備清單',icon:'bag',titleSize:13}); add(RP);
+    const rl=RP.left;
+    const wList=[{gear:h.weapon,name:h.weapon.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='武器').map(it=>({gear:it.gear,name:it.name,item:it})));
+    const aList=[{gear:h.armor,name:h.armor.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='防具').map(it=>({gear:it.gear,name:it.name,item:it})));
+    if(this._gearWSel==null||this._gearWSel>=wList.length) this._gearWSel=0;
+    if(this._gearASel==null||this._gearASel>=aList.length) this._gearASel=0;
+    const slotGrid=(list,selKey,kind,startY)=>{ const isW=kind==='武器', per=8, pitch=50, sz=40, gx=rl+42, gy=startY;
+      list.forEach((e,k)=>{ const x=gx+(k%per)*pitch, y=gy+Math.floor(k/per)*pitch, sel=this[selKey]===k;
+        const v=itemVisual(e.name), iac=accent(v.accent);
+        const lvReq=(e.gear&&e.gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear:e.gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
+        const bord=sel?0xffffff:(e.cur?(isW?0xf2c14e:0x6aa6f0):(ok?0x5ad06a:0x5a5470));
+        const g=this.add.graphics(); add(g);
+        g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,8);
+        g.fillStyle(UI.raisedN,1); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz,8);
+        g.fillStyle(iac.deep,0.45); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz*0.5,8);
+        g.lineStyle((sel||e.cur)?3:2, bord, 1); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,8);
+        add(icon(this,x,y-2,v.icon,sz*0.54,iac.num));
+        if(e.cur){ g.fillStyle(isW?0xf2c14e:0x6aa6f0,1); g.fillCircle(x+sz/2-5,y-sz/2+5,3.5); }
+        const lbl=isW?(''+Math.max.apply(null,(e.gear&&e.gear.atkSeq)||[0])):(''+((e.gear&&e.gear.def)||0));
+        add(txt(this,x,y+sz/2+7,lbl,9,e.cur?'#9fd0ff':(ok?'#9fe8a0':TH.dim)));
+        const hit=this.add.rectangle(x,y,pitch-2,pitch+2,0xffffff,0.001).setInteractive({useHandCursor:true}); add(hit);
+        hit.on('pointerdown',()=>{ this[selKey]=k; this._renderGear(); }); });
+      return gy + Math.max(1,Math.ceil(list.length/per))*pitch; };
+    const descBox=(e,kind,y)=>{ const isW=kind==='武器', ac=accent(isW?'gold':'blue'), g=this.add.graphics(); add(g);
+      g.fillStyle(0x07060f,0.5); g.fillRoundedRect(rl+18,y,384,56,8); g.lineStyle(1.5,ac.num,0.5); g.strokeRoundedRect(rl+18,y,384,56,8);
+      if(!e){ add(txt(this,rl+30,y+20,'（無）',11,TH.dim,0)); return; }
+      const gear=e.gear, v=itemVisual(e.name), iac=accent(v.accent), lvReq=(gear&&gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
+      g.fillStyle(iac.deep,0.5); g.fillRoundedRect(rl+28,y+9,38,38,8); add(icon(this,rl+47,y+28,v.icon,22,iac.num));
+      const tx=rl+80;
+      add(txt(this,tx,y+9,(e.cur?'★ ':'')+e.name,12.5,iac.hex,0));
+      add(txt(this,tx,y+27,isW?('傷害 '+((gear&&gear.atkSeq)?gear.atkSeq.join(' / '):'?')+(gear&&gear.heal?'　治療 '+gear.heal:'')):('防禦 '+((gear&&gear.def)||0)+(gear&&gear.hp?'　護盾 +'+gear.hp:'')),10.5,TH.text,0));
+      if(gear&&gear.traitDesc) add(txt(this,tx,y+42,'✦ '+gear.traitDesc,9.5,'#c9a0ff',0).setWordWrapWidth(205));
+      if(e.cur) add(txt(this,rl+392,y+12,'使用中',10,'#9fd0ff',1));
+      else if(!clsOK) add(txt(this,rl+392,y+12,'職業不符',10,'#ff8a8a',1));
+      else if(s.level<lvReq) add(txt(this,rl+392,y+12,'需 Lv'+lvReq,10,'#ff8a8a',1));
+      else add(button(this,rl+360,y+32,76,28,'換上',()=>{ equipSwap(e.item,this._gearHero); this.restatHeroes(); this.refreshHud(); this._gearWSel=0; this._gearASel=0; this._renderGear(); },{variant:'go',size:12})); };
+    let y=RP.bodyTop+4;
+    add(txt(this,rl+22,y,'⚔ 武器',13,'#f2c14e',0)); y+=20;
+    y=slotGrid(wList,'_gearWSel','武器',y+18)+12;
+    descBox(wList[this._gearWSel],'武器',y); y+=68;
+    add(txt(this,rl+22,y,'🛡 防具',13,'#6aa6f0',0)); y+=20;
+    y=slotGrid(aList,'_gearASel','防具',y+18)+12;
+    descBox(aList[this._gearASel],'防具',y);
+  }
   evItems(){ this._lastUse=null; this._renderItems(); }
   _renderItems(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'green', w:520, h:380});
@@ -645,12 +716,12 @@ class Battle extends Phaser.Scene {
     const items=RUN.cargo.filter(it=>it.kind==='道具'); const seen={}; let row=0;
     if(!items.length) o.add(txt(this,W/2,H/2-120,'貨車裡沒有道具',13,TH.dim));
     items.forEach(it=>{ if(seen[it.name]) return; seen[it.name]=true; const cnt=items.filter(x=>x.name===it.name).length; const y=H/2-110+row*46; row++;
-      o.add(button(this,W/2,y,440,38,(it.icon||'🧪')+it.name+' ×'+cnt+'　'+(CONSUM_INFO[it.name]||''),()=>{ const one=RUN.cargo.find(x=>x.kind==='道具'&&x.name===it.name); if(one){ this._lastUse=useConsumable(one); this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); } this._renderItems(); },{size:11,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c})); });
+      o.add(button(this,W/2,y,440,38,(it.icon||'🧪')+it.name+' ×'+cnt+'　'+(CONSUM_INFO[it.name]||''),()=>{ const one=RUN.cargo.find(x=>x.kind==='道具'&&x.name===it.name); if(one){ this._lastUse=useConsumable(one); this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updatePotions(); } this._renderItems(); },{size:11,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c})); });
     if(this._lastUse) o.add(txt(this,W/2,H/2+130,this._lastUse,12,'#9fe8a0'));
     o.add(button(this,W/2,H/2+162,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
   evShop(){ const W=this.scale.width,H=this.scale.height; const o=this.mkOverlay({accent:'gold',w:560,h:320});
     o.add(txt(this,W/2,H/2-128,'🧙 商人',20,TH.gold)); const gt=txt(this,W/2,H/2-104,'💰 '+(RUN.gold||0),13,'#ffe08a'); o.add(gt);
-    const buy=(label,cost,y,fn)=>{ const bb=button(this,W/2,y,380,38,label+'（💰'+cost+'）',()=>{ if((RUN.gold||0)<cost) return; spendGold(cost); fn(); gt.setText('💰 '+(RUN.gold||0)); },{size:13,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c}); o.add(bb); };
+    const buy=(label,cost,y,fn)=>{ const bb=button(this,W/2,y,380,38,label+'（💰'+cost+'）',()=>{ if((RUN.gold||0)<cost) return; spendGold(cost); fn(); gt.setText('💰 '+(RUN.gold||0)); this.refreshHud(); },{size:13,fill:0x3a5f3a,stroke:0x5ad06a,hover:0x4c8c4c}); o.add(bb); };
     buy('治療藥水（回 30%）',20,H/2-58,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); } });
     buy('聖水（回 50%）',40,H/2-14,()=>{ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'聖水',icon:'🧪',value:60}); discover('聖水'); } });
     buy('購入一件裝備',45,H/2+30,()=>{ const pool=(Math.random()<0.5?WEAPONS:ARMORS).filter(x=>!x.starter); if(pool.length&&RUN.cargo.length<RUN.slots){ const it=Phaser.Utils.Array.GetRandom(pool); const isW=!!it.atkSeq; RUN.cargo.push({kind:isW?'武器':'防具',name:it.name,icon:isW?'⚔':'🛡',value:60,gear:it}); discover(it.name);} });
@@ -664,7 +735,7 @@ class Battle extends Phaser.Scene {
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];
     const o=this.mkOverlay({accent:'green',w:460,h:220});
     o.add(txt(this,W/2,H/2-64,ev.t,19,'#9fe8a0')); o.add(txt(this,W/2,H/2-28,ev.d,13,TH.text).setWordWrapWidth(400));
-    o.add(button(this,W/2-92,H/2+40,156,40,ev.b,()=>{ ev.act(); this.advanceStep(); },{variant:'go',size:13}));
+    o.add(button(this,W/2-92,H/2+40,156,40,ev.b,()=>{ ev.act(); this.refreshHud(); this.advanceStep(); },{variant:'go',size:13}));
     o.add(button(this,W/2+92,H/2+40,156,40,'離開',()=>this.advanceStep(),{variant:'info',size:13})); }
   // 戰後升級三選一：三張並排直式卡片（逐一處理 RUN.pendingLevelups）
   showLevelups(){
