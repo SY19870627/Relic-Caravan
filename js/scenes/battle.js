@@ -28,6 +28,7 @@ class Battle extends Phaser.Scene {
     this.pauseBtn.setDepth(60);
     if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
     this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
+    this.potText = txt(this, 26, 54, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0).setDepth(62);
     this.waveText = txt(this,W/2,40,'',12,UI.gold).setDepth(60);
     this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(100);
     if(!RUN.exped) initExpedition();
@@ -45,6 +46,8 @@ class Battle extends Phaser.Scene {
     this._pctText.setText('探險 '+(RUN.exped.pct||0)+'%'+((RUN.exped.pct||0)>=99?'　·　守衛者現身！':''));
   }
   updateGold(){ if(this.goldText) this.goldText.setText('💰 '+((RUN&&RUN.gold)||0)); }
+  healPotCount(){ const HP={'治療藥水':1,'聖水':1,'回復卷軸':1}; return (RUN&&RUN.cargo)? RUN.cargo.filter(it=>it.kind==='道具'&&HP[it.name]).length : 0; }
+  updatePotions(){ if(this.potText) this.potText.setText('🧪 藥水 ×'+this.healPotCount()); }
   // 開始一場遭遇：戰鬥→生成敵人；非戰鬥→秀互動浮窗。英雄每場由 RUN.heroes 重建（HP 延續）。
   beginStep(){
     this.over=false; this.entering=false; this.waveClearing=false; this.waveIndex=0; this.hitstopUntil=0; this._advancing=false;
@@ -70,7 +73,7 @@ class Battle extends Phaser.Scene {
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
     this.enemies=[]; this.all=[...this.heroes];
-    this.updatePctBar(); this.updateGold();
+    this.updatePctBar(); this.updateGold(); this.updatePotions();
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
     else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
   }
@@ -235,19 +238,23 @@ class Battle extends Phaser.Scene {
   // 戰鬥中自動喝水：最低血隊員 < 門檻時自動喝「最弱的補血藥水」（保留強藥），整隊回復；有冷卻避免狂喝
   autoSip(){
     if(GUILD.settings && GUILD.settings.autoSip===false) return;
-    if(this.time.now < (this._sipUntil||0)) return;
     const alive=this.aliveOf('hero'); if(!alive.length) return;
     const frac=(CFG.autoSip&&CFG.autoSip.hpFrac)||0.30;
-    if(!alive.some(c=>c.hp/c.maxHp < frac)) return;
+    const cd=(CFG.autoSip&&CFG.autoSip.cooldownMs)||2500;
+    // 每名隊員各自的喝水冷卻：挑「低於門檻、且自己冷卻已過」的最虛弱者，一瓶只補他一人
+    let target=null,lowest=9;
+    alive.forEach(c=>{ const fr=c.hp/c.maxHp; if(fr<frac && this.time.now>=(c._sipUntil||0) && fr<lowest){ lowest=fr; target=c; } });
+    if(!target) return;
     const HEAL={'治療藥水':0.3,'聖水':0.5,'回復卷軸':0.6};
     let best=null,bp=9;
     RUN.cargo.forEach(it=>{ if(it.kind==='道具' && HEAL[it.name]!=null && HEAL[it.name]<bp){ best=it; bp=HEAL[it.name]; } });
     if(!best) return;
     const pct=HEAL[best.name], idx=RUN.cargo.indexOf(best); if(idx>=0) RUN.cargo.splice(idx,1); discover(best.name);
-    alive.forEach(c=>{ if(c.hp<c.maxHp){ const h=Math.round(c.maxHp*pct); c.hp=Math.min(c.maxHp,c.hp+h); if(c.ref)c.ref.hp=c.hp; this.bar(c); pixelNum(this,c.container.x,c.container.y-34,'+'+h,0x7dff9a); } });
-    this.floatLabel(this.scale.width/2, 96, '自動喝下 '+(best.icon||'🧪')+best.name, '#9fe8a0');
-    this.screenFlash(0x7dff9a,0.12,200);
-    this._sipUntil=this.time.now+((CFG.autoSip&&CFG.autoSip.cooldownMs)||2500);
+    const h=Math.round(target.maxHp*pct); target.hp=Math.min(target.maxHp,target.hp+h); if(target.ref)target.ref.hp=target.hp; this.bar(target);
+    pixelNum(this,target.container.x,target.container.y-34,'+'+h,0x7dff9a);
+    this.floatLabel(target.baseX,target.baseY-58,'喝下 '+(best.icon||'🧪')+best.name,'#9fe8a0');
+    this.updatePotions();
+    target._sipUntil=this.time.now+cd;
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
   pickByRow(foes){ const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
