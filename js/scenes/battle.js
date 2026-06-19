@@ -41,6 +41,7 @@ class Battle extends Phaser.Scene {
   beginStep(){
     this.over=false; this.entering=false; this.waveClearing=false; this.waveIndex=0; this.hitstopUntil=0; this._advancing=false;
     if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
+    if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
     const _re=relicEffects();
     this._firstHitCrit=!!_re.firstHitCrit; this._reviveOnce=!!_re.reviveOnce; this.reviveUsed=false;
     this._splash=!!_re.splash; this._regen=_re.regen||0; this._killCrit=!!_re.killCrit; this._healToShield=!!_re.healToShield;
@@ -64,7 +65,7 @@ class Battle extends Phaser.Scene {
     this.enemies=[]; this.all=[...this.heroes];
     this.updatePctBar();
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); }
-    else { this.over=true; this.time.delayedCall(360,()=>this.openEncounter(stype)); }
+    else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
   }
   buildHeroes(){
     this.heroes=RUN.heroes.map((h)=>{ const s=heroStat(h), fs=formationSlot(h.sprite);
@@ -474,17 +475,56 @@ class Battle extends Phaser.Scene {
   marchNext(){
     this.updatePctBar();
     if(this.bgWall) this.tweens.add({targets:[this.bgWall,this.bgFloor], tilePositionX:'+=240', duration:780, ease:'Sine.inOut'});
+    if(this.encIntro) this.tweens.add({targets:this.encIntro, x:'-=320', alpha:0, duration:640, ease:'Sine.in'});
     (this.heroes||[]).forEach(c=>{ if(c&&c.alive&&c.container) this.tweens.add({targets:c.container, x:c.baseX+12, duration:190, yoyo:true, repeat:1, ease:'Sine.inOut'}); });
     this.banner.setText('▶ 前進中…').setAlpha(1);
     this.tweens.add({targets:this.banner,alpha:0,delay:600,duration:320,onComplete:()=>this.banner.setText('')});
     this.time.delayedCall(760,()=>{
       (this.enemies||[]).forEach(c=>{ if(c&&c.container) c.container.destroy(); });
+      if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
       if(this._envText){ this._envText.destroy(); this._envText=null; }
       this.enemies=[]; this.all=[...(this.heroes||[])];
       this.beginStep();
     });
   }
   advanceStep(){ if(this._advancing) return; this._advancing=true; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } RUN.exped.i++; RUN.exped.pct=Math.min(99, Math.round(RUN.exped.i/RUN.exped.plan.length*99)); this.marchNext(); }
+  encMeta(t){ return ({
+    chest:{spr:'chest', title:'發現寶箱', icon:'🧰', glow:0xffe08a},
+    camp :{spr:'campfire', title:'前方有營火', icon:'🔥', glow:0xff9a3a},
+    shop :{spr:'merchant', title:'遇見商人', icon:'🧙', glow:0xffe08a},
+    event:{spr:'mystery', title:'神秘事件', icon:'❓', glow:0x9fe8ff},
+  })[t]; }
+  // 非戰鬥遭遇：先在路上「演出」遇到的物件，再開互動浮窗（讓選項不再憑空出現）
+  playEncounterIntro(t, cb){
+    const W=this.scale.width, m=this.encMeta(t);
+    if(!m){ if(cb) cb(); return; }
+    if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; }
+    if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
+    const cx=Math.round(W*0.6), gy=320;
+    const cont=this.add.container(cx,gy).setDepth(42); this.encIntro=cont;
+    const glow=this.add.circle(0,-4,56,m.glow,0), shadow=this.add.ellipse(0,52,66,16,0x000000,0), spr=this.add.image(0,0,m.spr).setScale(SCALE);
+    cont.add([glow,shadow,spr]);
+    const cap=txt(this,cx,gy-90,m.icon+' '+m.title,18,'#fff').setDepth(43).setStroke('#000',5).setAlpha(0).setScale(0.9); this.encCap=cap;
+    const reveal=()=>{ this.tweens.add({targets:shadow,alpha:0.4,duration:220});
+      this.tweens.add({targets:cap,alpha:1,scale:1,y:gy-100,duration:260,ease:'Back.out'});
+      this.time.delayedCall(780,()=>{ this.tweens.add({targets:cap,alpha:0,delay:120,duration:240,onComplete:()=>{ if(this.encCap){this.encCap.destroy(); this.encCap=null;} }}); if(cb) cb(); }); };
+    if(t==='shop'){
+      spr.setFlipX(true); cont.x=W+70;
+      this.tweens.add({targets:glow,alpha:0.32,duration:640});
+      this.tweens.add({targets:cont,x:cx,duration:640,ease:'Quad.out',onComplete:()=>{ this.tweens.add({targets:spr,y:-4,duration:520,yoyo:true,repeat:-1,ease:'Sine.inOut'}); this.spark(cx,gy,m.glow); reveal(); }});
+    } else if(t==='chest'){
+      spr.y=-150; spr.setAlpha(0);
+      this.tweens.add({targets:spr,y:0,alpha:1,duration:560,ease:'Bounce.out',onComplete:()=>{ this.shake(160,0.008); this.spark(cx,gy+6,m.glow); this.screenFlash(m.glow,0.14,200); this.tweens.add({targets:glow,alpha:0.32,duration:200,yoyo:true}); reveal(); }});
+    } else if(t==='camp'){
+      spr.setScale(0); this.screenFlash(m.glow,0.12,260);
+      this.tweens.add({targets:glow,alpha:0.42,duration:440,onComplete:()=>{ this.tweens.add({targets:glow,alpha:0.2,duration:600,yoyo:true,repeat:-1,ease:'Sine.inOut'}); }});
+      this.tweens.add({targets:spr,scale:SCALE,duration:440,ease:'Back.out',onComplete:()=>{ this.tweens.add({targets:spr,scaleY:SCALE*0.9,scaleX:SCALE*1.06,duration:240,yoyo:true,repeat:-1,ease:'Sine.inOut'}); this.spark(cx,gy-8,m.glow); reveal(); }});
+    } else {
+      spr.setScale(SCALE*0.5).setAlpha(0);
+      this.tweens.add({targets:glow,alpha:0.34,duration:520,onComplete:()=>{ this.tweens.add({targets:glow,alpha:0.14,duration:700,yoyo:true,repeat:-1,ease:'Sine.inOut'}); }});
+      this.tweens.add({targets:spr,scale:SCALE,alpha:1,duration:560,ease:'Back.out',onComplete:()=>{ this.tweens.add({targets:spr,y:-8,duration:900,yoyo:true,repeat:-1,ease:'Sine.inOut'}); this.spark(cx,gy-6,m.glow); reveal(); }});
+    }
+  }
   openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='shop') this.evShop(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
   mkOverlay(o){ o=o||{}; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());

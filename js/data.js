@@ -7,6 +7,7 @@ const PAL = {
   o:'#9c6b34', i:'#d9d2b0', q:'#6fd0e0', H:'#2f7d46', h:'#1f5631',
   A:'#ff5a4a', t:'#8a8f9c', T:'#5b606e',
   u:'#8a6fd0', U:'#4f3a8f',
+  F:'#ff9a3a', Y:'#ffe27a', P:'#caa6ff',
 };
 const SPRITES = {
   warrior:["...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...","..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..","WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
@@ -17,6 +18,10 @@ const SPRITES = {
   guardian:["............",".TTTTTTTTTT.",".TttttttttT.",".TtAttttAtT.",".TttttttttT.",".TtTTTTTTtT.",".TttttttttT.",".TttttttttT.","TTTttttttTTT","TTTttttttTTT",".TttttttttT.",".TttttttttT.",".TttttttttT.",".TTT..TTT...",".KKK..KKK...","............"],
   mage:[".....K......","....KuK.....","...KuuuK....","..KuuuuuK...","...KSSSK....","...SKSKS....","...KSSSK.q..","..KuuuuuKo..",".KuUUUUuKo..",".KuUUUUuKo..",".KuUUUUuK...",".KuuuuuuK...",".KuuuKuuK...",".KnnKKnnK...",".KK....KK...","............"],
   rogue:["............","...nnnnn....","..nnTTTnn...","..nTtttTn...","..nTSSSTn...","..nSASASn...","...nSSSn....","..eehhheeM..",".KehhhhheKM.",".KehhhhheK..",".KhhhhhhhK..",".KhhhbhhhK..",".KhhhKhhhK..",".KnnK.KnnK..",".KK....KK...","............"],
+  chest:["............","............","...KKKKKK...","..KGGGGGGK..",".KGYYYYYYGK.",".KGBBBBBBGK.",".KKKKKKKKKK.",".KBBBKKBBBK.",".KBBBKiKBBK.",".KBBBKKBBBK.",".KGYYYYYYGK.","..KGGGGGGK..","...KKKKKK...","............"],
+  campfire:["............","......Y.....",".....YFY....",".....FAF....","....YFAFY...","....FFAFF...","...YFFAFFY..","...FFFFFFF..","....FFFFF...","..K......K..",".bBBBBBBBBb.","..bBBBBBBb..","...KK..KK...","............"],
+  merchant:["...KKKK.....","..KuuuuK....",".KuUUUUuK...",".KuSSSSuK...",".KuSKKSuK...",".KuSSSSuK...","..KuSSuK....",".KUUUUUUK.G.","KUUUUUUUUKGY","KUUbbbUUUKG.","KUUUUUUUUK..",".KUUUUUUK...",".KUU..UUK...",".KK....KK...","............"],
+  mystery:["......M.....","....M.q.....",".....KqK....","....KquqK...","...KquUqK...","...quUPUq...","...KqUPqK...","....KquK....",".....KqK....",".....KuK....","...tTTTTt...","..tTTTTTTt..","...tTTTTt...","............"],
 };
 const GLYPH = {
   '0':["111","101","101","101","111"],'1':["010","110","010","010","111"],'2':["111","001","111","100","111"],'3':["111","001","111","001","111"],'4':["101","101","111","001","001"],'5':["111","100","111","001","111"],'6':["111","100","111","101","111"],'7':["111","001","010","010","010"],'8':["111","101","111","101","111"],'9':["111","101","111","001","111"],'-':["000","000","111","000","000"],'+':["000","010","111","010","000"],
