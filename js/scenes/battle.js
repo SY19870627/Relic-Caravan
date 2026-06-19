@@ -59,6 +59,14 @@ class Battle extends Phaser.Scene {
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0); this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
     if(this._envText){ this._envText.destroy(); this._envText=null; }
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
+    if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
+    if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }
+    this.enemies=[]; this.all=[...this.heroes];
+    this.updatePctBar();
+    if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); }
+    else { this.over=true; this.time.delayedCall(360,()=>this.openEncounter(stype)); }
+  }
+  buildHeroes(){
     this.heroes=RUN.heroes.map((h)=>{ const s=heroStat(h), fs=formationSlot(h.sprite);
       const atkSeq=s.atkSeq.map(a=>Math.max(1,a+this._heroAtkMod)), def=s.def+this._heroDefMod;
       const pk=heroPerks(h.idx);
@@ -69,12 +77,25 @@ class Battle extends Phaser.Scene {
       c.shield=startShield; return c;
     });
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
-    if(RUN.exped && RUN.exped.i>0){ this.heroes.forEach(c=>{ const tx=c.container.x; c.container.x=tx-90; this.tweens.add({targets:c.container,x:tx,duration:520,ease:'Quad.out'}); }); }
-    if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }
-    this.enemies=[]; this.all=[...this.heroes];
-    this.updatePctBar();
-    if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); }
-    else { this.over=true; this.time.delayedCall(360,()=>this.openEncounter(stype)); }
+  }
+  refreshHeroes(){
+    this.heroes.forEach(c=>{ const h=c.ref, s=heroStat(h), fs=formationSlot(h.sprite), pk=heroPerks(h.idx);
+      c.maxHp=s.maxHp; c.atkSeq=s.atkSeq.map(a=>Math.max(1,a+this._heroAtkMod)); c.def=s.def+this._heroDefMod; c.heal=s.heal;
+      c.interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1))); c.useBonus=(pk.useBonus||0);
+      c.skills=s.skills; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.aoe=h.aoe; c.ranged=h.ranged; c.healer=h.healer;
+      c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
+      c.shield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
+      c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c._proc=null;
+      c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
+      if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
+      c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
+      c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setAngle(0).setAlpha(c.alive?1:0.25);
+      c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
+      if(c.nameText) c.nameText.setText(`${h.name} Lv${s.level}`);
+      this.bar(c);
+      if(c.pipsCont){ c.pipsCont.destroy(); c.pipsCont=null; c.skillPips=null; }
+      this.buildSkillPips(c);
+    });
   }
   spawnWave(){
     const ec=this.waves[this.waveIndex];
@@ -125,7 +146,7 @@ class Battle extends Phaser.Scene {
     const barFill=this.add.rectangle(-25,-42,50,5,side==='hero'?0x5ad06a:0xd05a5a).setOrigin(0,0.5);
     cont.add([shadow,spr,nameText,barBg,barFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
-    const obj={...d,side,container:cont,spr,barFill,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0};
+    const obj={...d,side,container:cont,spr,barFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
     if(side==='hero') this.buildSkillPips(obj);
@@ -134,9 +155,9 @@ class Battle extends Phaser.Scene {
   }
   // 角色頭上技能格：顯示擁有的技能，亮=可用、暗=冷卻/用盡
   buildSkillPips(c){
-    const sk=c.skills||[]; if(!sk.length) return;
+    const sk=c.skills||[]; c.pipsCont=null; c.skillPips=null; if(!sk.length) return;
     c.skillPips={};
-    const ps=22, gap=5, total=sk.length*ps+(sk.length-1)*gap, cont=this.add.container(0,-84).setDepth(70); c.container.add(cont);
+    const ps=22, gap=5, total=sk.length*ps+(sk.length-1)*gap, cont=this.add.container(0,-84).setDepth(70); c.container.add(cont); c.pipsCont=cont;
     let cx=-total/2+ps/2;
     sk.forEach(s=>{ const sv=skillVisual(s), ac=accent(sv.accent), active=s.cd!==undefined;
       const pc=this.add.container(cx,0); const g=this.add.graphics();
@@ -453,13 +474,13 @@ class Battle extends Phaser.Scene {
   marchNext(){
     this.updatePctBar();
     if(this.bgWall) this.tweens.add({targets:[this.bgWall,this.bgFloor], tilePositionX:'+=240', duration:780, ease:'Sine.inOut'});
-    (this.heroes||[]).forEach(c=>{ if(c&&c.alive&&c.container) this.tweens.add({targets:c.container, x:c.container.x+46, duration:740, ease:'Sine.in'}); });
+    (this.heroes||[]).forEach(c=>{ if(c&&c.alive&&c.container) this.tweens.add({targets:c.container, x:c.baseX+12, duration:190, yoyo:true, repeat:1, ease:'Sine.inOut'}); });
     this.banner.setText('▶ 前進中…').setAlpha(1);
-    this.tweens.add({targets:this.banner,alpha:0,delay:650,duration:350,onComplete:()=>this.banner.setText('')});
-    this.time.delayedCall(820,()=>{
-      [...(this.heroes||[]),...(this.enemies||[])].forEach(c=>{ if(c&&c.container) c.container.destroy(); });
+    this.tweens.add({targets:this.banner,alpha:0,delay:600,duration:320,onComplete:()=>this.banner.setText('')});
+    this.time.delayedCall(760,()=>{
+      (this.enemies||[]).forEach(c=>{ if(c&&c.container) c.container.destroy(); });
       if(this._envText){ this._envText.destroy(); this._envText=null; }
-      this.heroes=[]; this.enemies=[]; this.all=[];
+      this.enemies=[]; this.all=[...(this.heroes||[])];
       this.beginStep();
     });
   }
@@ -477,14 +498,14 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
     this._campHealed=n; this._renderCamp(); }
   _renderCamp(){ const W=this.scale.width,H=this.scale.height;
-    const o=this.mkOverlay({accent:'ember',h:250});
+    const o=this.mkOverlay({accent:'ember',w:480,h:250});
     o.add(txt(this,W/2,H/2-86,'🔥 營火休息',20,'#f0975a'));
     o.add(txt(this,W/2,H/2-54,'存活成員回復 50% HP（'+(this._campHealed||0)+' 人）',13,TH.text));
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
-    o.add(button(this,W/2-150,H/2,150,40,'整裝（'+nGear+'）',()=>this.evGear(),{variant:'info',size:13}));
-    o.add(button(this,W/2+10,H/2,150,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
-    o.add(button(this,W/2-150,H/2+52,150,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
-    o.add(button(this,W/2+10,H/2+52,150,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
+    o.add(button(this,W/2-86,H/2,160,40,'整裝（'+nGear+'）',()=>this.evGear(),{variant:'info',size:13}));
+    o.add(button(this,W/2+86,H/2,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
+    o.add(button(this,W/2-86,H/2+52,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
+    o.add(button(this,W/2+86,H/2+52,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
   evGear(){ this._gearSel=null; this._renderGear(); }
   _renderGear(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'blue', w:840, h:500});

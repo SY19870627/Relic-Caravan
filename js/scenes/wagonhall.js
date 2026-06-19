@@ -6,7 +6,7 @@ class WagonHall extends Phaser.Scene {
     this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
     txt(this,W/2,24,'馬 車 工 坊',22,TH.gold);
-    txt(this,W/2,46,'選馬（食物⇄貨格取捨）＋ 工匠項目化強化（需素材與聲望）',12,TH.dim);
+    txt(this,W/2,46,'選馬（貨格與隊伍增益取捨）＋ 工匠項目化強化（需素材與聲望）',12,TH.dim);
     button(this, 96, 24, 150, 28, '← 公會大廳', ()=>this.scene.start('GuildHall'), {size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c});
     this.render();
   }
