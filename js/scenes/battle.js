@@ -4,6 +4,9 @@ class Battle extends Phaser.Scene {
   // v1.0：常駐遠征場景。create 只做一次性佈景＋探險%條，之後 beginStep 迴圈跑每場遭遇。
   create(){
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
+    // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
+    // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
+    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null;
     const W=this.scale.width, H=this.scale.height;
     this.bgWall=this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
     this.bgFloor=this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
@@ -21,13 +24,17 @@ class Battle extends Phaser.Scene {
       this.speedBtn.label.setText(`速度 x${this.speed}`);
     }, {size:12,fill:0x33486b,stroke:0x5a8cd0,hover:0x466a9c});
     this.speedBtn.setDepth(60);
+    this.pauseBtn = button(this, W-176, 20, 92, 28, '⏸ 暫停', ()=>this.togglePause(), {size:12,fill:0x4a3f63,stroke:0x7a6f93,hover:0x5d5080});
+    this.pauseBtn.setDepth(60);
+    if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
+    this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
     this.waveText = txt(this,W/2,40,'',12,UI.gold).setDepth(60);
     this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(100);
     if(!RUN.exped) initExpedition();
     this.beginStep();
   }
   buildPctBar(){
-    const W=this.scale.width, x=18, y=16, w=W-150, h=12; this._pctBox={x,y,w,h};
+    const W=this.scale.width, x=18, y=16, w=W-250, h=12; this._pctBox={x,y,w,h};
     const g=this.add.graphics().setDepth(60); g.fillStyle(UI.inkN,0.9); g.fillRoundedRect(x,y,w,h,6); g.lineStyle(1.5,UI.lineN,0.7); g.strokeRoundedRect(x,y,w,h,6);
     this._pctFill=this.add.graphics().setDepth(61);
     this._pctText=txt(this,x+8,y+h+8,'探險 0%',12,UI.gold,0).setDepth(62);
@@ -37,6 +44,7 @@ class Battle extends Phaser.Scene {
     this._pctFill.clear(); if(p>0){ this._pctFill.fillStyle(p>=0.99?UI.redN:UI.goldN,1); this._pctFill.fillRoundedRect(x,y,Math.max(h,w*p),h,6); }
     this._pctText.setText('探險 '+(RUN.exped.pct||0)+'%'+((RUN.exped.pct||0)>=99?'　·　守衛者現身！':''));
   }
+  updateGold(){ if(this.goldText) this.goldText.setText('💰 '+((RUN&&RUN.gold)||0)); }
   // 開始一場遭遇：戰鬥→生成敵人；非戰鬥→秀互動浮窗。英雄每場由 RUN.heroes 重建（HP 延續）。
   beginStep(){
     this.over=false; this.entering=false; this.waveClearing=false; this.waveIndex=0; this.hitstopUntil=0; this._advancing=false;
@@ -61,10 +69,9 @@ class Battle extends Phaser.Scene {
     if(this._envText){ this._envText.destroy(); this._envText=null; }
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
-    if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; }
     this.enemies=[]; this.all=[...this.heroes];
-    this.updatePctBar();
-    if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); }
+    this.updatePctBar(); this.updateGold();
+    if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
     else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
   }
   buildHeroes(){
@@ -221,8 +228,26 @@ class Battle extends Phaser.Scene {
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
+    this.autoSip();
     for(const c of this.all){ if(!c.alive) continue; if(this.time.now < (c.stunUntil||0)) continue;
       if(time>c.lastAttack+c.interval/this.speed){ c.lastAttack=time; this.act(c); } }
+  }
+  // 戰鬥中自動喝水：最低血隊員 < 門檻時自動喝「最弱的補血藥水」（保留強藥），整隊回復；有冷卻避免狂喝
+  autoSip(){
+    if(GUILD.settings && GUILD.settings.autoSip===false) return;
+    if(this.time.now < (this._sipUntil||0)) return;
+    const alive=this.aliveOf('hero'); if(!alive.length) return;
+    const frac=(CFG.autoSip&&CFG.autoSip.hpFrac)||0.30;
+    if(!alive.some(c=>c.hp/c.maxHp < frac)) return;
+    const HEAL={'治療藥水':0.3,'聖水':0.5,'回復卷軸':0.6};
+    let best=null,bp=9;
+    RUN.cargo.forEach(it=>{ if(it.kind==='道具' && HEAL[it.name]!=null && HEAL[it.name]<bp){ best=it; bp=HEAL[it.name]; } });
+    if(!best) return;
+    const pct=HEAL[best.name], idx=RUN.cargo.indexOf(best); if(idx>=0) RUN.cargo.splice(idx,1); discover(best.name);
+    alive.forEach(c=>{ if(c.hp<c.maxHp){ const h=Math.round(c.maxHp*pct); c.hp=Math.min(c.maxHp,c.hp+h); if(c.ref)c.ref.hp=c.hp; this.bar(c); pixelNum(this,c.container.x,c.container.y-34,'+'+h,0x7dff9a); } });
+    this.floatLabel(this.scale.width/2, 96, '自動喝下 '+(best.icon||'🧪')+best.name, '#9fe8a0');
+    this.screenFlash(0x7dff9a,0.12,200);
+    this._sipUntil=this.time.now+((CFG.autoSip&&CFG.autoSip.cooldownMs)||2500);
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
   pickByRow(foes){ const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
@@ -464,11 +489,17 @@ class Battle extends Phaser.Scene {
         RUN.exped.pct=100; this.updatePctBar();
         this.scene.start('Result',{outcome:'clear'}); return;
       }
-      if(node&&node.type==='elite' && hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; }
-      const count = (node&&node.type==='elite'?2:1) + (re.extraLoot||0);
-      const lootKind=(node&&node.type==='elite')?'貴重物品':'道具';
-      for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1, lootKind);
-        if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }
+      if(node&&node.type==='elite'){
+        if(hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; }
+        const count = 2 + (re.extraLoot||0);
+        for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
+          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }
+      } else {
+        const gc=CFG.gold||{}, g=Math.max(1, Math.round(((gc.battleBase||16)+(node?node.risk:1)*(gc.battlePerRisk||12))*(1+(((RUN.destTier||1)-1)*0.25))));
+        addGold(g); this.updateGold();
+        const gf=txt(this,this.scale.width-60,66,'💰 +'+g,15,'#ffe08a').setDepth(101).setStroke('#000',4);
+        this.tweens.add({targets:gf,y:50,alpha:0,duration:1150,ease:'Quad.out',onComplete:()=>gf.destroy()});
+      }
       this.showLevelups();
     });
   }
@@ -526,10 +557,29 @@ class Battle extends Phaser.Scene {
     }
   }
   openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='shop') this.evShop(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
+  togglePause(){ if(this._menuPaused) this.resumeGame(); else if(!this.infoUI) this.openPause(); }
+  openPause(){ if(this._menuPaused) return; this._menuPaused=true; this.paused=true; this.tweens.pauseAll(); this.time.paused=true; this._renderPause(); }
+  resumeGame(){ this._menuPaused=false; this.paused=false; this.tweens.resumeAll(); this.time.paused=false; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } }
+  _renderPause(){ const W=this.scale.width,H=this.scale.height;
+    if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; }
+    const c=this.add.container(0,0).setDepth(130); this.pauseUI=c;
+    c.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
+    c.add(panel(this,W/2,H/2,440,300,{accent:'gold'}));
+    c.add(txt(this,W/2,H/2-112,'⏸ 暫停',24,TH.gold));
+    c.add(txt(this,W/2,H/2-80,'遊戲暫停中 · 可調整設定',12,TH.dim));
+    const on=!(GUILD.settings && GUILD.settings.autoSip===false);
+    c.add(this.add.rectangle(W/2,H/2-4,392,66,0x241a30,0.6).setStrokeStyle(2,0x55476b));
+    c.add(txt(this,W/2-176,H/2-16,'⚔ 戰鬥自動喝水',15,TH.text,0));
+    c.add(txt(this,W/2-176,H/2+8,'最低血隊員 <30% 自動喝補血藥水',10,TH.dim,0));
+    c.add(button(this,W/2+140,H/2-4,104,42, on?'開啟 ✓':'關閉', ()=>{ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoSip=!on; saveGuild(); this._renderPause(); }, {variant:on?'go':'info', size:14}));
+    c.add(button(this,W/2,H/2+96,220,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
+  }
   mkOverlay(o){ o=o||{}; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());
     c.add(panel(this,W/2,H/2,o.w||440,o.h||220,{accent:o.accent||'gold'})); this.overlay=c; return c; }
-  evChest(){ const W=this.scale.width,H=this.scale.height; const it=rollItem(2, Math.random()<0.6?'武器':'防具'); const o=this.mkOverlay({accent:'gold',h:180});
+  evChest(){ const W=this.scale.width,H=this.scale.height; const di=RUN.destIndex||0, _r=Math.random();
+    const it = _r<0.22 ? (makeIngredientItem(di)||rollItem(2,'武器')) : _r<0.40 ? (makeMaterialItem(di)||rollItem(2,'防具')) : rollItem(2, Math.random()<0.55?'武器':'防具');
+    const o=this.mkOverlay({accent:'gold',h:180});
     let msg; if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; } else msg='貨車已滿，放棄 '+it.icon+' '+it.name;
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,it.kind==='遺物'?TH.cyan:TH.text));
     this.time.delayedCall(1250,()=>this.advanceStep()); }
@@ -538,14 +588,30 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
     this._campHealed=n; this._renderCamp(); }
   _renderCamp(){ const W=this.scale.width,H=this.scale.height;
-    const o=this.mkOverlay({accent:'ember',w:480,h:250});
-    o.add(txt(this,W/2,H/2-86,'🔥 營火休息',20,'#f0975a'));
-    o.add(txt(this,W/2,H/2-54,'存活成員回復 50% HP（'+(this._campHealed||0)+' 人）',13,TH.text));
+    const o=this.mkOverlay({accent:'ember',w:480,h:300});
+    o.add(txt(this,W/2,H/2-116,'🔥 營火休息',20,'#f0975a'));
+    o.add(txt(this,W/2,H/2-86,'存活成員回復 50% HP（'+(this._campHealed||0)+' 人）',13,TH.text));
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
-    o.add(button(this,W/2-86,H/2,160,40,'整裝（'+nGear+'）',()=>this.evGear(),{variant:'info',size:13}));
-    o.add(button(this,W/2+86,H/2,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
-    o.add(button(this,W/2-86,H/2+52,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
-    o.add(button(this,W/2+86,H/2+52,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
+    const nIng=RUN.cargo.filter(it=>it.kind==='食材').length, canCookHere=(hasLeader()||hasCampstove());
+    o.add(button(this,W/2,H/2-44,330,38, canCookHere?('🍳 料理（食材 '+nIng+'）'):'🍳 料理（需領隊或隨車鍋）',()=>this.evCook(),{variant:canCookHere?'go':'info',size:14}));
+    o.add(button(this,W/2-86,H/2+4,160,40,'整裝（'+nGear+'）',()=>this.evGear(),{variant:'info',size:13}));
+    o.add(button(this,W/2+86,H/2+4,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
+    o.add(button(this,W/2-86,H/2+56,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
+    o.add(button(this,W/2+86,H/2+56,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
+  evCook(){ this._cookMsg=null; this._renderCook(); }
+  _renderCook(){ const W=this.scale.width,H=this.scale.height;
+    const o=this.mkOverlay({accent:'ember', w:600, h:430});
+    o.add(txt(this,W/2,H/2-184,'🍳 營火料理',20,'#f0975a'));
+    const enabled=(hasLeader()||hasCampstove());
+    o.add(txt(this,W/2,H/2-156, enabled?'消耗隨身食材，立即補血或獲得下一場戰鬥的增益':'需「領隊」或工匠強化「隨車鍋」才能料理',12, enabled?TH.text:TH.red));
+    RECIPES.forEach((r,i)=>{ const y=H/2-104+i*62, rx=W/2-250, have=enabled&&canCook(r);
+      o.add(this.add.rectangle(W/2,y,540,54,0x241a30,0.9).setStrokeStyle(2, have?0x5ad06a:0x3a3150));
+      o.add(txt(this,rx,y-12,r.name,14, enabled?TH.gold:TH.dim,0));
+      o.add(txt(this,rx,y+10, r.desc+'　·　需 '+recipeNeedText(r),10.5, have?'#cfe8c0':TH.text,0).setWordWrapWidth(360));
+      o.add(button(this,W/2+205,y,100,40, have?'料理':(enabled?'食材不足':'未解鎖'),()=>{ if(!have) return; const msg=cook(r); if(msg) this._cookMsg=msg; this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this._renderCook(); },{variant:have?'go':'info',size:11}));
+    });
+    if(this._cookMsg) o.add(txt(this,W/2,H/2+150,this._cookMsg,12,'#9fe8a0').setWordWrapWidth(560));
+    o.add(button(this,W/2,H/2+182,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
   evGear(){ this._gearSel=null; this._renderGear(); }
   _renderGear(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'blue', w:840, h:500});

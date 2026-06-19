@@ -59,7 +59,7 @@ class RecruitHall extends Phaser.Scene {
   }
   renderLogistics(){
     const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
-    add(txt(this,W/2,140,'後勤成員不佔出戰名額：工匠負責項目化強化、領隊負責探路與料理',11,TH.dim));
+    add(txt(this,W/2,140,'後勤成員不佔出戰名額：工匠負責項目化強化、領隊負責途中料理',11,TH.dim));
     // 工匠
     add(this.add.rectangle(W/2-225,330,400,330,TH.panel).setStrokeStyle(2,0xd0b05a));
     add(txt(this,W/2-225,190,'🛠 工 匠 師 傅',18,'#ffd24a'));
@@ -79,7 +79,7 @@ class RecruitHall extends Phaser.Scene {
     add(this.add.rectangle(W/2+225,330,400,330,TH.panel).setStrokeStyle(2,0x6fae6f));
     add(txt(this,W/2+225,190,'🧭 領 隊',18,'#9fe8a0'));
     add(txt(this,W/2+225,222, hasLeader()?'狀態：已聘僱':'狀態：尚未聘僱',14, hasLeader()?TH.green:TH.dim));
-    add(txt(this,W/2+225,250,'探路：揭露地城節點的天氣／地形／陷阱',11,TH.dim));
+    add(txt(this,W/2+225,250,'料理：在營火休息時消耗食材補血／強化',11,TH.dim));
     add(txt(this,W/2+225,272,'料理：用食材煮出補血／增益（探險中使用）',11,TH.dim));
     const lCost=CFG.repCost.leader||0;
     if(!hasLeader()){ const ok=canHireLeader();

@@ -49,8 +49,7 @@ class Outfit extends Phaser.Scene {
     statBar(this, L+44, top+hh-18, w-58, 7, ROSTER[i].xp, xpNeed(s.level), {accent:'violet'});
   }
   depart(){
-    const ws=wagonStats(), sp=sponsorship();
-    RUN.wagon={name:ws.name, horse:ws.horse};
+    const ws=wagonStats();
     RUN.slots = ws.slots;
     RUN.cargo=[];
     RUN.heroes.forEach(h=>{ h.hp=heroStat(h).maxHp; });

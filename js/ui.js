@@ -22,7 +22,6 @@ function accent(name){
 }
 function _mix(c1,c2,t){ const r=Math.round(((c1>>16)&255)+(((c2>>16)&255)-((c1>>16)&255))*t),
   g=Math.round(((c1>>8)&255)+(((c2>>8)&255)-((c1>>8)&255))*t), b=Math.round((c1&255)+((c2&255)-(c1&255))*t); return (r<<16)|(g<<8)|b; }
-function _hx(n){ return '#'+(n>>>0&0xffffff).toString(16).padStart(6,'0'); }
 
 function sceneBg(scene, opt){
   opt=opt||{}; const W=scene.scale.width, H=scene.scale.height;
@@ -131,13 +130,6 @@ function chip(scene,x,y,o){
   t.setX(tx); c.add(t);
   c.w=w; c.h=h; return c;
 }
-function chipRow(scene,x,y,items,o){
-  o=o||{}; const maxW=o.maxWidth||400, gap=o.gap||7, lh=o.lineH||28; let cx=x, cy=y, lines=1;
-  items.forEach((it,k)=>{ let ch=chip(scene,cx,cy,it);
-    if(k>0 && (cx-x)+ch.w>maxW){ cx=x; cy+=lh; lines++; ch.setX(cx); ch.setY(cy); }
-    cx+=ch.w+gap; if(o.parent)o.parent.push(ch); });
-  return lines*lh;
-}
 
 function statBar(scene,x,y,w,h,val,max,o){
   o=o||{}; const ac=accent(o.accent||'green'); const r=h/2; const frac=Math.max(0,Math.min(1, max? val/max:0));
@@ -232,18 +224,6 @@ function _starPath(g,cx,cy,outer,inner,points){ g.beginPath(); for(let i=0;i<poi
 function pips(scene,x,y,n,col){ const c=scene.add.container(x,y); const g=scene.add.graphics(); c.add(g); const gap=15;
   for(let i=0;i<n;i++){ g.fillStyle(col,1); _starPath(g, i*gap, 0, 6, 2.6, 5); g.fillPath(); } c.w=(n-1)*gap; return c; }
 
-function attachTip(scene, target, text, opt){
-  opt=opt||{}; if(!target.input) target.setInteractive({useHandCursor:opt.cursor!==false});
-  let tip=null;
-  const show=(p)=>{ if(tip) tip.destroy(); const ac=accent(opt.accent||'gold');
-    const t=txt(scene,0,0,text,opt.size||11,UI.text,0).setWordWrapWidth(opt.width||220); const w=Math.min(opt.width||220,t.width)+18, h=t.height+14;
-    tip=scene.add.container(0,0).setDepth(200); const g=scene.add.graphics();
-    g.fillStyle(0x000000,0.5); g.fillRoundedRect(2,4,w,h,8); g.fillStyle(UI.panelHiN,0.98); g.fillRoundedRect(0,0,w,h,8); g.lineStyle(1.5,ac.num,0.9); g.strokeRoundedRect(0,0,w,h,8);
-    t.setPosition(9,7); tip.add([g,t]);
-    let tx=(p?p.worldX:target.x)+14, ty=(p?p.worldY:target.y)+14; tx=Math.min(tx, scene.scale.width-w-6); ty=Math.min(ty, scene.scale.height-h-6);
-    tip.setPosition(tx,ty); };
-  target.on('pointerover',show); target.on('pointermove',show); target.on('pointerout',()=>{ if(tip){tip.destroy(); tip=null;} });
-}
 
 function buildTextures(scene){
   for(const key in SPRITES){

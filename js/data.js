@@ -56,16 +56,16 @@ const ARMORS = [
   {name:'法師長袍', def:3, hp:20, lvReq:2, trait:{startShield:12}, traitDesc:'每場開場護盾 +12'},
   {name:'龍鱗甲', def:11, hp:36, lvReq:5, trait:{thorns:0.25}, traitDesc:'反甲：反彈 25% 受到的傷害'},
 ];
-// 世界地圖目的地：travel＝抵達需消耗的食物、tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
+// 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
 const DESTINATIONS = [
-  {name:'近郊遺跡', travel:1, tier:1, repReq:0, desc:'最近的失落神殿，新手起點。'},
-  {name:'枯骨峽谷', travel:2, tier:2, repReq:2, desc:'更深的古文明遺跡，怪物更兇、寶物更好。'},
-  {name:'沉沒神城', travel:3, tier:3, repReq:5, desc:'水下失落都城，遺物階級高，路途遙遠。'},
-  {name:'虛空裂隙', travel:4, tier:4, repReq:9, desc:'舊神沉眠之地，極兇極富，唯強者可歸。'},
+  {name:'近郊遺跡', tier:1, repReq:0, desc:'最近的失落神殿，新手起點。'},
+  {name:'枯骨峽谷', tier:2, repReq:2, desc:'更深的古文明遺跡，怪物更兇、寶物更好。'},
+  {name:'沉沒神城', tier:3, repReq:5, desc:'水下失落都城，遺物階級高，路途遙遠。'},
+  {name:'虛空裂隙', tier:4, repReq:9, desc:'舊神沉眠之地，極兇極富，唯強者可歸。'},
 ];
 // ===== 遺物目錄（每關固定清單、收齊為止、已得不再掉）=====
 // v0.8 去數據化：每件遺物 = 一條「規則」。原本的純數值一律改成改變戰鬥/探索規則的功能。
-// 規則旗標：firstHitCrit 首擊必暴｜reviveOnce 每場復活一次｜noFoodDrain 不耗食物｜fullHealAfterBattle 戰後全回
+// 規則旗標：firstHitCrit 首擊必暴｜reviveOnce 每場復活一次｜fullHealAfterBattle 戰後全回
 //   splash 每3擊濺射全體｜startShield 開場護盾(數值)｜regen 行動回復(比例)｜killCrit 擊殺後下一擊必暴
 //   healToShield 治療溢出轉護盾｜lastStand 低血DEF翻倍+免暈｜firstDeathHeal 首位陣亡全隊回援(比例)
 //   firstStrikeAoe 首次攻擊打全體｜soloBoost 寡兵越強｜lifesteal 吸血(比例)
@@ -83,7 +83,7 @@ const RELIC_CATALOG = [
   // 沉沒神城（dest 2）
   {id:'emblem',name:'失落聖徽', icon:'🎖', dest:2, desc:'失落教團的聖徽。每場戰鬥首位成員陣亡時，全隊立即回復 30% 生命。', effect:{firstDeathHeal:0.30}},
   {id:'core',  name:'星辰碎核', icon:'☄', dest:2, desc:'墜星的碎核。每位成員本場第一次攻擊，改為打擊全部敵人。', effect:{firstStrikeAoe:true}},
-  {id:'crown', name:'潮汐之冠', icon:'🌊', dest:2, desc:'海神的冠冕。旅途與探索「不再消耗食物」。', effect:{noFoodDrain:true}},
+  {id:'crown', name:'潮汐之冠', icon:'🌊', dest:2, desc:'海神的冠冕。每場戰鬥開場，全隊獲得可吸收 25 點傷害的護盾。', effect:{startShield:25}},
   {id:'glass', name:'時之沙漏', icon:'⏳', dest:2, desc:'逆轉須臾。每場戰鬥首位陣亡的我方「復活一次」（半血）。', effect:{reviveOnce:true}},
   // 虛空裂隙（dest 3）
   {id:'diadem',name:'神王冠冕', icon:'👑', dest:3, desc:'神王的冠冕。出戰人數越少越強：每空一個出戰席位，全隊 ATK/DEF +3、HP +20。', effect:{soloBoost:true}},
@@ -130,8 +130,8 @@ const FORMATIONS = [
      priest :{x:330,y:420,row:'front', heal:5, def:-2}, mage:{x:355,y:475,row:'front', atk:8, def:-3}, rogue:{x:380,y:240,row:'front', atk:11, def:-3} } },
 ];
 const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重：前排越容易被集火
-// ===== 馬匹（單一馬車＋選馬，沿用食物⇄貨格取捨）=====
-// v0.8：三隻馬除了食物⇄貨格取捨，各加一個專屬功能（feature），讓選馬＝選旅途玩法。
+// ===== 馬匹（單一馬車＋選馬）=====
+// 三隻馬各有專屬功能（feature）與不同貨格數，讓選馬＝選旅途玩法。
 const HORSES = [
   {name:'力量馬', slots:4, feature:'vanguard',   desc:'先鋒衝鋒：每場戰鬥開場全隊 +20 護盾；貨格較少（4）'},
   {name:'均衡馬', slots:6, feature:'initiative', desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）；貨格 6'},
@@ -158,11 +158,11 @@ const INGREDIENT_BY_DEST={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_DEST[m.dest]
 // ===== 節點天氣（影響移動成本與戰鬥；可在地城神殿祈禱轉晴）=====
 const WEATHERS = [
   {id:'clear', name:'晴',  icon:'☀'},
-  {id:'rain',  name:'雨',  icon:'🌧', eff:{allAtk:-2}, travelFood:1, note:'雨：雙方 ATK -2、移動 +1 糧'},
-  {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, travelFood:1, note:'霧：敵方 DEF +2、移動 +1 糧'},
+  {id:'rain',  name:'雨',  icon:'🌧', eff:{allAtk:-2}, note:'雨：雙方 ATK -2'},
+  {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, note:'霧：敵方 DEF +2'},
 ];
 const WEATHER_BY_ID={}; WEATHERS.forEach(w=>{ WEATHER_BY_ID[w.id]=w; });
-// ===== 領隊料理：食材→補血／增益（探險中使用，buff 持續整趟）=====
+// ===== 料理：食材→補血／增益（營火休息時；需領隊或工匠強化「隨車鍋」）=====
 // v0.8：料理 buff 從純 ATK/DEF 數值，改成「一次性功能」(grant)，保留補血。
 // grant：shield 下場開場護盾(amt)｜revive 下場一次陣亡復活充能｜firstCrit 下場全隊首擊必暴
 const RECIPES = [
@@ -172,26 +172,24 @@ const RECIPES = [
   {id:'feast', name:'異香料盛宴', need:{spice:1,meat:1},  desc:'全隊回復 40% HP，下一場戰鬥全隊首擊必暴',   heal:0.40, grant:'firstCrit'},
 ];
 // ===== 項目化強化（工匠解鎖，一次性）：cat 馬車/整備所；craftReq 工匠階級門檻 =====
-// v0.8：保留 2 個容量強化，其餘改成「解鎖新功能」(effect.feature)，而非更大的食物/貨格數字。
-// feature：autotrap 無領隊自動拆陷阱｜deck2 清掉精英戰後 +3 貨格｜campstove 無領隊也能料理｜ledger 途中變賣貴重物品
+// 保留容量強化（貨格 +2/+3），其餘為「解鎖新功能」(effect.feature)。
+// feature：deck2 清掉精英戰後 +3 貨格｜campstove 無領隊也能在營火料理
 const UPGRADES = [
   // 馬車類
   {id:'rack1',    cat:'wagon',  name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},             desc:'貨格 +2'},
-  {id:'trapkit',  cat:'wagon',  name:'拆陷阱機關', craftReq:1, effect:{feature:'autotrap'}, cost:{mats:{wood:2}},             desc:'無領隊也能自動拆除地城陷阱'},
   {id:'deck2',    cat:'wagon',  name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},             desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
   // 整備所類（共用工匠）
   {id:'feedbag',  cat:'outfit', name:'加大車廂', craftReq:1, effect:{slots:2},             cost:{mats:{wood:2}},             desc:'貨格 +2'},
   {id:'campstove',cat:'outfit', name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}},   desc:'無領隊也能在途中烹煮料理'},
-  {id:'ledger',   cat:'outfit', name:'商隊帳房',   craftReq:3, effect:{feature:'ledger'},   cost:{mats:{crystal:2,voidore:1}}, desc:'途中可把貴重物品就地變賣為 💰'},
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
-// v0.8：調降每級 growthHp（不再讓升級＝一路堆血），改由升級 perk（state.js heroPerks）給功能。
+// 每級：growthHp 加血、growthAtk 加攻擊（升級兼顧生存與輸出）；另由升級 perk（state.js heroPerks）給功能。
 const HERO_BASE = [
-  {sprite:'warrior', name:'戰士', hp:95, interval:1300, ranged:false, healer:false, defWeapon:0, defArmor:1, growthHp:10},
-  {sprite:'ranger',  name:'遊俠', hp:58, interval:1000, ranged:true,  healer:false, defWeapon:3, defArmor:1, growthHp:6},
-  {sprite:'priest',  name:'牧師', hp:62, interval:1500, ranged:true,  healer:true,  defWeapon:4, defArmor:0, growthHp:7},
-  {sprite:'mage',    name:'法師', hp:54, interval:1700, ranged:true,  healer:false, defWeapon:6, defArmor:0, growthHp:6, aoe:true},
-  {sprite:'rogue',   name:'盜賊', hp:60, interval:900,  ranged:false, healer:false, defWeapon:7, defArmor:1, growthHp:6},
+  {sprite:'warrior', name:'戰士', hp:95, interval:1300, ranged:false, healer:false, defWeapon:0, defArmor:1, growthHp:10, growthAtk:3},
+  {sprite:'ranger',  name:'遊俠', hp:58, interval:1000, ranged:true,  healer:false, defWeapon:3, defArmor:1, growthHp:6, growthAtk:2},
+  {sprite:'priest',  name:'牧師', hp:62, interval:1500, ranged:true,  healer:true,  defWeapon:4, defArmor:0, growthHp:7, growthAtk:2},
+  {sprite:'mage',    name:'法師', hp:54, interval:1700, ranged:true,  healer:false, defWeapon:6, defArmor:0, growthHp:6, aoe:true, growthAtk:3},
+  {sprite:'rogue',   name:'盜賊', hp:60, interval:900,  ranged:false, healer:false, defWeapon:7, defArmor:1, growthHp:6, growthAtk:2},
 ];
 // 寶箱物品池（依風險階級 1-4）
 const LOOT = {
@@ -201,13 +199,7 @@ const LOOT = {
 const SCALE = 4;
 const TH = { bg:'#0e0a14', panel:0x1d1528, panel2:0x2a2038, gold:'#e7c14a', goldN:0xe7c14a, cyan:'#6fd0e0', red:'#ff6b6b', green:'#7dff9a', text:'#d8cdb8', dim:'#8a7f9a' };
 
-// 地圖節點外觀 / 圖示 / 角色簡介
-const NODE_INFO = {
-  start:{ch:'起',col:0x6a6a7a}, home:{ch:'家',col:0x56d6c6}, battle:{ch:'戰',col:0xc23b3b}, chest:{ch:'寶',col:0xe7c14a},
-  elite:{ch:'精',col:0x9a5ad0}, relic:{ch:'遺',col:0x6fd0e0}, event:{ch:'？',col:0x4f8f6f}, camp:{ch:'營',col:0xf0975a},
-  shopFood:{ch:'糧',col:0x6ee29a}, shopItem:{ch:'藥',col:0x56d6c6}, shopWeapon:{ch:'武',col:0xf2c14e}, shopArmor:{ch:'防',col:0x6aa6f0}, temple:{ch:'殿',col:0xa98bff},
-};
-const KIND_ICON = {'貴重物品':'💎','道具':'🧪','武器':'⚔','防具':'🛡','遺物':'🏛'};
+// 角色簡介
 const BIO = {
   warrior:'教團護衛，前排扛傷護隊。', ranger:'山野嚮導，後排高速集火。', priest:'唯一聽見神諭者，後排治療續航。',
   goblin:'成群行動的綠皮掠奪者，數量是威脅。', goblinArcher:'躲後排放冷箭，脆弱但傷害高。',

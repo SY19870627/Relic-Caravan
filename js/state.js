@@ -24,6 +24,7 @@ function armorClassLabel(a){ const cs=ARMOR_CLASSES[a.name]; return (!cs||cs.len
 
 // 跨輪保存的公會狀態
 function defaultGuild(){ return {
+  settings:{ autoSip:true },
   relics:[], reputation:0, repEarned:0, partySize:1,   // reputation 可花費、repEarned 累計門檻；partySize 1→5
   formation:0,
   horse:1,                       // 馬匹：0力量/1均衡/2耐力（預設均衡）
@@ -60,6 +61,7 @@ function loadGuild(){ try{
     if(!GUILD.upgrades) GUILD.upgrades={};
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
+    if(!GUILD.settings) GUILD.settings={autoSip:true};
     if(GUILD.horse==null) GUILD.horse=1;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
     if(GUILD.repEarned==null) GUILD.repEarned=GUILD.reputation||0;    if(GUILD.formation==null||GUILD.formation>=FORMATIONS.length) GUILD.formation=0;
@@ -111,7 +113,7 @@ function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ let need=
 // ---- 遺物效果：已收集的遺物即時、永久生效（取代神殿供奉）----
 // 數值加成累加；規則型旗標 OR 起來。供 heroStat / 戰鬥 / 地圖讀取。
 function relicEffects(){
-  const e={atk:0,def:0,hp:0,heal:0,drop:0,food:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, noFoodDrain:false, fullHealAfterBattle:false,
+  const e={atk:0,def:0,hp:0,heal:0,drop:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, fullHealAfterBattle:false,
     // v0.8 規則型旗標
     splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0};
   (GUILD.relics||[]).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
@@ -119,17 +121,6 @@ function relicEffects(){
   return e;
 }
 // 遺物效果摘要（數值＋規則名稱），給大廳/整備顯示
-function relicSummary(e){
-  e=e||relicEffects(); const p=[];
-  if(e.atk)p.push('ATK+'+e.atk); if(e.def)p.push('DEF+'+e.def); if(e.hp)p.push('HP+'+e.hp);
-  if(e.heal)p.push('治療+'+e.heal); if(e.drop)p.push('遺物率+'+Math.round(e.drop*100)+'%'); if(e.extraLoot)p.push('額外掉落+'+e.extraLoot);
-  if(e.firstHitCrit)p.push('首擊必暴'); if(e.reviveOnce)p.push('復活一次'); if(e.noFoodDrain)p.push('不耗食物'); if(e.fullHealAfterBattle)p.push('戰後全回');
-  if(e.splash)p.push('濺射'); if(e.startShield)p.push('開場護盾'+e.startShield); if(e.regen)p.push('行動回復'+Math.round(e.regen*100)+'%');
-  if(e.killCrit)p.push('擊殺爆擊'); if(e.healToShield)p.push('治療轉盾'); if(e.lastStand)p.push('背水');
-  if(e.firstDeathHeal)p.push('陣亡回援'+Math.round(e.firstDeathHeal*100)+'%'); if(e.firstStrikeAoe)p.push('首擊全體');
-  if(e.soloBoost)p.push('寡兵越強'); if(e.lifesteal)p.push('吸血'+Math.round(e.lifesteal*100)+'%');
-  return p.length?p.join('　'):'（尚無）';
-}
 function relicCollected(id){ return (GUILD.relics||[]).includes(id); }
 function relicTotalCount(){ return RELIC_CATALOG.length; }
 // 本趟目的地尚未收集的遺物（排除已入庫＋本趟貨車已撿到的，避免重複）
@@ -149,7 +140,6 @@ function addRep(n){ n=n||0; GUILD.reputation=(GUILD.reputation||0)+n; GUILD.repE
 function spendRep(n){ n=n||0; if((GUILD.reputation||0)<n) return false; GUILD.reputation-=n; return true; }
 function canSpendRep(n){ return (GUILD.reputation||0)>=(n||0); }
 function reputationTier(){ const r=repEarned(), th=CFG.reputation.thresholds; return r>=th[0]?3:(r>=th[1]?2:(r>=th[2]?1:0)); }
-function sponsorship(){ return CFG.reputation.sponsorship[reputationTier()]; }
 function addGold(n){ if(typeof RUN!=='undefined'&&RUN) RUN.gold=(RUN.gold||0)+(n||0); }
 function spendGold(n){ if(typeof RUN==='undefined'||!RUN||(RUN.gold||0)<(n||0)) return false; RUN.gold-=(n||0); return true; }
 function partySizeCap(){ return GUILD.partySize||1; }
@@ -166,9 +156,7 @@ function horseFeature(){ const h=HORSES[GUILD.horse]; return h?h.feature:null; }
 // ---- v0.8 工匠功能解鎖（項目化強化中 effect.feature 型）----
 function hasUpgradeFeature(f){ return UPGRADES.some(u=>u.effect&&u.effect.feature===f&&upgradeOwned(u.id)); }
 function hasCampstove(){ return hasUpgradeFeature('campstove'); }
-function hasAutotrap(){ return hasUpgradeFeature('autotrap'); }
 function hasDeck2(){ return hasUpgradeFeature('deck2'); }
-function hasLedger(){ return hasUpgradeFeature('ledger'); }
 // ---- v0.8 升級 perk（依等級自動獲得功能，取代純堆血）----
 const PERKS = { 3:{id:'swift',label:'疾行：出手速度 +12%'}, 5:{id:'startShield',label:'護身：每場開場護盾 +12'}, 7:{id:'extraUse',label:'熟練：技能每場多 1 次使用'} };
 function perkAtLevel(lv){ return PERKS[lv]||null; }
@@ -275,10 +263,10 @@ function initRun(){
       return {...h, idx, weapon, armor, hp:0};
     }),
     cargo: [], slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
-    map: null, encounter:null, isBoss:false, pos:null, visited:{},
+    isBoss:false,
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
     cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
-    trampleUsed:false, starveImmuneUsed:false, deckExpanded:false,
+    deckExpanded:false,
   };
 }
 // 起始裝：免洗隊每趟出發的基礎武防（P4 將依該職業 tier 升級）
@@ -301,7 +289,7 @@ function heroStat(h){
   return {
     level:  lv,
     maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB + soloH,
-    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA),
+    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA+(h.growthAtk||0)*(lv-1)),
     def:    h.armor.def + pdef + bl.def + bo.def + soloD,
     heal:   (h.weapon.heal? h.weapon.heal + healB + bo.heal + bl.heal : 0),
     skills: sk,
