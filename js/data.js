@@ -13,6 +13,7 @@ const PAL = {
   x:'#c46bff', z:'#2a1640',   // 虛空亮紫 / 虛空暗紫黑
   j:'#aab2c4',                // 骨頭陰影灰
   f:'#ff8f6a',                // 珊瑚橘
+  l:'#a8f0c0', w:'#46566e', d:'#d2603a',   // v1.4：幽靈綠 / 鋼藍灰 / 蟹殼紅
 };
 const SPRITES = {
   warrior:["...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...","..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..","WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
@@ -43,6 +44,31 @@ const SPRITES = {
   voidArcher:["............","...uuuuu....","..uuuuuuuu..","..uUuuuuUu..","..uAuuuAuu..","..uuuuuuuu..","...uUUUu....","..uuuuuu.x..",".KuuuuuuKxx.",".KuUuuUuK.x.",".KUUUUUUK...",".KUUKUUK....",".KUUKUUK....",".KKK.KKK....","............","............"],
   voidColossus:["............",".UUUUUUUUUU.",".UuuuuuuuuU.",".UuAuuuuAuU.",".UuuuuuuuuU.",".UuxUUUUxuU.",".UuuxuuxuuU.",".UuuuuuuuuU.","UUUuuuuuuUUU","UUUuxuuxuUUU",".UuuuuuuuuU.",".UuxuuuuxuU.",".UuuuuuuuuU.",".UUU..UUU...",".KKK..KKK...","............"],
   voidSeer:["...zzzzz....","..zzzzzzz...","..zPPPPPz...","..zPAPAPz...","..zPPPPPz...","..zPxxxPz...","...zPPPz.x..","..zzzzzzx...",".KzzzzzzKx..",".KzxxxxzK...",".KzxxxxzK...",".KzxxxxzK...",".KzzxzzK....",".KzzKzzK....",".KK..KK.....","............"],
+  // ===== v1.4 各地城新增敵人（每地城 5 種，分屬族群）=====
+  // 近郊遺跡：哥布林部族（gobShaman/gobWolf/gobChief）＋遺跡造物（stoneHound/runeSentinel）
+  gobShaman:["............","...e.e.e....","..eeeeeee...","..eggggge.q.","..gAgggAg.o.","..ggggggg.o.","...geeeg..o.","..eeeeeeeM..",".KeggggeK...",".KeggggeK...",".KeeeeeeK...",".KeeeeeeK...",".KeeKeeK....",".KKK.KKK....","............","............"],
+  gobWolf:["............","............","..t......t..","..tt....tt..","..tttttttt..","..tTAttATt..","..tttttttt..","..MMMMMMMM..","..MnMMMMnM..","..BMMMMMMB..","..tttttttt..",".tttttttttt.",".tt.tt.tt.t.",".K..K.K..K..","............","............"],
+  gobChief:["...G.G.G....","..GGGGGGG...","..gggggggg..","..gAgCgAgg..","..gggggggg..","...gCCCg....","..gggggggM..",".KgggggggKM.",".KgBBBBBgK..",".KgBBBBBgK..",".KggggggK...",".KggKKggK...",".KbbKKbbK...",".KKK..KKK...","............","............"],
+  stoneHound:["............","............","..T......T..","..TT....TT..","..TTTTTTTT..","..TtqTTqtT..","..TTTTTTTT..","..WWWWWWWW..","..WnWWWWnW..","..TWWWWWWT..","..TTTTTTTT..",".TTTTTTTTTT.",".TT.TT.TT.T.",".K..K.K..K..","............","............"],
+  runeSentinel:["............","............","....KKKK....","..KKTTTTKK..",".KTtqqqqtTK.",".KTqGGGGqTK.",".KTqGGGGqTK.",".KTtqqqqtTK.","..KKTTTTKK..","....KKKK....","......o.....","....q.o.q...","...q..o..q..","......o.....","............","............"],
+  // 枯骨峽谷：枯骨軍團（boneKnight/boneHound）＋亡靈（wraith/banshee/lich）
+  boneKnight:["............","...wwww.....","..wWWWWw....","..wMMMMw....","..wKMMKw....","..wMMMMw.W..",".WWWWWWWWW..",".WKiMMiKW.W.",".WKiMMiKW.W.",".WKWWWWKW.W.",".WKWWWWKW...",".KWiiiiWK...",".KWWKWWK....",".KKK.KKK....","............","............"],
+  boneHound:["............","............","..M......M..","..MM....MM..","..MMMMMMMM..","..MKMMMKMM..","..MMMMMMMM..","..MMMMMMMM..","..MnMMMMnM..","..iMMMMMMi..","..MMMMMMMM..",".MMMMMMMMMM.",".MM.MM.MM.M.",".K..K.K..K..","............","............"],
+  wraith:["............","...lllll....","..lllllll...","..lllllll...","..lKlllKl...","..lllllll...","..llKKKll...","..lllllll...",".llllllll...",".llllllll...","..llllll....","..l.ll.l....","...l.l.l....","..l..l..l...","....l.l.....","............"],
+  banshee:["............","...lllll....","..lllllll...","..lll.lll...","..lAlllAl...","..lllllll...","..llKKKll...","l..llllll..l",".l.llllll.l.","..l.lllll...","...lllll....","..ll.l.ll...","..l..l..l...","...l.l.l....","..l...l.....","............"],
+  lich:["...G.G.G....","..GGGGGGG...","..MMMMMMM...","..MKMMKMM...","..MMMMMMM...","..MnnnnMM...","..MMMMM.l...","..UUUUUUl...",".KUuuuuUKl..",".KUuuuuUK...",".KUllllUK...",".KUuuuuUK...",".KUUKUUK....",".KKK.KKK....","............","............"],
+  // 沉沒神城：溺亡者（drownedBrute/drownedKing）＋深海生物（seaSerpent/anglerLurker/reefCrab）
+  drownedBrute:["............",".vv....vv...",".vVv..vVv...","..vvvvvvv...","..vVvvvVv...","..vvqvqvv...","..vvvvvvv...","..vVVVVVv...","vvVVVVVVvv..","vKVVVVVVKv..","vKVqqqqVKv..",".KVVVVVVK...",".KVVKKVVK...",".KvvK.Kvv...","..KK..KK....","............"],
+  drownedKing:["..G.G.G.....","..GGGGG.G...","..vvvvv.G...","..vqvqv.G...","..vvvvv.G...","...vVv..G...","..vvvvvvG...",".KvvvvvvK.G.",".KvVVVVvK...",".KvVqqVvK...",".KvVVVVvK...",".KvvvvvvK...",".KvvKvvK....",".KKK.KKK....","............","............"],
+  seaSerpent:["............",".....HHHH...","....HhhhhH..","....HhqhhH..","....Hhhhh...","...Hhhh.....","..Hhhh......","..vhhh......","..vvhhh.....","...vvhhh....","....vvhhh...",".....vvhh...","...M..vvh...","..MM...vv...","..M.........","............"],
+  anglerLurker:["......Y.....","......o.....","......o.....","...VVVVV....","..VVVVVVV...",".VVqVVVVV...",".VVVVVVVVV..",".VMMMMMMMMV.",".VMnMnMnMnV.",".VMMMMMMMMV.",".VVVVVVVVV..","..VVVVVVV...","...VVfVV....","....f.f.....","............","............"],
+  reefCrab:["............","..d......d..",".dd......dd.","d..d....d..d","....dddd....","..ddddddddd.",".ddffffffdd.",".dfAffffAfd.",".ddffffffdd.","..ddddddddd.","..d.d..d.d..",".d..d..d..d.","............","............","............","............"],
+  // 虛空裂隙：虛空教團（voidApostle）＋裂隙異獸（eyeStalker/gnawer/riftWyrm/nullStar）
+  voidApostle:["............","...uuuuu....","..uuuuuuu...","..uPPPPPu...","..uPxPxPu...","..uPPPPPu...","..uuxxxuu.x.",".KuuuuuuKx..",".KuxxxxuK.x.",".KuxUUxuK...",".KuUUUUuK...",".KuuuuuuK...",".KuuKuuK....",".KKK.KKK....","............","............"],
+  eyeStalker:["............","....x..x....","...x.UU.x...","..x.UUUU.x..","..xUUUUUUx..",".xUUYYYYUUx.",".xUYAAAAYUx.",".xUYAAAAYUx.",".xUUYYYYUUx.","..xUUUUUUx..","..x.UUUU.x..","...U.UU.U...","..U..xx..U..",".U...xx...U.","U....xx....U","............"],
+  gnawer:["............","...UUUUUU...","..UUUUUUUU..",".UUUAUUAUUU.","UUUUUUUUUUUU","UMMMMMMMMMMU","UMnMnMnMnMU.","UMMMMMMMMMU.","UMnMnMnMnMU.","UMMMMMMMMMU.",".UUUUUUUUUu.","..UUUUUUUu..","...UUUUUu...","....x..x....","............","............"],
+  riftWyrm:["............","....MMMM....","...MnnnnM...","..MnUUUUnM..","..MUUUUUUM..","...xUUUUx...","....UUUU....","....xUUx....","....UUUU....","...xUUUUx...","....UUUU....","....xUUx....","....UUUU....","....x..x....","............","............"],
+  nullStar:["....z.z.z...","...zxxxxxz..","..zxUUUUxz..",".zxUUUUUUxz.","zxUUAUUAUUxz","xUUUUUUUUUUx","zxUUAUUAUUxz",".zxUUUUUUxz.","..zxUUUUxz..","...zxxxxxz..","....z.z.z...","...x.z.z.x..","..x..z.z..x.",".x...z.z...x","............","............"],
 };
 const GLYPH = {
   '0':["111","101","101","101","111"],'1':["010","110","010","010","111"],'2':["111","001","111","100","111"],'3':["111","001","111","001","111"],'4':["101","101","111","001","001"],'5':["111","100","111","001","111"],'6':["111","100","111","101","111"],'7':["111","001","010","010","010"],'8':["111","101","111","101","111"],'9':["111","101","111","001","111"],'-':["000","000","111","000","000"],'+':["000","010","111","010","000"],
@@ -238,6 +264,15 @@ const BIO = {
   // 虛空裂隙
   voidling:'從裂隙爬出的虛空爬行者，速度與爆發兼具。', voidArcher:'虛空術士，擲出扭曲現實的紫焰。',
   voidColossus:'吞噬空間的虛空巨像，連擊與重擊交織。', voidSeer:'窺見舊神的先知，治療與詛咒並施。',
+  // v1.4 新增敵人
+  gobShaman:'哥布林祭司，揮骨杖為同族補血、施放詛咒。', gobWolf:'哥布林馴養的座狼，撲咬迅猛、成群獵殺。', gobChief:'哥布林酋長，戴冠的部族首領，兇悍又帶起全軍。',
+  stoneHound:'遺跡造物・石獵犬，符文驅動的石獸，撲擊沉重。', runeSentinel:'遺跡造物・符文哨衛，懸浮法陣眼，遠距射出符文。',
+  boneKnight:'生前戰士的骸骨，披甲持劍，前排死守。', boneHound:'骸骨拼成的獵犬，無懼無痛、咬住不放。',
+  wraith:'枉死者的怨靈，飄忽難擊、掠奪生氣。', banshee:'哀嚎女妖，淒厲尖嘯撕裂遠方目標。', lich:'巫妖，操弄死靈的不朽法師，亡靈之首。',
+  drownedBrute:'深淵巨漢，腫脹的溺亡者，揮拳如鐵錘。', drownedKing:'溺亡君王，戴冠執叉的海底亡君，號令溺者。',
+  seaSerpent:'盤踞神城的海蛇，纏繞突咬、滑不溜手。', anglerLurker:'鮟鱇潛伏者，以誘光引獵物、巨口生噬。', reefCrab:'礁岩巨蟹，硬殼難破、雙螯夾擊。',
+  voidApostle:'虛空教團使徒，誦念異言、扭曲戰場。', eyeStalker:'凝視者，懸浮巨眼，射出虛空光束。',
+  gnawer:'噬咬者，滿口利齒的虛空血盆大口。', riftWyrm:'裂隙噬蟲，自裂縫鑽出的環節巨蟲。', nullStar:'虛無之星，舊神墜落的眼狀核體，眾目睥睨。',
 };
 // 技能：依職業等級解鎖，戰鬥中自動觸發
 // 主動技能：cd（毫秒冷卻）+ uses（每場次數上限）；冷卻好且還有次數時，下一次行動自動觸發
@@ -266,13 +301,13 @@ const SKILLS = {
             {lv:6,name:'致命',type:'critVsStunned',desc:'被動：攻擊被暈眩的敵人時必定暴擊'},
             {lv:8,name:'割喉',type:'stun',cd:6000,uses:2,dur:1200,desc:'CD 6 秒・每場 2 次：割喉擊暈 1.2 秒'} ],
 };
-// ===== v1.3 怪物組系統（站位＝自由像素座標）=====
+// ===== v1.4 怪物組系統（站位＝自由像素座標、分族群）=====
 // 一個「怪物組」＝一場戰鬥的完整內容：含 1 或多波（王戰＝小兵波＋王波）。
-// 每隻怪用 at(怪, x, y, row) 直接擺在任意像素座標 —— 想怎麼排就怎麼排，不再受格子限制。
-//   敵方活動區參考：x≈500~840、y≈150~510（我方在左側 x≈130~380）。
-//   一般怪約 48×64px、王約 72×96px，相鄰中心建議間隔 ≳70px 以免重疊。
-//   row 影響「被鎖定權重」：front 前排最易挨打 / mid / back（省略時預設 mid）。
-// 標籤：region 地城(0-3)、kind(normal/elite/boss)、tier 等級(1-3；依探險深度開放，越深越大組)。
+// 每隻怪用 at(怪, x, y, row) 擺在任意像素座標。每組標 faction（族群）：同一組只會有同族群的怪，
+//   不會把哥布林與遺跡造物、骷髏與亡靈、溺亡者與海生獸、虛空教團與裂隙異獸混在一起。
+//   敵方活動區 x≈500~840、y≈150~510（我方在左 x≈130~380）；一般怪約 48×64px、王約 72×96px。
+//   row：front 前排最易挨打 / mid / back（省略預設 mid）。
+// 標籤：region 地城(0-3)、faction 族群、kind(normal/elite/boss)、tier 等級(1-3；依探險深度開放)。
 // 數值為未縮放基準，由 map.js 依目的地階級／探險深度／出戰人數縮放。單波最多 9 隻。
 const MONSTER_GROUPS = (function(){
   const sneak ={name:'偷襲',  type:'crit',     cd:7000,uses:2,mult:2};
@@ -286,104 +321,121 @@ const MONSTER_GROUPS = (function(){
   const E=(sprite,name,hp,atk,def,intv,ranged,extra)=>Object.assign(
     {sprite,name,hp,atkSeq:atk,def,interval:intv,ranged:!!ranged,healer:false,heal:0}, extra||{});
   const heal=(h)=>({healer:true,heal:h,skills:[gheal]});
-  // 把一隻怪擺到任意像素座標（x,y）；row 省略時預設 mid。一波＝若干 at(...) 組成的陣列。
   const at=(e,x,y,row)=>Object.assign({},e,{x,y,row:row||'mid'});
-  const G=(id,region,kind,tier,...waves)=>({id,region,kind,tier,waves});
+  // 每組標 faction：同一組只能有同族群的怪
+  const G=(id,region,faction,kind,tier,...waves)=>({id,region,faction,kind,tier,waves});
   const out=[];
-  // ---------- region 0：近郊遺跡 ----------
+  // ---------- region 0：近郊遺跡（哥布林部族 / 遺跡造物）----------
   (function(){
-    const grunt=()=>E('goblin','哥布林',62,[11,16],2,1400,0), grunt2=()=>E('goblin','哥布林',62,[10,14],2,1450,0);
-    const arch=()=>E('goblinArcher','哥布林弓手',50,[16,20],1,1150,1), archS=()=>E('goblinArcher','哥布林弓手',55,[20,24],1,1100,1);
-    const scout=()=>E('goblin','哥布林斥候',54,[12,16],1,1200,0,{skills:[sneak]}), sham=()=>E('goblinArcher','哥布林薩滿',56,[10,12],1,1500,1,heal(10));
-    const sol=()=>E('goblin','哥布林兵',68,[12,16],3,1300,0), bers=()=>E('goblin','哥布林狂戰士',86,[15,20],2,1100,0,{skills:[frenzy]});
+    // 哥布林部族
+    const grunt=()=>E('goblin','哥布林',62,[11,16],2,1400,0), arch=()=>E('goblinArcher','哥布林弓手',50,[16,20],1,1150,1);
+    const archS=()=>E('goblinArcher','哥布林弓手',55,[20,24],1,1100,1), scout=()=>E('goblin','哥布林斥候',54,[12,16],1,1200,0,{skills:[sneak]});
+    const sham=()=>E('gobShaman','哥布林祭司',56,[10,12],1,1500,1,heal(12)), sol=()=>E('goblin','哥布林兵',68,[12,16],3,1300,0);
+    const bers=()=>E('goblin','哥布林狂戰士',86,[15,20],2,1100,0,{skills:[frenzy]}), wolf=()=>E('gobWolf','座狼',58,[14,18],1,950,0,{skills:[frenzy]});
+    // 遺跡造物
     const stone=()=>E('guardian','殘缺石衛',124,[16,21],4,1500,0,{skills:[smash]});
-    const ward=()=>E('goblin','遺跡守衛',90,[16,20],3,1250,0), sentry=()=>E('goblinArcher','遺跡哨兵',64,[18,20],1,1100,1);
+    const shound=()=>E('stoneHound','石獵犬',96,[15,19],4,1300,0,{skills:[smash]}), rune=()=>E('runeSentinel','符文哨衛',64,[18,22],2,1300,1,{skills:[power]});
     out.push(
-      G('ruins_scouts',0,'normal',1, [at(grunt(),560,330,'front'), at(arch(),678,232,'mid')]),
-      G('ruins_duo',0,'normal',1, [at(grunt(),545,258,'front'), at(grunt2(),602,402,'front')]),
-      G('ruins_warband',0,'normal',2, [at(sol(),535,250,'front'), at(sol(),575,422,'front'), at(archS(),702,182,'mid'), at(scout(),690,360,'mid')]),
-      G('ruins_horde',0,'normal',3, [at(grunt(),512,300,'front'), at(grunt(),560,186,'front'), at(grunt2(),582,438,'front'), at(arch(),690,160,'mid'), at(archS(),708,330,'mid'), at(sham(),666,476,'mid')]),
-      G('ruins_trio',0,'elite',1, [at(sol(),545,250,'front'), at(sol(),588,418,'front'), at(archS(),702,330,'mid')]),
-      G('ruins_pack',0,'elite',2, [at(bers(),548,332,'front'), at(sol(),582,205,'front'), at(sol(),560,462,'front'), at(archS(),702,250,'mid'), at(sham(),712,424,'mid')]),
-      G('ruins_siege',0,'elite',3, [at(stone(),548,332,'front'), at(bers(),596,200,'front'), at(sol(),566,472,'front'), at(sol(),686,152,'mid'), at(archS(),716,300,'mid'), at(archS(),680,456,'mid'), at(sham(),815,360,'back')]),
-      G('ruins_boss_guardian',0,'boss',2,
-        [at(ward(),555,262,'front'), at(ward(),592,420,'front'), at(sentry(),712,330,'mid')],
-        [at(E('guardian','遺跡守護者',360,[30,18,42],6,1350,0,{boss:true,skills:[quake]}),700,330,'front'), at(arch(),548,330,'mid')]),
-      G('ruins_boss_fallen',0,'boss',2,
-        [at(ward(),545,250,'front'), at(ward(),582,416,'front'), at(sentry(),702,196,'mid'), at(sentry(),706,360,'mid')],
-        [at(E('guardian','墮落守護者',410,[26,32,38],7,1300,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(sham(),550,236,'mid'), at(arch(),562,430,'mid')])
+      // 哥布林部族
+      G('gob_scouts',0,'goblins','normal',1, [at(grunt(),560,330,'front'), at(arch(),678,232,'mid')]),
+      G('gob_pack',0,'goblins','normal',2, [at(sol(),535,250,'front'), at(wolf(),575,422,'front'), at(archS(),702,182,'mid'), at(scout(),690,360,'mid')]),
+      G('gob_warhost',0,'goblins','elite',3, [at(bers(),548,332,'front'), at(wolf(),596,200,'front'), at(wolf(),566,472,'front'), at(sol(),686,152,'mid'), at(archS(),716,300,'mid'), at(archS(),680,456,'mid'), at(sham(),815,360,'back')]),
+      G('gob_boss_chief',0,'goblins','boss',2,
+        [at(sol(),555,262,'front'), at(wolf(),592,420,'front'), at(archS(),712,330,'mid')],
+        [at(E('gobChief','哥布林酋長',340,[26,18,34],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(sham(),550,236,'mid'), at(arch(),562,430,'mid')]),
+      // 遺跡造物
+      G('con_patrol',0,'construct','normal',1, [at(shound(),560,330,'front'), at(rune(),678,232,'mid')]),
+      G('con_pack',0,'construct','normal',2, [at(shound(),545,258,'front'), at(shound(),580,422,'front'), at(rune(),700,320,'mid')]),
+      G('con_guard',0,'construct','elite',2, [at(stone(),548,332,'front'), at(shound(),582,205,'front'), at(rune(),702,250,'mid'), at(rune(),712,452,'mid')]),
+      G('con_phalanx',0,'construct','elite',3, [at(stone(),548,332,'front'), at(shound(),596,200,'front'), at(shound(),566,472,'front'), at(rune(),700,250,'mid'), at(rune(),700,420,'mid'), at(stone(),815,330,'back')]),
+      G('con_boss_guardian',0,'construct','boss',2,
+        [at(shound(),555,262,'front'), at(shound(),592,420,'front'), at(rune(),712,330,'mid')],
+        [at(E('guardian','遺跡守護者',360,[30,18,42],6,1350,0,{boss:true,skills:[quake]}),700,330,'front'), at(rune(),548,330,'mid')]),
+      G('con_boss_fallen',0,'construct','boss',2,
+        [at(shound(),545,250,'front'), at(shound(),582,416,'front'), at(rune(),702,196,'mid'), at(rune(),706,360,'mid')],
+        [at(E('guardian','墮落守護者',410,[26,32,38],7,1300,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(shound(),550,236,'mid'), at(rune(),562,430,'mid')])
     );
   })();
-  // ---------- region 1：枯骨峽谷 ----------
+  // ---------- region 1：枯骨峽谷（枯骨軍團 / 亡靈）----------
   (function(){
-    const bone=()=>E('skeleton','骷髏兵',60,[13,18],1,1300,0), bone2=()=>E('skeleton','骷髏兵',60,[12,16],1,1300,0);
-    const barch=()=>E('skeletonArcher','骷髏弓手',48,[18,22],1,1100,1), barchS=()=>E('skeletonArcher','骷髏弓手',54,[22,26],1,1050,1);
-    const shield=()=>E('skeleton','持盾骷髏',70,[11,15],4,1400,0), bfren=()=>E('skeleton','骷髏狂徒',56,[14,18],1,1150,0,{skills:[sneak]});
-    const necro=()=>E('necromancer','死靈術士',58,[11,14],1,1500,1,heal(12)), bwar=()=>E('skeleton','骸骨戰士',72,[14,19],2,1250,0);
+    // 枯骨軍團
+    const bone=()=>E('skeleton','骷髏兵',60,[13,18],1,1300,0), barch=()=>E('skeletonArcher','骷髏弓手',48,[18,22],1,1100,1);
+    const barchS=()=>E('skeletonArcher','骷髏弓手',54,[22,26],1,1050,1), bwar=()=>E('skeleton','骸骨戰士',72,[14,19],2,1250,0);
+    const knight=()=>E('boneKnight','骸骨騎士',84,[15,19],4,1300,0,{skills:[smash]}), bhound=()=>E('boneHound','骸骨獵犬',54,[15,19],1,950,0,{skills:[frenzy]});
     const brute=()=>E('boneBrute','巨骨魔',96,[17,23],2,1100,0,{skills:[frenzy]}), bguard=()=>E('boneBrute','骨甲衛',130,[18,23],5,1500,0,{skills:[smash]});
-    const kw=()=>E('skeleton','枯骨衛',86,[17,21],2,1220,0), ks=()=>E('skeletonArcher','枯骨哨兵',62,[19,21],1,1080,1);
+    // 亡靈
+    const necro=()=>E('necromancer','死靈術士',58,[11,14],1,1500,1,heal(12)), wraith=()=>E('wraith','怨靈',50,[16,20],2,1100,0,{skills:[sneak]});
+    const banshee=()=>E('banshee','哀嚎女妖',52,[18,22],1,1200,1,{skills:[smash]});
     out.push(
-      G('bone_pair',1,'normal',1, [at(bone(),556,322,'front'), at(barch(),680,216,'mid')]),
-      G('bone_shield',1,'normal',1, [at(shield(),550,332,'front'), at(bone2(),610,202,'front')]),
-      G('bone_band',1,'normal',2, [at(bone(),540,258,'front'), at(bwar(),572,426,'front'), at(barch(),702,190,'mid'), at(bfren(),696,360,'mid')]),
-      G('bone_horde',1,'normal',3, [at(bone(),512,232,'front'), at(bwar(),546,372,'front'), at(bone(),586,490,'front'), at(barch(),672,178,'mid'), at(bwar(),702,322,'mid'), at(barchS(),666,456,'mid'), at(necro(),816,302,'back')]),
-      G('bone_trio',1,'elite',1, [at(bwar(),546,250,'front'), at(bwar(),586,418,'front'), at(barchS(),702,330,'mid')]),
-      G('bone_pack',1,'elite',2, [at(brute(),548,332,'front'), at(bwar(),582,206,'front'), at(barchS(),702,252,'mid'), at(bfren(),562,462,'front'), at(necro(),714,426,'mid')]),
-      G('bone_legion',1,'elite',3, [at(bguard(),542,322,'front'), at(brute(),584,182,'front'), at(bwar(),562,472,'front'), at(bwar(),678,152,'mid'), at(barchS(),708,300,'mid'), at(barchS(),672,452,'mid'), at(bfren(),812,242,'back'), at(necro(),822,412,'back')]),
-      G('bone_boss_king',1,'boss',2,
-        [at(kw(),556,262,'front'), at(kw(),592,420,'front'), at(ks(),712,330,'mid')],
-        [at(E('boneBrute','枯骨之王',380,[32,20,44],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(ks(),550,330,'mid')]),
-      G('bone_boss_immortal',1,'boss',2,
-        [at(kw(),545,250,'front'), at(kw(),582,416,'front'), at(ks(),702,196,'mid'), at(ks(),706,360,'mid')],
-        [at(E('boneBrute','不朽骨將',420,[28,34,40],6,1280,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(E('necromancer','死靈祭司',82,[13,15],2,1400,1,heal(18)),550,236,'mid'), at(ks(),562,430,'mid')])
+      // 枯骨軍團
+      G('bone_patrol',1,'bone','normal',1, [at(bone(),560,330,'front'), at(barch(),678,232,'mid')]),
+      G('bone_band',1,'bone','normal',2, [at(bone(),535,250,'front'), at(knight(),575,422,'front'), at(barch(),702,182,'mid'), at(bhound(),690,360,'mid')]),
+      G('bone_legion',1,'bone','elite',3, [at(bguard(),542,322,'front'), at(knight(),584,182,'front'), at(bhound(),562,472,'front'), at(bwar(),678,152,'mid'), at(barchS(),708,300,'mid'), at(barchS(),672,452,'mid'), at(bhound(),812,242,'back'), at(bwar(),822,412,'back')]),
+      G('bone_boss_king',1,'bone','boss',2,
+        [at(bwar(),555,262,'front'), at(knight(),592,420,'front'), at(barchS(),712,330,'mid')],
+        [at(E('boneBrute','枯骨之王',380,[32,20,44],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(barchS(),550,330,'mid')]),
+      // 亡靈
+      G('spirit_haunt',1,'spirit','normal',1, [at(wraith(),560,330,'front'), at(banshee(),678,232,'mid')]),
+      G('spirit_coven',1,'spirit','normal',2, [at(wraith(),535,250,'front'), at(wraith(),575,422,'front'), at(banshee(),702,210,'mid'), at(necro(),700,400,'mid')]),
+      G('spirit_dirge',1,'spirit','elite',3, [at(wraith(),520,272,'front'), at(wraith(),560,452,'front'), at(wraith(),592,170,'front'), at(banshee(),690,300,'mid'), at(banshee(),700,160,'mid'), at(necro(),666,460,'mid'), at(banshee(),815,330,'back')]),
+      G('spirit_boss_lich',1,'spirit','boss',2,
+        [at(wraith(),555,262,'front'), at(wraith(),592,420,'front'), at(banshee(),712,330,'mid')],
+        [at(E('lich','巫妖',360,[24,20,28],4,1300,1,{boss:true,healer:true,heal:14,skills:[combo,power]}),700,330,'front'), at(necro(),550,236,'mid'), at(banshee(),562,430,'mid')])
     );
   })();
-  // ---------- region 2：沉沒神城 ----------
+  // ---------- region 2：沉沒神城（溺亡者 / 深海生物）----------
   (function(){
-    const drn=()=>E('drowned','溺亡者',78,[12,16],3,1450,0), drn2=()=>E('drowned','溺亡者',78,[11,15],3,1450,0);
-    const darch=()=>E('drownedArcher','深海射手',58,[16,20],2,1200,1), darchS=()=>E('drownedArcher','深海射手',64,[20,24],2,1150,1);
-    const serv=()=>E('drowned','潮汐侍從',72,[12,15],4,1400,0), dsol=()=>E('drowned','溺亡兵',70,[13,17],3,1300,0,{skills:[sneak]});
+    // 溺亡者
+    const drn=()=>E('drowned','溺亡者',78,[12,16],3,1450,0), darch=()=>E('drownedArcher','深海射手',58,[16,20],2,1200,1);
+    const darchS=()=>E('drownedArcher','深海射手',64,[20,24],2,1150,1), dsol=()=>E('drowned','溺亡兵',70,[13,17],3,1300,0,{skills:[sneak]});
     const tpr=()=>E('tidePriest','潮汐祭司',66,[11,13],2,1500,1,heal(16)), dguard=()=>E('drowned','深淵守卒',90,[14,18],4,1350,0);
-    const coral=()=>E('coralGolem','珊瑚石像',120,[16,20],5,1300,0,{skills:[smash]}), reef=()=>E('coralGolem','礁岩巨怪',150,[18,22],6,1500,0,{skills:[smash]});
-    const cw=()=>E('drowned','神城守衛',110,[16,20],4,1250,0), cs=()=>E('drownedArcher','神城哨兵',76,[18,20],2,1100,1);
+    const dbrute=()=>E('drownedBrute','深淵巨漢',130,[16,21],5,1450,0,{skills:[smash]});
+    // 深海生物
+    const coral=()=>E('coralGolem','珊瑚石像',120,[16,20],5,1300,0,{skills:[smash]}), reef=()=>E('reefCrab','礁岩巨蟹',150,[16,20],7,1500,0,{skills:[smash]});
+    const serpent=()=>E('seaSerpent','海蛇',96,[15,19],3,1150,0,{skills:[sneak]}), angler=()=>E('anglerLurker','鮟鱇潛伏者',84,[20,24],3,1250,1,{skills:[power]});
     out.push(
-      G('sea_pair',2,'normal',1, [at(drn(),560,324,'front'), at(darch(),678,218,'mid')]),
-      G('sea_servants',2,'normal',1, [at(serv(),550,332,'front'), at(drn2(),606,204,'front')]),
-      G('sea_band',2,'normal',2, [at(dguard(),540,256,'front'), at(dguard(),576,422,'front'), at(darch(),702,186,'mid'), at(dsol(),696,360,'mid')]),
-      G('sea_horde',2,'normal',3, [at(drn(),512,234,'front'), at(dguard(),548,374,'front'), at(drn(),586,490,'front'), at(darch(),672,176,'mid'), at(dguard(),702,322,'mid'), at(darchS(),666,456,'mid'), at(tpr(),816,306,'back')]),
-      G('sea_trio',2,'elite',1, [at(dguard(),546,250,'front'), at(dguard(),586,418,'front'), at(darchS(),702,330,'mid')]),
-      G('sea_pack',2,'elite',2, [at(coral(),548,332,'front'), at(dguard(),582,206,'front'), at(darchS(),702,252,'mid'), at(dsol(),562,462,'front'), at(tpr(),714,426,'mid')]),
-      G('sea_legion',2,'elite',3, [at(reef(),542,322,'front'), at(coral(),586,184,'front'), at(dguard(),562,472,'front'), at(dguard(),678,154,'mid'), at(darchS(),708,300,'mid'), at(darchS(),672,452,'mid'), at(dsol(),812,244,'back'), at(tpr(),822,412,'back')]),
-      G('sea_boss_leviathan',2,'boss',2,
-        [at(cw(),556,262,'front'), at(cw(),592,420,'front'), at(cs(),712,330,'mid')],
-        [at(E('coralGolem','深海巨像',440,[30,20,42],8,1400,0,{boss:true,skills:[quake]}),700,330,'front'), at(cs(),550,330,'mid')]),
-      G('sea_boss_tidelord',2,'boss',2,
-        [at(cw(),545,250,'front'), at(cw(),582,416,'front'), at(cs(),702,196,'mid'), at(cs(),706,360,'mid')],
-        [at(E('coralGolem','潮汐領主',480,[26,32,38],8,1350,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(E('tidePriest','深淵祭司',96,[12,14],3,1400,1,heal(22)),550,236,'mid'), at(cs(),562,430,'mid')])
+      // 溺亡者
+      G('drowned_patrol',2,'drowned','normal',1, [at(drn(),560,330,'front'), at(darch(),678,232,'mid')]),
+      G('drowned_band',2,'drowned','normal',2, [at(dguard(),535,250,'front'), at(dbrute(),575,432,'front'), at(darch(),702,186,'mid'), at(dsol(),696,360,'mid')]),
+      G('drowned_legion',2,'drowned','elite',3, [at(dbrute(),542,322,'front'), at(dguard(),584,184,'front'), at(dguard(),562,472,'front'), at(dsol(),678,154,'mid'), at(darchS(),708,300,'mid'), at(darchS(),672,452,'mid'), at(tpr(),822,360,'back')]),
+      G('drowned_boss_king',2,'drowned','boss',2,
+        [at(dguard(),555,262,'front'), at(dbrute(),592,420,'front'), at(darchS(),712,330,'mid')],
+        [at(E('drownedKing','溺亡君王',460,[28,20,36],8,1380,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(tpr(),550,236,'mid'), at(darchS(),562,430,'mid')]),
+      // 深海生物
+      G('sea_reef',2,'seabeast','normal',1, [at(serpent(),560,330,'front'), at(angler(),678,232,'mid')]),
+      G('sea_pod',2,'seabeast','normal',2, [at(serpent(),545,258,'front'), at(serpent(),580,422,'front'), at(angler(),700,320,'mid')]),
+      G('sea_shoal',2,'seabeast','elite',2, [at(coral(),548,332,'front'), at(serpent(),582,205,'front'), at(angler(),702,250,'mid'), at(angler(),712,452,'mid')]),
+      G('sea_deepswarm',2,'seabeast','elite',3, [at(reef(),542,322,'front'), at(serpent(),586,184,'front'), at(serpent(),562,472,'front'), at(coral(),678,160,'mid'), at(angler(),708,310,'mid'), at(angler(),672,460,'mid'), at(angler(),815,330,'back')]),
+      G('sea_boss_leviathan',2,'seabeast','boss',2,
+        [at(serpent(),555,262,'front'), at(reef(),592,420,'front'), at(angler(),712,330,'mid')],
+        [at(E('coralGolem','深海巨像',440,[30,20,42],8,1400,0,{boss:true,skills:[quake]}),700,330,'front'), at(angler(),550,330,'mid')])
     );
   })();
-  // ---------- region 3：虛空裂隙 ----------
+  // ---------- region 3：虛空裂隙（虛空教團 / 裂隙異獸）----------
   (function(){
-    const vl=()=>E('voidling','虛空爬行者',70,[15,20],1,1200,0), vl2=()=>E('voidling','虛空爬行者',70,[14,18],1,1200,0);
-    const vcast=()=>E('voidArcher','虛空術士',56,[20,24],1,1050,1), vcastS=()=>E('voidArcher','虛空術士',60,[22,26],1,1000,1);
-    const vhunt=()=>E('voidling','虛空獵手',66,[16,20],2,1150,0,{skills:[sneak]}), vfren=()=>E('voidling','虛空狂徒',62,[16,21],1,1100,0,{skills:[frenzy]});
-    const vseer=()=>E('voidSeer','虛空先知',60,[13,16],1,1450,1,heal(14)), vcol=()=>E('voidColossus','虛空巨像',110,[18,24],3,1250,0,{skills:[smash]});
-    const vrift=()=>E('voidColossus','裂隙魔像',140,[20,26],4,1300,0,{skills:[combo]});
-    const rc=()=>E('voidling','裂隙爬蟲',100,[18,22],2,1150,0), rs=()=>E('voidArcher','裂隙術士',84,[20,22],1,1000,1);
+    // 虛空教團
+    const vl=()=>E('voidling','虛空爬行者',70,[15,20],1,1200,0), vcast=()=>E('voidArcher','虛空術士',56,[20,24],1,1050,1);
+    const vcastS=()=>E('voidArcher','虛空術士',60,[22,26],1,1000,1), vhunt=()=>E('voidling','虛空獵手',66,[16,20],2,1150,0,{skills:[sneak]});
+    const vfren=()=>E('voidling','虛空狂徒',62,[16,21],1,1100,0,{skills:[frenzy]}), vseer=()=>E('voidSeer','虛空先知',60,[13,16],1,1450,1,heal(14));
+    const vcol=()=>E('voidColossus','虛空巨像',110,[18,24],3,1250,0,{skills:[smash]}), apostle=()=>E('voidApostle','虛空使徒',70,[16,20],1,1450,1,{healer:true,heal:16,skills:[gheal,power]});
+    // 裂隙異獸
+    const eye=()=>E('eyeStalker','凝視者',76,[22,26],1,1150,1,{skills:[power,smash]}), gnaw=()=>E('gnawer','噬咬者',84,[18,24],2,1050,0,{skills:[frenzy]});
+    const wyrm=()=>E('riftWyrm','裂隙噬蟲',150,[20,26],4,1300,0,{skills:[combo,smash]});
     out.push(
-      G('void_pair',3,'normal',1, [at(vl(),560,322,'front'), at(vcast(),680,218,'mid')]),
-      G('void_hunters',3,'normal',1, [at(vhunt(),550,332,'front'), at(vl2(),608,202,'front')]),
-      G('void_band',3,'normal',2, [at(vl(),540,256,'front'), at(vfren(),576,422,'front'), at(vcast(),702,186,'mid'), at(vhunt(),696,360,'mid')]),
-      G('void_swarm',3,'normal',3, [at(vl(),506,234,'front'), at(vfren(),546,372,'front'), at(vl2(),586,492,'front'), at(vcast(),650,166,'mid'), at(vhunt(),694,302,'mid'), at(vfren(),660,452,'mid'), at(vcast(),800,216,'back'), at(vseer(),828,356,'back'), at(vl(),794,486,'back')]),
-      G('void_trio',3,'elite',1, [at(vcol(),548,330,'front'), at(vcastS(),702,250,'mid'), at(vcastS(),702,420,'mid')]),
-      G('void_pack',3,'elite',2, [at(vrift(),548,332,'front'), at(vfren(),582,204,'front'), at(vfren(),562,464,'front'), at(vcastS(),706,256,'mid'), at(vseer(),714,426,'mid')]),
-      G('void_legion',3,'elite',3, [at(vcol(),520,272,'front'), at(vrift(),562,462,'front'), at(vfren(),592,150,'front'), at(vfren(),668,302,'mid'), at(vhunt(),702,162,'mid'), at(vcastS(),666,460,'mid'), at(vcastS(),800,236,'back'), at(vseer(),828,382,'back'), at(vl(),794,496,'back')]),
-      G('void_boss_titan',3,'boss',2,
-        [at(rc(),545,250,'front'), at(rc(),582,416,'front'), at(rs(),702,196,'mid'), at(rs(),706,360,'mid')],
-        [at(E('voidColossus','虛空泰坦',500,[34,22,46],6,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(vcast(),550,330,'mid')]),
-      G('void_boss_avatar',3,'boss',2,
-        [at(rc(),545,250,'front'), at(rc(),582,416,'front'), at(rs(),702,196,'mid'), at(rs(),706,360,'mid')],
-        [at(E('voidColossus','舊神化身',540,[30,36,42],7,1280,0,{boss:true,skills:[quake,power]}),705,330,'front'), at(vseer(),550,236,'mid'), at(vcast(),562,430,'mid')])
+      // 虛空教團
+      G('void_pair',3,'voidcult','normal',1, [at(vl(),560,330,'front'), at(vcast(),678,232,'mid')]),
+      G('void_band',3,'voidcult','normal',2, [at(vfren(),535,250,'front'), at(vhunt(),575,422,'front'), at(vcast(),702,186,'mid'), at(apostle(),700,380,'mid')]),
+      G('void_swarm',3,'voidcult','elite',3, [at(vfren(),506,234,'front'), at(vhunt(),546,372,'front'), at(vl(),586,492,'front'), at(vcol(),650,166,'mid'), at(vfren(),694,302,'mid'), at(vcast(),660,452,'mid'), at(vcastS(),800,216,'back'), at(apostle(),828,356,'back'), at(vl(),794,486,'back')]),
+      G('void_boss_titan',3,'voidcult','boss',2,
+        [at(vfren(),555,262,'front'), at(vhunt(),592,420,'front'), at(vcastS(),712,330,'mid')],
+        [at(E('voidColossus','虛空泰坦',500,[34,22,46],6,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(apostle(),550,236,'mid'), at(vcastS(),562,430,'mid')]),
+      // 裂隙異獸
+      G('aberr_pair',3,'aberration','normal',1, [at(gnaw(),560,330,'front'), at(eye(),678,232,'mid')]),
+      G('aberr_brood',3,'aberration','normal',2, [at(gnaw(),535,250,'front'), at(gnaw(),575,422,'front'), at(eye(),702,210,'mid'), at(eye(),700,400,'mid')]),
+      G('aberr_horror',3,'aberration','elite',3, [at(wyrm(),520,300,'front'), at(gnaw(),566,170,'front'), at(gnaw(),562,470,'front'), at(eye(),690,250,'mid'), at(eye(),700,430,'mid'), at(wyrm(),812,330,'back')]),
+      G('aberr_boss_nullstar',3,'aberration','boss',2,
+        [at(gnaw(),555,262,'front'), at(wyrm(),592,420,'front'), at(eye(),712,330,'mid')],
+        [at(E('nullStar','虛無之星',520,[30,36,24],6,1300,1,{boss:true,skills:[combo,power,quake]}),700,330,'front'), at(eye(),550,236,'mid'), at(eye(),562,430,'mid')])
     );
   })();
   return out;
