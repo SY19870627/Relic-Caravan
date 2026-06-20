@@ -11,7 +11,8 @@ const WEAPON_CLASS = { '鐵劍':'warrior','雙手斧':'warrior','雙刃劍':'war
   '火花杖':'mage','烈焰法杖':'mage', '短刃':'rogue','匕首':'rogue' };
 const ARMOR_CLASSES = { '布衣':['warrior','ranger','priest','mage','rogue'], '皮甲':['warrior','ranger','rogue'],
   '鎖子甲':['warrior'], '法袍':['priest','mage'], '精鋼板甲':['warrior'], '守護重盔':['warrior'],
-  '法師長袍':['priest','mage'], '龍鱗甲':['warrior'] };
+  '法師長袍':['priest','mage'], '龍鱗甲':['warrior'],
+  '遊獵皮衣':['ranger','rogue'], '影襲夜衣':['ranger','rogue'], '疾風革鎧':['ranger','rogue'] };
 const CLASS_LABEL = { warrior:'戰士', ranger:'遊俠', priest:'牧師', mage:'法師', rogue:'盜賊' };
 function weaponClassOK(sprite,w){ if(!w) return true; const c=WEAPON_CLASS[w.name]; return !c || c===sprite; }
 function armorClassOK(sprite,a){ if(!a) return true; const cs=ARMOR_CLASSES[a.name]; return !cs || cs.includes(sprite); }
@@ -36,6 +37,7 @@ function defaultGuild(){ return {
   upgrades:{},                   // 項目化強化已解鎖項目 {id:true}
   discovered:{},                 // 收藏圖鑑：曾取得過的物品名稱
   owned:{},                      // 已擁有的武器/防具（唯一，不計數量）
+  questKills:{}, questStage:{}, titles:{},   // v2.1 任務累計擊殺 / 已領取階數 / 已解鎖稱號（全開生效）
 }; }
 let GUILD = defaultGuild();
 
@@ -65,6 +67,10 @@ function loadGuild(){ try{
     if(!GUILD.upgrades) GUILD.upgrades={};
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
+    if(!GUILD.titles) GUILD.titles={}; if(!GUILD.questKills) GUILD.questKills={}; if(!GUILD.questStage) GUILD.questStage={};   // v2.1
+    if(typeof QUEST_LINES!=='undefined') QUEST_LINES.forEach(l=>{ const s1=l.stages[0].title.id;   // 遷移舊存檔：沿用擊殺數、依已解鎖稱號推回階數
+      if(GUILD.questKills[l.id]==null) GUILD.questKills[l.id]=(GUILD.quests&&GUILD.quests[s1])||0;
+      if(GUILD.questStage[l.id]==null){ let n=0; for(const st of l.stages){ if(GUILD.titles[st.title.id]) n++; else break; } GUILD.questStage[l.id]=n; } });
     if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={};
     if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={};
     if(!GUILD.settings) GUILD.settings={autoSipFrac:0.30};
@@ -145,6 +151,40 @@ function uncollectedRelicsForDest(di){
 }
 function makeRelicItem(r){ return {kind:'遺物', relicId:r.id, name:r.name, icon:r.icon, desc:r.desc, value:CFG.loot.relicValueBase+(r.dest+1)*CFG.loot.relicValuePerTier}; }
 function rollRelicForDest(di){ const pool=uncollectedRelicsForDest(di); if(!pool.length) return null; return makeRelicItem(Phaser.Utils.Array.GetRandom(pool)); }
+
+// ---- v2.1 任務/懸賞（分階段任務鏈）+ 稱號（全開：解鎖即生效、同線取最高階、跨線相加）----
+function questMatch(m,e){ m=m||{}; if(!e) return false;
+  if(m.any) return true;
+  if(m.boss) return !!e.boss;
+  if(m.sprites) return m.sprites.indexOf(e.sprite)>=0;
+  return false; }
+function lineKills(id){ return (GUILD.questKills&&GUILD.questKills[id])||0; }
+function lineStageIdx(id){ return (GUILD.questStage&&GUILD.questStage[id])||0; }   // 已領取階數＝目前進行中的階段索引
+function lineCurrentStage(line){ const i=lineStageIdx(line.id); return (line && i<line.stages.length)? line.stages[i] : null; }
+function lineStageClaimable(line){ const st=lineCurrentStage(line); return !!st && lineKills(line.id)>=st.target; }
+function lineAllDone(line){ return line? lineStageIdx(line.id)>=line.stages.length : false; }
+function lineActiveTitle(line){ const c=lineStageIdx(line.id); return (line && c>0)? line.stages[c-1].title : null; }   // 該線「最高已領階段」的稱號（生效中）
+// 敵人死亡 → 為每條任務線累計擊殺（持久、跨趟、跨階保留；上限為該線最後一階目標）
+function creditEnemyKill(e){ if(!e || typeof GUILD==='undefined' || !GUILD || typeof QUEST_LINES==='undefined') return; let changed=false;
+  QUEST_LINES.forEach(l=>{ if(!questMatch(l.match,e)) return; const cap=l.stages[l.stages.length-1].target, cur=lineKills(l.id);
+    if(cur>=cap) return; if(!GUILD.questKills) GUILD.questKills={}; GUILD.questKills[l.id]=cur+1; changed=true; });
+  if(changed) saveGuild(); }
+// 領取目前階段：達標 → +聲望、解鎖(即生效)該階稱號、推進下一階；回傳剛領到的階段(供提示)
+function claimLineStage(id){ const l=(typeof QLINE_BY_ID!=='undefined')?QLINE_BY_ID[id]:null; if(!l || !lineStageClaimable(l)) return null;
+  const st=lineCurrentStage(l);
+  if(!GUILD.titles) GUILD.titles={}; if(st.title) GUILD.titles[st.title.id]=true;
+  if(!GUILD.questStage) GUILD.questStage={}; GUILD.questStage[id]=lineStageIdx(id)+1;
+  addRep(st.rep||1); saveGuild(); return st; }
+function titleUnlocked(tid){ return !!(GUILD.titles&&GUILD.titles[tid]); }
+// 稱號效果（全開）：每條線只取「最高已領階段」的稱號；數值跨線相加，震懾/增傷彙整成清單(戰鬥再依敵人取最高)
+function titleEffects(){ const e={atk:0,def:0,hp:0,spawnStuns:[],dmgVsList:[]};
+  if(typeof QUEST_LINES==='undefined') return e;
+  QUEST_LINES.forEach(l=>{ const t=lineActiveTitle(l); if(!t) return; const ef=t.effect||{};
+    e.atk+=ef.atk||0; e.def+=ef.def||0; e.hp+=ef.hp||0;
+    if(ef.spawnStun) e.spawnStuns.push(ef.spawnStun); if(ef.dmgVs) e.dmgVsList.push(ef.dmgVs); });
+  return e; }
+function titleSpawnStunFor(sprite,te){ let best=0; ((te&&te.spawnStuns)||[]).forEach(s=>{ if(s.sprites.indexOf(sprite)>=0 && s.dur>best) best=s.dur; }); return best; }
+function titleDmgVsFor(sprite,te){ let best=0; ((te&&te.dmgVsList)||[]).forEach(s=>{ if(s.sprites.indexOf(sprite)>=0 && s.pct>best) best=s.pct; }); return best; }
 
 // ---- 聲望與贊助：聲望 = 神殿遺物數，分級發放開局物資 ----
 // v0.9 雙軌經濟：⭐聲望＝可花費的公會升級貨幣（reputation 餘額）；repEarned＝歷史累計（門檻判定，不被花掉）
@@ -269,7 +309,8 @@ function initExpedition(){
   const plan=[]; const add=(type,n)=>{ for(let i=0;i<n;i++) plan.push(type); };
   add('battle', 4+t); add('elite', Math.max(0,t-1));
   add('chest', 1+Math.floor(t/2)); add('event', 1+Math.floor(t/2));
-  add('camp', 1+(t>=3?1:0)); add('shop', 1);
+  const _shopN=(CFG.shop&&CFG.shop.perTier&&CFG.shop.perTier[t-1])||1;   // v1.6：各階級商店數（預設 1/2/2/2）
+  add('camp', 1+(t>=3?1:0)); add('shop', _shopN);
   for(let i=plan.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=plan[i]; plan[i]=plan[j]; plan[j]=tmp; }
   if(plan[0]!=='battle'){ const bi=plan.indexOf('battle'); if(bi>0){ const tmp=plan[0]; plan[0]=plan[bi]; plan[bi]=tmp; } }  // 開場保證戰鬥
   RUN.exped={ pct:0, plan, i:0 };
@@ -286,7 +327,7 @@ function initRun(){
       return {...h, idx, weapon, armor, hp:0};
     }),
     cargo: [], slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
-    isBoss:false,
+    isBoss:false, gotGear:{},   // v1.8：本趟已取得的裝備名稱（掉落去重用；每趟重置、不看永久收藏）
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
     cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
     deckExpanded:false,
@@ -303,6 +344,7 @@ function heroStat(h){
   let sk = equipped.map(name=>{ const base=(SKILLS[h.sprite]||[]).find(s=>s.name===name); return base? skillWithPlus(base, plusMap[name]||0) : null; }).filter(Boolean);
   let pdef=0, healB=0, patk=0, phpB=0;
   const bl=relicEffects();   // 遺物即時效果（數值部分；規則部分由戰鬥讀取）
+  const tl=titleEffects();   // v2.0 稱號數值加成（atk/def/hp）
   const bo=formationMod(h.sprite); // 隊形站位加減成（取代固定羈絆）
   // 遺物・神王冠冕（寡兵越強）：每空一個出戰席位，全隊 ATK/DEF +3、HP +20
   let soloA=0,soloD=0,soloH=0;
@@ -311,9 +353,9 @@ function heroStat(h){
   // 攻防來源：武器/防具 ＋ 被動技能 ＋ 遺物 ＋ 寡兵；角色本身無基礎攻防，純等級只給 HP
   return {
     level:  lv,
-    maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB + soloH,
-    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA+(h.growthAtk||0)*(lv-1)),
-    def:    h.armor.def + pdef + bl.def + bo.def + soloD,
+    maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB + soloH + tl.hp,
+    atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA+tl.atk+(h.growthAtk||0)*(lv-1)),
+    def:    h.armor.def + pdef + bl.def + bo.def + soloD + tl.def,
     heal:   (h.weapon.heal? h.weapon.heal + healB + bo.heal + bl.heal : 0),
     skills: sk,
     weaponTrait: h.weapon.trait||null, armorTrait: h.armor.trait||null,   // v0.8 裝備特性（戰鬥讀取）
@@ -331,6 +373,7 @@ const ITEM_ICON = {
   // 防具
   '布衣':['robe','slate'], '皮甲':['armor','teal'], '鎖子甲':['armor','blue'], '法袍':['robe','violet'],
   '精鋼板甲':['armor','gold'], '守護重盔':['helmet','gold'], '法師長袍':['robe','violet'], '龍鱗甲':['armor','red'],
+  '遊獵皮衣':['armor','green'], '影襲夜衣':['armor','teal'], '疾風革鎧':['armor','blue'],
   // 道具
   '治療藥水':['potion','red'], '解毒劑':['potion','green'], '聖水':['potion','blue'], '回復卷軸':['scroll','gold'], '復活之種':['seed','violet'],
   // 貴重物品
@@ -363,7 +406,14 @@ const CONSUM_INFO = {
 function discover(name){ if(!name) return; if(!GUILD.discovered) GUILD.discovered={}; if(!GUILD.discovered[name]){ GUILD.discovered[name]=true; saveGuild(); } }
 // ---- 武器/防具唯一擁有：起手裝備永遠擁有；掉落取得後永久可裝；重複只能賣出 ----
 function gearOwned(name){ const w=WEAPONS.find(x=>x.name===name); if(w&&w.starter) return true; const a=ARMORS.find(x=>x.name===name); if(a&&a.starter) return true; return !!(GUILD.owned&&GUILD.owned[name]); }
-function ownGear(name){ if(!GUILD.owned) GUILD.owned={}; GUILD.owned[name]=true; discover(name); saveGuild(); }
+function ownGear(name){ if(!GUILD.owned) GUILD.owned={}; GUILD.owned[name]=true; discover(name); saveGuild();
+  if(typeof RUN!=='undefined' && RUN){ if(!RUN.gotGear) RUN.gotGear={}; RUN.gotGear[name]=true; } }   // v1.8：另記「本趟已取得」供掉落去重
+// v1.8 掉落去重改用「本趟冒險」範圍：不看永久收藏(GUILD.owned)，只看本趟已取得／持有／裝備中的裝備
+function gearGotThisRun(name){ if(typeof RUN==='undefined'||!RUN) return false;
+  if(RUN.gotGear && RUN.gotGear[name]) return true;
+  if((RUN.cargo||[]).some(it=>it&&it.name===name)) return true;
+  if((RUN.heroes||[]).some(h=>(h.weapon&&h.weapon.name===name)||(h.armor&&h.armor.name===name))) return true;
+  return false; }
 // 掉落用裝備選擇：排除起始裝＋已擁有，依出戰最高等級做保底(等級帶 lvReq∈[lvl-2, lvl+1])，優先出戰職業可用
 function rollGear(kind){
   const pool=(kind==='武器')?WEAPONS:ARMORS;
@@ -371,16 +421,15 @@ function rollGear(kind){
   const sprites=ros.map(i=>HERO_BASE[i].sprite);
   const okClass=g=> sprites.some(sp=> kind==='武器'? weaponClassOK(sp,g) : armorClassOK(sp,g));
   const band=g=> g.lvReq<=lvl+1 && g.lvReq>=Math.max(1,lvl-2);
-  const unowned=pool.filter(g=>!gearOwned(g.name));            // 排除起始裝＋已擁有
+  const unowned=pool.filter(g=>!g.starter && !gearGotThisRun(g.name));   // v1.8：排除起始裝＋「本趟已取得」（不再看永久收藏 → 後期照樣掉裝）
   const usable=unowned.filter(okClass);
   let cands=usable.filter(band);                              // 最佳：可用＋等級保底
   if(!cands.length) cands=usable.filter(g=>g.lvReq<=lvl+1);   // 放寬下限
-  if(!cands.length) cands=usable;                             // 放寬等級
-  if(!cands.length) cands=unowned.filter(band);               // 退：他職但等級合適（供收集）
-  if(!cands.length) cands=unowned;                            // 退：任何未擁有
-  return cands.length? cands[Math.floor(Math.random()*cands.length)] : null;   // 全擁有→null（改給貴重物品）
+  if(!cands.length) cands=usable;                             // 放寬等級（仍限隊伍內職業）
+  // v1.9：只給「隊伍內職業」可用的裝備；沒有可用的就回 null（改給貴重物品），不再掉他職裝備
+  return cands.length? cands[Math.floor(Math.random()*cands.length)] : null;
 }
-// ---- 自動裝備：依職業＋等級，從『已擁有(含起始裝)』選最佳；開關 GUILD.settings.autoEquip（預設開）----
+// ---- 自動裝備：依職業＋等級，從『起始裝＋本趟撿到的』選最佳（v1.8 改為只看本趟）；開關 GUILD.settings.autoEquip（預設開）----
 function autoEquipOn(){ const s=GUILD.settings||{}; return s.autoEquip!==false; }
 function toggleAutoEquip(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoEquip=!autoEquipOn(); saveGuild(); return GUILD.settings.autoEquip; }
 function bestGear(sprite, kind, level){
@@ -389,17 +438,25 @@ function bestGear(sprite, kind, level){
   let best=null;
   pool.forEach(g=>{ if(g.lvReq>level) return;
     if(!(kind==='武器'?weaponClassOK(sprite,g):armorClassOK(sprite,g))) return;
-    if(!gearOwned(g.name)) return;
+    if(!g.starter && !gearGotThisRun(g.name)) return;   // v1.8：起始裝永遠可用＋本趟撿到的（不再自動穿舊收藏的非起始裝）
     if(!best || g.lvReq>best.lvReq || (g.lvReq===best.lvReq && score(g)>score(best))) best=g;   // 等級最高優先，同級比數值
   });
   return best;
 }
 function autoEquipRun(){ if(!autoEquipOn() || typeof RUN==='undefined' || !RUN || !RUN.heroes) return;
-  RUN.heroes.forEach(h=>{ const lv=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
-    const oldMax=heroStat(h).maxHp;
-    const bw=bestGear(h.sprite,'武器',lv); if(bw) h.weapon=bw;
-    const ba=bestGear(h.sprite,'防具',lv); if(ba) h.armor=ba;
-    if(h.hp>0){ const newMax=heroStat(h).maxHp; if(newMax!==oldMax) h.hp=Math.max(1,Math.min(newMax, h.hp+(newMax-oldMax))); }   // 換甲時 HP 上限變動同步
+  // 換上某槽的最佳裝備，並維持「貨車不留正在穿的那件」（修正自動裝備造成的重複顯示）
+  const swap=(h,kind,slot,icon)=>{
+    const best=bestGear(h.sprite,kind,(ROSTER[h.idx]&&ROSTER[h.idx].level)||1);
+    if(best && (!h[slot] || best.name!==h[slot].name)){
+      const old=h[slot]; h[slot]=best;
+      if(old && !old.starter && RUN.cargo) RUN.cargo.push({kind, name:old.name, icon, value:25, gear:old});   // 換下的非起始裝放回貨車（避免遺失）
+    }
+    // 正在穿的這件不可同時留在貨車（剛裝上的取出；亦自癒既有重複）；起始裝本來就不在貨車
+    if(h[slot] && RUN.cargo){ const ci=RUN.cargo.findIndex(it=>it && it.kind===kind && it.name===h[slot].name); if(ci>=0) RUN.cargo.splice(ci,1); }
+  };
+  RUN.heroes.forEach(h=>{ const oldMax=heroStat(h).maxHp;
+    swap(h,'武器','weapon','⚔'); swap(h,'防具','armor','🛡');
+    if(h.hp>0){ const newMax=heroStat(h).maxHp; if(newMax!==oldMax) h.hp=Math.max(1,Math.min(newMax, h.hp+(newMax-oldMax))); }   // 換裝時 HP 上限變動同步
   });
 }
 function itemDiscovered(name){ if(GUILD.discovered && GUILD.discovered[name]) return true;

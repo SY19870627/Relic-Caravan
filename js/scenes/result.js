@@ -78,7 +78,16 @@ class Result extends Phaser.Scene {
       txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏後每趟永久生效',13,UI.violet);
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
     } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
-    button(this,W/2,528,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
+    // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
+    const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length);
+    if(hasNext){
+      const nx=DESTINATIONS[di+1];
+      txt(this, W/2, 500, '繼續深入：戰利品先安全入庫、全隊回滿，但下一地城更兇險（階級 '+nx.tier+'）', 11, UI.dim);
+      button(this, W/2-150, 530, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
+      button(this, W/2+150, 530, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
+    } else {
+      button(this,W/2,528,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
+    }
   }
   bankAndReturn(){
     let newRelics=0;
@@ -90,6 +99,25 @@ class Result extends Phaser.Scene {
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
     saveGuild(); initRun(); this.scene.start('GuildHall');
+  }
+  // v1.5 連續遠征：通關後接續下一地城。戰利品先安全入庫（遺物效果立即生效）、清空貨車、全隊回滿，再依新階級重建遠征。
+  continueToNext(nextIndex){
+    let newRelics=0;
+    RUN.cargo.forEach(it=>{
+      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
+      else if(it.kind==='素材'){ addMaterial(it.matId); }
+      else if(it.kind==='食材'){ /* 隨身消耗，不入庫 */ }
+      else { discover(it.name); }
+    });
+    addRep((CFG.repEarn.perRelic||0)*newRelics);   // 續征：先給新遺物聲望；平安折返獎勵留到最終帶回公會時再給
+    RUN.cargo=[];                                  // 已安全入庫 → 清空貨車、空出貨格
+    const nx=DESTINATIONS[nextIndex]||DESTINATIONS[DESTINATIONS.length-1];
+    RUN.destIndex=nextIndex; RUN.destTier=nx.tier; RUN.destName=nx.name;   // 推進到更深、更高階的地城
+    RUN.wiped=false;
+    RUN.heroes.forEach(h=>{ h.hp=heroStat(h).maxHp; });   // 全隊回滿再出發
+    initExpedition();                              // 依新階級重建遠征路線（重置探險 %）
+    saveGuild();
+    this.scene.start('Battle');
   }
   renderList(){
     const W=this.scale.width;

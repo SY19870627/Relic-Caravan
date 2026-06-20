@@ -102,6 +102,10 @@ const ARMORS = [
   {name:'守護重盔', def:7, hp:26, lvReq:3, trait:{thorns:0.15}, traitDesc:'反甲：反彈 15% 受到的傷害'},
   {name:'法師長袍', def:3, hp:20, lvReq:2, trait:{startShield:12}, traitDesc:'每場開場護盾 +12'},
   {name:'龍鱗甲', def:11, hp:36, lvReq:5, trait:{thorns:0.25}, traitDesc:'反甲：反彈 25% 受到的傷害'},
+  // v1.9 遊俠/盜賊專屬輕甲（補足這兩職的非起始防具，用既有特性 startShield/thorns）
+  {name:'遊獵皮衣', def:4, hp:16, lvReq:2, trait:{startShield:14}, traitDesc:'每場開場護盾 +14'},
+  {name:'影襲夜衣', def:6, hp:22, lvReq:3, trait:{startShield:18}, traitDesc:'每場開場護盾 +18'},
+  {name:'疾風革鎧', def:8, hp:28, lvReq:4, trait:{thorns:0.18}, traitDesc:'反甲：反彈 18% 受到的傷害'},
 ];
 // 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
 const DESTINATIONS = [
@@ -140,6 +144,56 @@ const RELIC_CATALOG = [
 ];
 const RELIC_BY_ID={}; RELIC_CATALOG.forEach(r=>{ RELIC_BY_ID[r.id]=r; });
 const RELICS_BY_DEST=[[],[],[],[]]; RELIC_CATALOG.forEach(r=>{ (RELICS_BY_DEST[r.dest]=RELICS_BY_DEST[r.dest]||[]).push(r); });
+
+// ===== v2.1 任務 / 懸賞（分階段任務鏈）＋ 稱號（全開）=====
+// 每條任務線有 4 階；同一線共用一個「累計擊殺」計數（跨階保留），達標即可領取下一階。
+// 領取 → +rep 聲望、解鎖該階稱號（解鎖即生效，可全部疊加）。
+//   match：{sprites:[...]} 比對敵人 sprite｜{boss:true} 任意王｜{any:true} 任意敵人
+//   稱號 effect：atk/def/hp＝全隊數值（跨線相加）；spawnStun＝開場震懾族群(dur)；dmgVs＝對族群增傷(pct)
+//   同一線只生效「最高已領階段」的稱號（震懾秒數/增傷取最高，不疊加）
+const Q_GOBLIN=['goblin','goblinArcher','gobShaman','gobChief'];
+const Q_CONSTRUCT=['guardian','stoneHound','runeSentinel'];
+const Q_BONE=['skeleton','skeletonArcher','boneBrute','boneKnight','boneHound'];
+const Q_UNDEAD=['necromancer','wraith','banshee','lich'];
+const Q_SEA=['drowned','drownedArcher','coralGolem','tidePriest','drownedBrute','drownedKing','seaSerpent','anglerLurker','reefCrab'];
+const Q_VOID=['voidling','voidArcher','voidColossus','voidSeer','voidApostle','eyeStalker','gnawer','riftWyrm','nullStar'];
+const QUEST_LINES = (function(){
+  // 三種任務線 builder：每階 = [累計目標, 聲望, 稱號id, 稱號名, 數值]
+  const stunLine=(id,name,icon,fac,sprites,arr)=>({id,name,icon,match:{sprites},
+    stages:arr.map(a=>({target:a[0],rep:a[1],title:{id:a[2],name:a[3],icon,desc:'戰鬥開始時，'+fac+'被震懾 '+(a[4]/1000)+' 秒',effect:{spawnStun:{sprites,dur:a[4]}}}}))});
+  const dmgLine=(id,name,icon,fac,sprites,arr)=>({id,name,icon,match:{sprites},
+    stages:arr.map(a=>({target:a[0],rep:a[1],title:{id:a[2],name:a[3],icon,desc:'對'+fac+'造成的傷害 +'+Math.round(a[4]*100)+'%',effect:{dmgVs:{sprites,pct:a[4]}}}}))});
+  const statLine=(id,name,icon,match,arr)=>({id,name,icon,match,
+    stages:arr.map(a=>({target:a[0],rep:a[1],title:{id:a[2],name:a[3],icon,desc:'全隊 '+a[4],effect:a[5]}}))});
+  return [
+    stunLine('goblin','討伐哥布林','⚔','哥布林',Q_GOBLIN,[
+      [10,1,'goblin_slayer','哥布林殺手',2000],[50,2,'goblin_butcher','哥布林屠夫',3000],
+      [150,3,'goblin_bane','哥布林剋星',4000],[400,4,'goblin_exterminator','哥布林滅絕者',5000]]),
+    stunLine('bone','肅清枯骨','💀','枯骨類',Q_BONE,[
+      [12,1,'bonecrusher','碎骨者',1500],[60,2,'bone_grinder','骸骨碾碎者',2500],
+      [180,3,'bone_render','亡骨粉碎者',3500],[480,4,'bone_ender','枯骨終結者',4500]]),
+    stunLine('void','狩獵虛空','🌀','虛空魔物',Q_VOID,[
+      [10,1,'void_hunter','虛空獵人',1500],[50,2,'void_conqueror','虛空征服者',2500],
+      [150,3,'void_sovereign','虛空主宰',3500],[400,4,'void_ender','虛空終結者',4500]]),
+    dmgLine('construct','破壞遺跡造物','🗿','遺跡造物',Q_CONSTRUCT,[
+      [8,1,'ruin_breaker','遺跡破壞者',0.25],[40,2,'ruin_shatterer','遺跡粉碎者',0.40],
+      [120,3,'ruin_ender','遺跡終結者',0.55],[320,4,'ruin_destroyer','遺跡毀滅者',0.70]]),
+    dmgLine('undead','超渡亡靈','👻','亡靈',Q_UNDEAD,[
+      [8,1,'wraith_bane','滅靈者',0.25],[40,2,'soul_warden','鎮魂者',0.40],
+      [120,3,'exorcist','驅魔者',0.55],[320,4,'undead_ender','亡靈終結者',0.70]]),
+    dmgLine('sea','征討海族','🌊','海族',Q_SEA,[
+      [10,1,'tide_breaker','怒海克星',0.25],[50,2,'tide_sovereign','鎮海者',0.40],
+      [150,3,'sea_master','馭海者',0.55],[400,4,'abyss_ender','深淵終結者',0.70]]),
+    statLine('veteran','身經百戰','🎖',{any:true},[
+      [100,2,'veteran','百戰老兵','ATK +2、DEF +2',{atk:2,def:2}],[500,3,'warlord','千戰宿將','ATK +4、DEF +4',{atk:4,def:4}],
+      [1500,4,'grand_marshal','萬戰統帥','ATK +6、DEF +6',{atk:6,def:6}],[4000,5,'war_god','不朽戰神','ATK +9、DEF +9',{atk:9,def:9}]]),
+    statLine('king','弒王之路','👑',{boss:true},[
+      [5,2,'king_slayer','屠王者','ATK +3、HP +20',{atk:3,hp:20}],[20,3,'god_slayer','弒神者','ATK +5、HP +40',{atk:5,hp:40}],
+      [60,4,'king_ender','諸王終結者','ATK +7、HP +70',{atk:7,hp:70}],[150,5,'eternal_lord','永恆霸主','ATK +10、HP +110',{atk:10,hp:110}]]),
+  ];
+})();
+const QLINE_BY_ID={}; QUEST_LINES.forEach(l=>{ QLINE_BY_ID[l.id]=l; });
+const TITLE_BY_ID={}; QUEST_LINES.forEach(l=>l.stages.forEach(s=>{ if(s.title) TITLE_BY_ID[s.title.id]=s.title; }));
 
 // 隊員羈絆（v0.8）：從「恆成立的隱形加值」改成「戰鬥中行為觸發」的功能，兩名成員都在出戰名單時生效。
 // trigger：healInvuln 牧師治療戰士→短暫無敵｜stunMark 戰士暈敵→遊俠對該敵必暴｜killCdCut 遊俠擊殺→減牧師CD

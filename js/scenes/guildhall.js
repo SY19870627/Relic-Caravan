@@ -53,13 +53,14 @@ class GuildHall extends Phaser.Scene {
     this.rdetY=P.bodyTop+108; this._rdet=[];
     this.showRelicDetail(null);
 
-    // ====== 導覽卡（角色所改由地城內進入；解鎖隊員移至招募所）======
-    const cw=278, ch=58, colL=W/2-cw/2-12, colR=W/2+cw/2+12, row1=378, row2=442;
+    // ====== 導覽卡（3 欄：新增「任務/懸賞」入口）======
+    const cw=270, ch=58, gp=14, cxL=W/2-(cw+gp), cxM=W/2, cxR=W/2+(cw+gp), row1=372, row2=438;
     const cards=[
-      {x:colL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
-      {x:colR, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
-      {x:colL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
-      {x:colR, y:row2, accent:'gold', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具／貴重', s:'WarehouseHall'},
+      {x:cxL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
+      {x:cxM, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
+      {x:cxR, y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'達成條件領聲望與稱號', s:'QuestHall'},
+      {x:W/2-(cw+gp)/2, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
+      {x:W/2+(cw+gp)/2, y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具', s:'WarehouseHall'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 

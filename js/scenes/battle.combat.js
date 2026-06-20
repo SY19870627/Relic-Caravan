@@ -27,7 +27,10 @@ Object.assign(Battle.prototype, {
     target.stunned=true; target.spr.setTint(0x9a9ad0);   // 被暈：偏紫灰
     if(!target.stunStar){ target.stunStar=txt(this,target.baseX,target.baseY-60,'★',16,'#ffd24a').setDepth(70).setStroke('#000',3);
       this.tweens.add({targets:target.stunStar,angle:360,duration:700,repeat:-1}); }
-    this.time.delayedCall(sk.dur,()=>{ if(target.stunStar){ target.stunStar.destroy(); target.stunStar=null; } target.stunned=false; if(target.alive) target.spr.clearTint(); });
+    // v2.0 震懾狀態文字：持續顯示狀態名＋剩餘秒數（每幀由 updateStunLabels 更新、跟隨單位）
+    target.stunName=(sk.name||'暈眩');
+    if(!target.stunLabel){ target.stunLabel=txt(this,target.container.x,target.baseY-80, target.stunName+' '+(sk.dur/1000).toFixed(1)+'s', 12, '#ffd24a').setDepth(71).setStroke('#000',3); }
+    this.time.delayedCall(sk.dur,()=>{ if(target.stunStar){ target.stunStar.destroy(); target.stunStar=null; } if(target.stunLabel){ target.stunLabel.destroy(); target.stunLabel=null; } target.stunned=false; if(target.alive) target.spr.clearTint(); });
     // 羈絆・掩護射擊：戰士暈敵 → 標記，遊俠下一擊必暴
     if(this._bondStunMark && caster&&caster.sprite==='warrior' && target.side==='enemy'){ this.heroes.forEach(h=>{ if(h.sprite==='ranger'&&h.alive) h.markCrit=true; }); this.floatLabel(target.baseX,target.baseY-72,'破綻!','#9fe8ff'); }
   }
@@ -90,6 +93,8 @@ Object.assign(Battle.prototype, {
     }
     if(c.side==='hero') c.firstHitDone=true;
     if(crit) atk=Math.round(atk*mult);
+    // v2.1 稱號・對族群增傷（取所有生效稱號中最高的比例）
+    if(c.side==='hero' && this._title){ const _p=titleDmgVsFor(target.sprite,this._title); if(_p>0) atk=Math.round(atk*(1+_p)); }
     // 有效防禦：破甲（武器特性）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
     let tdef=target.def;
     if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
@@ -189,11 +194,13 @@ Object.assign(Battle.prototype, {
       return;
     }
     c.alive=false;
+    if(c.side==='enemy') creditEnemyKill(c);   // v2.0：敵人死亡 → 累計任務擊殺數
     // 遺物・失落聖徽（聖庇）：每場首位成員陣亡 → 全隊回援
     if(c.side==='hero' && this._firstDeathHeal>0 && !this._firstDeathDone){ this._firstDeathDone=true;
       this.aliveOf('hero').forEach(a=>{ const h=Math.round(a.maxHp*this._firstDeathHeal); a.hp=Math.min(a.maxHp,a.hp+h); this.bar(a); pixelNum(this,a.container.x,a.container.y-34,'+'+h,0x7dff9a); });
       this.floatLabel(this.scale.width/2,this.scale.height/2-40,'聖庇！','#7dff9a'); }
     if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
+    if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
     this.spark(c.container.x,c.container.y, c.side==='hero'?0xff6b6b:0xffe08a);
     this.burst(c.container.x,c.container.y, c.side==='hero'?0xff6b6b:0x9adf6a);
     this.shake(150,0.009);

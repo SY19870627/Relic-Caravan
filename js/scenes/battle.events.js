@@ -46,9 +46,11 @@ Object.assign(Battle.prototype, {
     c.add(panel(this,W/2,H/2,o.w||440,o.h||220,{accent:o.accent||'gold'})); this.overlay=c; return c; }
 ,
   evChest(){ const W=this.scale.width,H=this.scale.height; const di=RUN.destIndex||0, _r=Math.random();
+    const _matCh=(CFG.loot&&CFG.loot.chestMaterialChance!=null)?CFG.loot.chestMaterialChance:0.34;   // v1.6：寶箱更常出裝
+    const _wBias=(CFG.loot&&CFG.loot.chestWeaponBias!=null)?CFG.loot.chestWeaponBias:0.55;
     const o=this.mkOverlay({accent:'gold',h:180}); let msg;
-    if(_r<0.34){ const m=gainMaterial(di); msg = m? ('獲得 '+m.icon+' '+m.name+' ×1（已入庫，供工坊強化）') : '寶箱空空如也'; }
-    else { const it=rollItem(2, Math.random()<0.55?'武器':'防具');
+    if(_r<_matCh){ const m=gainMaterial(di); msg = m? ('獲得 '+m.icon+' '+m.name+' ×1（已入庫，供工坊強化）') : '寶箱空空如也'; }
+    else { const it=rollItem(2, Math.random()<_wBias?'武器':'防具');
       if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
       else msg='貨車已滿，放棄 '+it.icon+' '+it.name; }
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,TH.text));
@@ -192,16 +194,26 @@ Object.assign(Battle.prototype, {
   // 遇見商人：隨機成為「藥水商／武器商／防具商」之一，並用「升級選技能」同款卡片 UI 呈現
   //  藥水商＝治療藥水/聖水（可重複買）｜武器商／防具商＝排除「基礎款」與「已擁有」的隨機 3 種
   //  裝備定價：30 + lvReq×15；購買後標記為已擁有 → 不再出現、也不能再買第二次（避免買重複虧錢）
-  _hasGear(name){ return gearOwned(name)
-      || (RUN.cargo||[]).some(it=>it.name===name)
-      || (RUN.heroes||[]).some(h=>(h.weapon&&h.weapon.name===name)||(h.armor&&h.armor.name===name)); }
+  _hasGear(name){ return gearGotThisRun(name); }   // v1.8：商店是否已有此裝備，改看「本趟冒險」而非永久收藏 → 後期商店照樣賣裝
 ,
   evShop(){ const price=g=>30+((g.lvReq||1)*15);
-    const wPool=WEAPONS.filter(x=>!x.starter && !this._hasGear(x.name));
-    const aPool=ARMORS.filter(x=>!x.starter && !this._hasGear(x.name));
-    const r=Math.random(); let type=r<1/3?'potion':(r<2/3?'weapon':'armor');
+    // v1.9：商店（含綜合商人）只賣「隊伍內職業」可用的裝備
+    const _sprites=activeRoster().map(i=>HERO_BASE[i].sprite);
+    const wOK=w=>_sprites.some(sp=>weaponClassOK(sp,w)), aOK=a=>_sprites.some(sp=>armorClassOK(sp,a));
+    const wPool=WEAPONS.filter(x=>!x.starter && !this._hasGear(x.name) && wOK(x));
+    const aPool=ARMORS.filter(x=>!x.starter && !this._hasGear(x.name) && aOK(x));
+    // v1.6：每趟「第一間」商店保證裝備商（優先武器）；之後類型偏向裝備（藥水機率較低）
+    if(RUN.exped) RUN.exped.nShop=(RUN.exped.nShop||0)+1;
+    const firstShop=(!RUN.exped || RUN.exped.nShop===1) && (CFG.shop?CFG.shop.guaranteeGearFirst!==false:true);
+    const potW=(CFG.shop&&CFG.shop.potionWeight!=null)?CFG.shop.potionWeight:0.22;
+    const merW=(CFG.shop&&CFG.shop.merchantWeight!=null)?CFG.shop.merchantWeight:0.26;   // v1.7 流浪商人（綜合商）機率
+    let type;
+    if(firstShop){ type = wPool.length?'weapon':(aPool.length?'armor':'potion'); }
+    else { const r=Math.random(); const gr=Math.max(0,1-potW-merW)/2;   // 其餘平分給武器/防具商
+      type = r<potW ? 'potion' : (r<potW+merW ? 'merchant' : (r<potW+merW+gr ? 'weapon' : 'armor')); }
     if(type==='weapon' && !wPool.length) type = aPool.length?'armor':'potion';   // 該類已無可賣 → 改賣別類
     else if(type==='armor' && !aPool.length) type = wPool.length?'weapon':'potion';
+    else if(type==='merchant' && !wPool.length && !aPool.length) type='potion';   // 綜合商無裝備可賣 → 退為藥水商
     if(type==='potion'){
       this._shopTitle='🧪 藥水商'; this._shopHint='販售補給藥水（可重複購買）';
       this._shopGoods=[
@@ -214,6 +226,19 @@ Object.assign(Battle.prototype, {
       this._shopGoods=wPool.slice(0,3).map(w=>({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
         req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
         lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), w.traitDesc||'']}));
+    } else if(type==='merchant'){
+      // v1.7 流浪商人（綜合商）：道具＋武器＋防具 各一件，同一畫面選購
+      this._shopTitle='🧙 流浪商人'; this._shopHint='綜合商 — 道具・武器・防具 各一件';
+      const gd=[{kind:'道具',name:'治療藥水',tag:'道具',cost:20,value:30,lines:['戰鬥外使用','回復全隊 30% HP']}];
+      if(wPool.length){ Phaser.Utils.Array.Shuffle(wPool); const w=wPool[0];
+        gd.push({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
+          req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
+          lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), w.traitDesc||'']}); }
+      if(aPool.length){ Phaser.Utils.Array.Shuffle(aPool); const a=aPool[0];
+        gd.push({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
+          req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
+          lines:['DEF '+a.def+'　HP +'+a.hp, a.traitDesc||'']}); }
+      this._shopGoods=gd;
     } else {
       this._shopTitle='🛡 防具商'; this._shopHint='堅實防具（排除基礎與已擁有）';
       Phaser.Utils.Array.Shuffle(aPool);
@@ -281,7 +306,6 @@ Object.assign(Battle.prototype, {
   evEvent(){ const W=this.scale.width,H=this.scale.height;
     const pool=[
       {t:'⛲ 治療之泉',d:'飲下清泉，全隊回復 40% 體力',b:'飲用',auto:true,act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
-      {t:'🧙 流浪商人',d:'花 💰60 購入 2 瓶治療藥水',b:'購買 💰60',cond:()=>(RUN.gold||0)>=60&&RUN.cargo.length<RUN.slots,act:()=>{ spendGold(60); for(let i=0;i<2;i++){ if(RUN.cargo.length<RUN.slots){ RUN.cargo.push({kind:'道具',name:'治療藥水',icon:'🧪',value:30}); discover('治療藥水'); } } }},
       {t:'🏛 古老祭壇',d:'供奉 💰120，換得本關一件未尋得的遺物',b:'供奉 💰120',cond:()=>(RUN.gold||0)>=120&&RUN.cargo.length<RUN.slots&&uncollectedRelicsForDest(RUN.destIndex||0).length>0,act:()=>{ spendGold(120); const it=rollRelicForDest(RUN.destIndex||0); if(it) RUN.cargo.push(it); }},
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];

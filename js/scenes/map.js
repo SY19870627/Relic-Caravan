@@ -17,7 +17,9 @@ function rollItem(risk, kind){
   if(!kind || kind==='道具' || kind==='貴重物品'){
     if(Math.random()<0.14) gainMaterial(RUN.destIndex||0);   // 素材立即入庫（不佔貨格、全滅也不失），再正常給一件戰利品
   }
-  const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random(); return r<0.5?'貴重物品':(r<0.72?'防具':(r<0.88?'武器':'道具')); })();
+  const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random();
+    const pv=(L.pickValuable!=null?L.pickValuable:0.32), pa=(L.pickArmor!=null?L.pickArmor:0.28), pw=(L.pickWeapon!=null?L.pickWeapon:0.28);
+    return r<pv?'貴重物品':(r<pv+pa?'防具':(r<pv+pa+pw?'武器':'道具')); })();
   if(pick==='貴重物品') return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier};
   if(pick==='防具'){ const a=rollGear('防具'); if(a) return {kind:'防具', name:a.name, icon:'🛡', value:L.gearBase+tier*L.gearPerTier, gear:a};
     return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier}; }

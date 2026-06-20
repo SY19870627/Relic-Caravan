@@ -66,6 +66,7 @@ class Battle extends Phaser.Scene {
     if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
     if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
     const _re=relicEffects();
+    this._title=titleEffects();   // v2.0 裝備中稱號效果（spawnStun/dmgVs 由戰鬥讀取）
     this._firstHitCrit=!!_re.firstHitCrit; this._reviveOnce=!!_re.reviveOnce; this.reviveUsed=false; this._firstHitBlock=!!_re.firstHitBlock;
     this._splash=!!_re.splash; this._regen=_re.regen||0; this._killCrit=!!_re.killCrit; this._healToShield=!!_re.healToShield;
     this._lastStand=!!_re.lastStand; this._firstDeathHeal=_re.firstDeathHeal||0; this._firstDeathDone=false;
@@ -113,6 +114,7 @@ class Battle extends Phaser.Scene {
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
+      if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
       c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setDepth(fs.y/200).setAngle(0).setAlpha(c.alive?1:0.25);
       c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
@@ -146,6 +148,11 @@ class Battle extends Phaser.Scene {
       return c;
     });
     this.enemies.push(...fresh); this.all.push(...fresh);
+    // v2.1 稱號・開場震懾：對每隻敵人取「所有生效稱號中最高的震懾秒數」施加開場暈眩
+    // 首波在 create() 內觸發，this.time.now 尚未就緒(=0) → 延後一拍以有效時鐘計算 stunUntil（敵人此時仍在走位進場，視覺無差）。
+    const _te=this._title;
+    if(_te && _te.spawnStuns && _te.spawnStuns.length){ this.time.delayedCall(60, ()=>{ if(this.over) return;
+      fresh.forEach(en=>{ if(!en||!en.alive) return; const d=titleSpawnStunFor(en.sprite,_te); if(d>0) this.stun(en,{name:'震懾',dur:d},null); }); }); }
     // 馬匹・均衡馬（先攻）：第一波敵人慢半拍出手，給我方一個開場
     // 走位期間禁止行動，全部就定位才開打（用計時器旗標，避免時鐘 epoch 問題）
     this.entering=true;
@@ -254,8 +261,19 @@ class Battle extends Phaser.Scene {
     ui.add(txt(this,px,py+66,BIO[c.sprite]||'',12,TH.cyan,0.5));
     ui.add(button(this,px,py+98,120,32,'關閉',()=>{ ui.destroy(); this.infoUI=null; this.paused=false; },{size:14,fill:0x4a3f63,stroke:0x7a6f93}));
   }
+  // v2.0 震懾狀態文字：每幀更新剩餘秒數並跟隨單位位置（star 之上）
+  updateStunLabels(){
+    const now=this.time.now;
+    for(const c of (this.all||[])){
+      if(!c||!c.stunLabel) continue;
+      const rem=Math.max(0,((c.stunUntil||0)-now)/1000);
+      c.stunLabel.setText((c.stunName||'暈眩')+' '+rem.toFixed(1)+'s');
+      if(c.container) c.stunLabel.setPosition(c.container.x, c.baseY-80);
+    }
+  }
   update(time){
     this.updateSkillPips();
+    this.updateStunLabels();
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
@@ -390,6 +408,15 @@ class Battle extends Phaser.Scene {
         if(hasLeader()) forageIngredient(RUN.destIndex||0);   // 領隊沿途採集（入持久食材庫存）
         const gf=txt(this,this.scale.width-60,66,'💰 +'+g,15,'#ffe08a').setDepth(101).setStroke('#000',4);
         this.tweens.add({targets:gf,y:50,alpha:0,duration:1150,ease:'Quad.out',onComplete:()=>gf.destroy()});
+        // v1.6：一般戰鬥也有機率掉裝備（偏武器），避免整趟拿不到武器
+        const _lc=CFG.loot||{};
+        if(Math.random()<(_lc.battleGearChance!=null?_lc.battleGearChance:0.30) && RUN.cargo.length<RUN.slots){
+          const wantW=Math.random()<(_lc.battleGearWeaponBias!=null?_lc.battleGearWeaponBias:0.60);
+          const git=rollItem(node?node.risk:1, wantW?'武器':'防具');
+          if(git){ RUN.cargo.push(git); discover(git.name); if(git.gear) ownGear(git.name);
+            const lf=txt(this,this.scale.width-60,86,(git.icon||'')+' '+git.name,13,'#9fd0ff').setDepth(101).setStroke('#000',4);
+            this.tweens.add({targets:lf,y:70,alpha:0,duration:1350,ease:'Quad.out',onComplete:()=>lf.destroy()}); }
+        }
       }
       this.showLevelups();
     });

@@ -35,7 +35,14 @@ const CFG = {
     valuableBase:30,      valuablePerTier:40,
     gearBase:25,          gearPerTier:25,             // 武器/防具
     consumBase:15,        consumPerTier:15,           // 道具
+    // v1.6 裝備取得（保證拿得到）— 想調回更稀有就改這裡
+    pickValuable:0.32, pickArmor:0.28, pickWeapon:0.28,   // 通用掉落權重：貴重/防具/武器（其餘為道具；原本武器只有 0.16）
+    battleGearChance:0.30, battleGearWeaponBias:0.60,      // 一般戰鬥掉裝機率＋其中武器佔比（原本一般戰鬥完全不掉裝）
+    chestMaterialChance:0.22, chestWeaponBias:0.55,        // 寶箱給素材的機率（原 0.34）／給裝備時武器佔比
   },
+  // v1.6 商店：各階級每趟商店數、類型偏向裝備、每趟第一間保證裝備商
+  // v1.7 類型權重：藥水商 / 流浪商人(綜合商) / 其餘平分給 武器商・防具商
+  shop: { perTier:[1,2,2,2], potionWeight:0.22, merchantWeight:0.26, guaranteeGearFirst:true },
 
   // 敵人強度縮放：scale = (1+層數*layerScale)*(1+(階級-1)*tierScale)；王戰用 bossTierScale
   // v0.7 平衡：壓低 layer 斜率（緩和開局深層/精英過硬）、拉高 tier 斜率（讓中後期不再無腦輾壓）
