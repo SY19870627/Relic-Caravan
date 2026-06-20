@@ -110,6 +110,7 @@ Object.assign(Battle.prototype, {
     if(target.side==='hero' && dmg>=target.hp && this.hasSkillType(target,'deathSave') && !target.deathSaveUsed){
       target.deathSaveUsed=true; dmg=Math.max(0,target.hp-1); const _s=this.getSkill(target,'deathSave'); if(_s)this.skillProc(target,_s.name); this.floatLabel(target.baseX,target.baseY-60,'免死!','#ffd24a'); this.screenFlash(0xffd24a,0.2,200); }
     target.hp=Math.max(0,target.hp-dmg); this.bar(target);
+    if(c.side==='hero') c._aimUntil=0;   // 防溢殺：這一擊已落地，解除預定
     const heavy = !!c.boss || dmg>=20;
     const base = target.boss?6:SCALE;
     if(absorbed>0 && dmg<=0){   // 完全被護盾擋下

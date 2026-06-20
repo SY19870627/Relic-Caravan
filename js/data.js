@@ -178,13 +178,11 @@ const FORMATIONS = [
 ];
 const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重：前排越容易被集火
 // ===== 馬匹（單一馬車＋選馬）=====
-// 三隻馬各有專屬功能（feature）與不同貨格數，讓選馬＝選旅途玩法。
-// cost＝解鎖所需聲望（0＝免費）；index 0 為初始預設馬（普通馬）
+// 馬匹只決定「貨格」（後勤容量），不影響戰鬥。cost＝解鎖所需聲望（0＝免費）；index 0 為初始預設馬
 const HORSES = [
-  {name:'普通馬', slots:6, feature:null,         cost:0, desc:'最尋常的駑馬，沒有特殊本領；貨格 6（初始預設）'},
-  {name:'均衡馬', slots:6, feature:'initiative', cost:0, desc:'攻守折中：每場戰鬥我方先攻一輪（敵人慢半拍出手）；貨格 6'},
-  {name:'耐力馬', slots:9, feature:'recovery',   cost:3, desc:'耐久長征：每場戰後存活成員多回復 12% HP；貨格 9（解鎖 ⭐3）'},
-  {name:'力量馬', slots:12, feature:'vanguard',  cost:4, desc:'先鋒衝鋒：每場戰鬥開場全隊 +20 護盾；貨格 12（解鎖 ⭐4）'},
+  {name:'均衡馬', slots:6,  cost:0, desc:'標準商隊馬，貨格 6（初始預設）'},
+  {name:'耐力馬', slots:9,  cost:3, desc:'耐久善負重，貨格 9（解鎖 ⭐3）'},
+  {name:'力量馬', slots:12, cost:4, desc:'力大能拉重載，貨格 12（解鎖 ⭐4）'},
 ];
 // ===== 素材（強化用）：特定關出特定素材 =====
 const MATERIALS = [
@@ -220,16 +218,12 @@ const RECIPES = [
   {id:'fish',  name:'深海魚料理', need:{fish:1},          desc:'全隊回復 50% HP，並獲得一次「陣亡復活」充能', heal:0.50, grant:'revive'},
   {id:'feast', name:'異香料盛宴', need:{spice:1,meat:1},  desc:'全隊回復 40% HP，下一場戰鬥全隊首擊必暴',   heal:0.40, grant:'firstCrit'},
 ];
-// ===== 項目化強化（工匠解鎖，一次性）：cat 馬車/整備所；craftReq 工匠階級門檻 =====
-// 保留容量強化（貨格 +2/+3），其餘為「解鎖新功能」(effect.feature)。
+// ===== 工坊強化（工匠解鎖，一次性，全部屬後勤）：craftReq 工匠階級門檻 =====
 // feature：deck2 清掉精英戰後 +3 貨格｜campstove 無領隊也能在營火料理
 const UPGRADES = [
-  // 馬車類
-  {id:'rack1',    cat:'wagon',  name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},             desc:'貨格 +2'},
-  {id:'deck2',    cat:'wagon',  name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},             desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
-  // 整備所類（共用工匠）
-  {id:'feedbag',  cat:'outfit', name:'加大車廂', craftReq:1, effect:{slots:2},             cost:{mats:{wood:2}},             desc:'貨格 +2'},
-  {id:'campstove',cat:'outfit', name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}},   desc:'無領隊也能在途中烹煮料理'},
+  {id:'rack1',    name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},           desc:'貨格 +2'},
+  {id:'deck2',    name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},           desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
+  {id:'campstove',name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}}, desc:'無領隊也能在途中烹煮料理'},
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
 // 每級：growthHp 加血、growthAtk 加攻擊（升級兼顧生存與輸出）；另由升級 perk（state.js heroPerks）給功能。

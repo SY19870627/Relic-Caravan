@@ -21,7 +21,7 @@ class Outfit extends Phaser.Scene {
     RUN.heroes.forEach((h,i)=>this.heroCard(h, x0+i*(cw+14), 208, cw, ch));
 
     const ws=wagonStats();
-    const p=panel(this, W/2, 376, 540, 96, {accent:'ember', title:'本趟商隊', icon:'wagon', titleSize:14});
+    const p=panel(this, W/2, 384, 540, 112, {accent:'ember', title:'本趟商隊', icon:'wagon', titleSize:14});   // 加高讓底下提示字不被框邊切到
     const c1=chip(this, 0, p.bodyTop+12, {label:'馬匹 · '+ws.horse, accent:'ember', icon:'wagon', size:12, h:26});
     const c3=chip(this, 0, p.bodyTop+12, {label:'貨格 '+ws.slots, accent:'teal', icon:'box', size:12, h:26});
     let cw2=c1.w+c3.w+12, sx=W/2-cw2/2; c1.setX(sx); c3.setX(sx+c1.w+12);

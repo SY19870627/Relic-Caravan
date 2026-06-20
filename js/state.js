@@ -28,7 +28,7 @@ function defaultGuild(){ return {
   relics:[], reputation:0, repEarned:0, partySize:1,   // reputation 可花費、repEarned 累計門檻；partySize 1→5
   formation:0,
   formationsUnlocked:{},        // 已用聲望解鎖的隊形索引（基礎三角 cost0 永遠可用）
-  horse:0,                       // 馬匹：0普通(預設)/1均衡(免費)/2耐力/3力量
+  horse:0,                       // 馬匹：純貨格（後勤）：0均衡6(預設)/1耐力9/2力量12
   horsesUnlocked:{},            // 已用聲望解鎖的馬匹索引（普通馬／均衡馬 cost0 永遠可用）
   materials:{},                 // 素材（工坊強化用，跨趟保留）；食材改為每趟隨身、不入公會
   staff:{ craftsman:0, leader:0 },// 後勤：工匠階級0-3、領隊0/1
@@ -67,7 +67,7 @@ function loadGuild(){ try{
     if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={};
     if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={};
     if(!GUILD.settings) GUILD.settings={autoSip:true};
-    if(GUILD.horse==null) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
+    if(GUILD.horse==null||GUILD.horse>=HORSES.length) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
     if(GUILD.repEarned==null) GUILD.repEarned=GUILD.reputation||0;    if(GUILD.formation==null||GUILD.formation>=FORMATIONS.length) GUILD.formation=0;
     if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){
@@ -88,7 +88,7 @@ function cargoIngCount(id){ const c=(typeof RUN!=='undefined'&&RUN&&RUN.cargo)?R
 
 // ---- 馬匹（單馬車＋選馬）＋ 工匠項目化強化：最終食物/貨格 ----
 function upgradeEffectTotal(){ let slots=0; UPGRADES.forEach(u=>{ if(GUILD.upgrades&&GUILD.upgrades[u.id]){ slots+=u.effect.slots||0; } }); return {slots}; }
-function wagonStats(){ const h=HORSES[GUILD.horse]||HORSES[1]; const up=upgradeEffectTotal();
+function wagonStats(){ const h=HORSES[GUILD.horse]||HORSES[0]; const up=upgradeEffectTotal();
   return { name:'探險馬車', horse:h.name, horseDesc:h.desc, slots:h.slots+up.slots, upSlots:up.slots }; }
 function upgradeOwned(id){ return !!(GUILD.upgrades&&GUILD.upgrades[id]); }
 function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0); }
@@ -167,7 +167,6 @@ function bondTriggerActive(trigger){ const act=new Set(activeRoster().map(i=>CLA
   return BONDS.some(b=>b.trigger===trigger && b.members.every(m=>act.has(m))); }
 
 // ---- v0.8 馬匹專屬功能 ----
-function horseFeature(){ const h=HORSES[GUILD.horse]; return h?h.feature:null; }
 // ---- v0.8 工匠功能解鎖（項目化強化中 effect.feature 型）----
 function hasUpgradeFeature(f){ return UPGRADES.some(u=>u.effect&&u.effect.feature===f&&upgradeOwned(u.id)); }
 function hasCampstove(){ return hasUpgradeFeature('campstove'); }

@@ -93,7 +93,7 @@ class Battle extends Phaser.Scene {
       const pk=heroPerks(h.idx);
       const interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1)));
       const useBonus=(pk.useBonus||0);
-      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
+      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
       c.maxShield=startShield; c.shield=startShield; this.bar(c); return c;   // 每場開場：護盾補滿（與 HP 分開）
     });
@@ -105,7 +105,7 @@ class Battle extends Phaser.Scene {
       c.interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1))); c.useBonus=(pk.useBonus||0);
       c.skills=s.skills; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.aoe=h.aoe; c.ranged=h.ranged; c.healer=h.healer;
       c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
-      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
+      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c._proc=null;
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
@@ -144,7 +144,6 @@ class Battle extends Phaser.Scene {
     });
     this.enemies.push(...fresh); this.all.push(...fresh);
     // 馬匹・均衡馬（先攻）：第一波敵人慢半拍出手，給我方一個開場
-    if(this.waveIndex===0 && horseFeature()==='initiative'){ fresh.forEach(e=>{ e.stunUntil=this.time.now+1500; }); }
     // 走位期間禁止行動，全部就定位才開打（用計時器旗標，避免時鐘 epoch 問題）
     this.entering=true;
     this.time.delayedCall(700 + (ec.length-1)*90, ()=>{ this.entering=false; });
@@ -283,14 +282,29 @@ class Battle extends Phaser.Scene {
     target._sipUntil=this.time.now+cd;
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
+  // 防溢殺：估算「即將落在某敵人身上、尚未結算」的我方傷害（排除自己）
+  _incoming(f, exclude){ let s=0; const now=this.time.now;
+    for(const h of (this.heroes||[])){ if(!h.alive||h===exclude) continue;
+      if(h._aimTarget===f && now < (h._aimUntil||0)) s+=(h._estDmg||0); }
+    return s; }
+  _estDamage(c, f){ const seq=(c.atkSeq&&c.atkSeq.length)?c.atkSeq:[1]; const avg=seq.reduce((a,b)=>a+b,0)/seq.length;
+    let tdef=f.def||0; if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
+    return Math.max(1, Math.round(avg - tdef)); }
   // 我方鎖定：依玩家排定的 TARGET_ORDER 做字典序挑目標（由上到下逐條比較，先決定者勝）
   pickTarget(c,foes){ if(!foes||!foes.length) return null;
-    const order=(typeof TARGET_ORDER!=='undefined'&&TARGET_ORDER&&TARGET_ORDER.length)?TARGET_ORDER:['lowHp','healer','back','front','lowDef','status'];
+    let order=(typeof TARGET_ORDER!=='undefined'&&TARGET_ORDER&&TARGET_ORDER.length)?TARGET_ORDER:['lowHp','healer','back','front','lowDef','status'];
+    // 智慧鎖定：帶條件暴擊的角色，自動把「能觸發暴擊的目標」排到最前（只對該角色、覆蓋全隊順序）
+    const smart=[];
+    if(this.hasSkillType(c,'critVsFull')) smart.push('fullHp');      // 鷹眼：偏好滿血敵
+    if(this.hasSkillType(c,'critVsStunned')) smart.push('status');   // 致命：偏好被暈敵
+    order=smart.concat(['overkill'], order);   // 智慧鎖定 > 防溢殺 > 玩家順序
     const rank={front:0,mid:1,back:2};
     const key=(f,crit)=>{ switch(crit){
       case 'lowHp':  return f.hp;                          // 目前血量最低（低血優先）
       case 'lowDef':    return f.def||0;                   // 防禦最低（對其輸出最高）
       case 'status':    return f.stunned?0:1;              // 有狀態(暈眩)者優先
+      case 'fullHp':    return (f.hp>=f.maxHp)?0:1;        // 滿血優先（鷹眼智慧鎖定）
+      case 'overkill':  return (f.hp - this._incoming(f,c) > 0) ? 0 : 1;   // 已被預定打死者排後（防溢殺）
       case 'healer': return f.healer?0:1;          // 敵方治療者優先
       case 'back':   return 2-(rank[f.row]||1);    // 後排優先（back→0 最佳）
       case 'front':  return (rank[f.row]||1);      // 前排優先（front→0 最佳）
@@ -323,6 +337,7 @@ class Battle extends Phaser.Scene {
     if(c.aoe){ this.aoeCast(c); }
     else {
       const target = c.side==='enemy' ? this.pickByRow(foes) : this.pickTarget(c,foes);
+      if(c.side==='hero' && target){ c._aimTarget=target; c._aimUntil=this.time.now+450; c._estDmg=this._estDamage(c,target); }   // 防溢殺：登記這一擊的預定傷害
       if(c.ranged) this.ranged(c,target,c.healer); else this.melee(c,target);
     }
     // 連射／連環施法：追加一擊（CD＋次數）
@@ -352,10 +367,9 @@ class Battle extends Phaser.Scene {
       const _ups=gainXP(xp); saveGuild();
       this._showPerkGains((_ups||[]).filter(u=>typeof u==='string' && u.indexOf('✨')>=0));
       const re=relicEffects();
-      const rec=horseFeature()==='recovery'?0.12:0;
       RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;
         if(re.fullHealAfterBattle){ h.hp=mx; }
-        else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*(CFG.battle.postHealAlive+rec))) : Math.round(mx*CFG.battle.postHealRevive); } });
+        else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); } });
       if(wasBoss){
         const rel=rollRelicForDest(RUN.destIndex||0);
         const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};

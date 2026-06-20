@@ -58,7 +58,7 @@ class GuildHall extends Phaser.Scene {
     const cards=[
       {x:colL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
       {x:colR, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
-      {x:colL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬、項目強化、補給', s:'WagonHall'},
+      {x:colL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
       {x:colR, y:row2, accent:'gold', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具／貴重', s:'WarehouseHall'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));

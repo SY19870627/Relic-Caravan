@@ -99,20 +99,25 @@ Object.assign(Battle.prototype, {
       healer:['✚ 治療者優先','先解決敵方補師'],
       back:['🏹 後排優先','先拆後排弓手／法師／術士'],
       front:['🛡 前排優先','先打最前線的敵人'] };
-    const n=TARGET_ORDER.length, rowH=46, panelH=Math.max(300,150+n*rowH);
+    const n=TARGET_ORDER.length, rowH=46, panelH=176+n*rowH+50;
     const c=this.add.container(0,0).setDepth(130); this._targetUI=c;
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
-    c.add(panel(this,W/2,H/2,480,panelH,{accent:'gold'}));
-    const tT=H/2-panelH/2+26;
-    c.add(txt(this,W/2,tT,'🎯 鎖定優先順序',22,TH.gold));
-    c.add(txt(this,W/2,tT+25,'由上到下：英雄會優先攻擊排在前面的目標',11,TH.dim));
-    const top=tT+58, x0=W/2-218;
+    c.add(panel(this,W/2,H/2,494,panelH,{accent:'gold'}));
+    const tp=H/2-panelH/2, x0=W/2-222;
+    c.add(txt(this,W/2,tp+26,'🎯 鎖定優先順序',22,TH.gold));
+    c.add(txt(this,W/2,tp+49,'由上到下：英雄會優先攻擊排在前面的目標',11,TH.dim));
+    // 兩行文字一律垂直置中(originY=0.5)，避免副標跑出框外
+    const mkRow=(y,fill,line,t1,c1,t2)=>{ c.add(this.add.rectangle(W/2,y,460,42,fill,0.85).setStrokeStyle(2,line));
+      c.add(txt(this,x0+8,y-9,t1,14,c1,0,0.5)); c.add(txt(this,x0+8,y+9,t2,10,TH.dim,0,0.5)); };
+    mkRow(tp+84, 0x2a2114, 0xc79a3e, '🔒 智慧鎖定　·　自動・最優先', '#f2c14e', '帶鷹眼／致命的角色自動鎖定能觸發暴擊的目標（固定不可調）');
+    mkRow(tp+130,0x2a2114, 0xc79a3e, '🔒 防溢殺　·　自動・次優先', '#f2c14e', '避免把傷害堆在「這一擊就會死」的敵人（固定不可調）');
+    const top=tp+176;
     TARGET_ORDER.forEach((k,i)=>{ const y=top+i*rowH; const info=NAME[k]||[k,''];
-      c.add(this.add.rectangle(W/2,y,438,rowH-6,0x241a30,0.6).setStrokeStyle(2,0x55476b));
-      c.add(txt(this,x0+10,y-9,(i+1)+'.  '+info[0],14,TH.text,0));
-      c.add(txt(this,x0+10,y+11,info[1],10,TH.dim,0));
-      if(i>0) c.add(button(this,W/2+158,y,34,34,'▲',()=>{ const t=TARGET_ORDER[i-1]; TARGET_ORDER[i-1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
-      if(i<n-1) c.add(button(this,W/2+196,y,34,34,'▼',()=>{ const t=TARGET_ORDER[i+1]; TARGET_ORDER[i+1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
+      c.add(this.add.rectangle(W/2,y,460,42,0x241a30,0.6).setStrokeStyle(2,0x55476b));
+      c.add(txt(this,x0+8,y-9,(i+1)+'.  '+info[0],14,TH.text,0,0.5));
+      c.add(txt(this,x0+8,y+9,info[1],10,TH.dim,0,0.5));
+      if(i>0) c.add(button(this,W/2+172,y,34,34,'▲',()=>{ const t=TARGET_ORDER[i-1]; TARGET_ORDER[i-1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
+      if(i<n-1) c.add(button(this,W/2+210,y,34,34,'▼',()=>{ const t=TARGET_ORDER[i+1]; TARGET_ORDER[i+1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
     });
     c.add(button(this,W/2,H/2+panelH/2-28,150,38,'完成',()=>this.closeTargetOrder(),{variant:'go',size:15})); }
 ,

@@ -6,12 +6,6 @@ class WorldMap extends Phaser.Scene {
     sceneBg(this,{glow:0xf2c14e});
     sceneHeader(this,'世 界 地 圖','選擇目的地：越遠越危險、遺物階級越高',{accent:'gold'});
 
-    const specs=[
-      {label:'貨格 '+RUN.slots, accent:'teal', icon:'box', size:12, h:25},
-      {label:'聲望 '+reputation(), accent:'gold', icon:'star', size:12, h:25},
-    ];
-    const chips=specs.map(s=>chip(this,0,0,s)); let tot=chips.reduce((a,c)=>a+c.w,0)+10*(chips.length-1); let cx=W/2-tot/2; chips.forEach(c=>{c.setX(cx);c.setY(74);cx+=c.w+10;});
-
     const rep=repEarned(), accs=['teal','gold','violet','red'];
     DESTINATIONS.forEach((d,i)=>{
       const cy=120+i*98, ac=accent(accs[d.tier-1]||'teal');
