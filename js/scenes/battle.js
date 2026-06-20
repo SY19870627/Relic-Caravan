@@ -385,6 +385,7 @@ class Battle extends Phaser.Scene {
       } else {
         const gc=CFG.gold||{}, g=Math.max(1, Math.round(((gc.battleBase||16)+(node?node.risk:1)*(gc.battlePerRisk||12))*(1+(((RUN.destTier||1)-1)*0.25))));
         addGold(g); this.updateGold();
+        if(hasLeader()) forageIngredient(RUN.destIndex||0);   // 領隊沿途採集（入持久食材庫存）
         const gf=txt(this,this.scale.width-60,66,'💰 +'+g,15,'#ffe08a').setDepth(101).setStroke('#000',4);
         this.tweens.add({targets:gf,y:50,alpha:0,duration:1150,ease:'Quad.out',onComplete:()=>gf.destroy()});
       }

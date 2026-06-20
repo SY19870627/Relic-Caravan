@@ -46,7 +46,7 @@ Object.assign(Battle.prototype, {
     c.add(panel(this,W/2,H/2,o.w||440,o.h||220,{accent:o.accent||'gold'})); this.overlay=c; return c; }
 ,
   evChest(){ const W=this.scale.width,H=this.scale.height; const di=RUN.destIndex||0, _r=Math.random();
-    const it = _r<0.22 ? (makeIngredientItem(di)||rollItem(2,'武器')) : _r<0.40 ? (makeMaterialItem(di)||rollItem(2,'防具')) : rollItem(2, Math.random()<0.55?'武器':'防具');
+    const it = _r<0.34 ? (makeMaterialItem(di)||rollItem(2,'武器')) : rollItem(2, Math.random()<0.55?'武器':'防具');
     const o=this.mkOverlay({accent:'gold',h:180});
     let msg; if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; } else msg='貨車已滿，放棄 '+it.icon+' '+it.name;
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,it.kind==='遺物'?TH.cyan:TH.text));
@@ -55,15 +55,17 @@ Object.assign(Battle.prototype, {
   evCamp(){ let n=0;
     RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; const b=h.hp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.5)); if(h.hp>b)n++; } });
     this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
-    this._campHealed=n; this._renderCamp(); }
+    this._campHealed=n;
+    const fN=2+(hasCampstove()?1:0); forageIngredient(RUN.destIndex||0, fN); this._campForaged=fN;
+    this._renderCamp(); }
 ,
   _renderCamp(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'ember',w:480,h:300});
     o.add(txt(this,W/2,H/2-116,'🔥 營火休息',20,'#f0975a'));
-    o.add(txt(this,W/2,H/2-86,'存活成員回復 50% HP（'+(this._campHealed||0)+' 人）',13,TH.text));
+    o.add(txt(this,W/2,H/2-86,'回復 50% HP（'+(this._campHealed||0)+' 人）　·　採集到 '+(this._campForaged||0)+' 份食材',12,TH.text));
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
-    const nIng=RUN.cargo.filter(it=>it.kind==='食材').length, canCookHere=(hasLeader()||hasCampstove());
-    o.add(button(this,W/2,H/2-44,330,38, canCookHere?('🍳 料理（食材 '+nIng+'）'):'🍳 料理（需領隊或隨車鍋）',()=>this.evCook(),{variant:canCookHere?'go':'info',size:14}));
+    const nIng=ingTotal();
+    o.add(button(this,W/2,H/2-44,330,38, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:14}));
     o.add(button(this,W/2-86,H/2+4,160,40,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:13}));
     o.add(button(this,W/2+86,H/2+4,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
     o.add(button(this,W/2-86,H/2+56,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
@@ -74,8 +76,9 @@ Object.assign(Battle.prototype, {
   _renderCook(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'ember', w:600, h:430});
     o.add(txt(this,W/2,H/2-184,'🍳 營火料理',20,'#f0975a'));
-    const enabled=(hasLeader()||hasCampstove());
-    o.add(txt(this,W/2,H/2-156, enabled?'消耗隨身食材，立即補血或獲得下一場戰鬥的增益':'需「領隊」或工匠強化「隨車鍋」才能料理',12, enabled?TH.text:TH.red));
+    const enabled=true;
+    o.add(txt(this,W/2,H/2-156,'消耗食材庫存（跨趟持久），立即補血或下一場增益',12,TH.text));
+    o.add(txt(this,W/2,H/2-136,'庫存　'+INGREDIENTS.map(g=>g.icon+g.name+'×'+ingCount(g.id)).join('　'),11,TH.cyan));
     RECIPES.forEach((r,i)=>{ const y=H/2-104+i*62, rx=W/2-250, have=enabled&&canCook(r);
       o.add(this.add.rectangle(W/2,y,540,54,0x241a30,0.9).setStrokeStyle(2, have?0x5ad06a:0x3a3150));
       o.add(txt(this,rx,y-12,r.name,14, enabled?TH.gold:TH.dim,0));

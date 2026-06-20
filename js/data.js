@@ -209,21 +209,21 @@ const WEATHERS = [
   {id:'fog',   name:'霧',  icon:'🌫', eff:{enemyDef:2}, note:'霧：敵方 DEF +2'},
 ];
 const WEATHER_BY_ID={}; WEATHERS.forEach(w=>{ WEATHER_BY_ID[w.id]=w; });
-// ===== 料理：食材→補血／增益（營火休息時；需領隊或工匠強化「隨車鍋」）=====
+// ===== 料理：食材→補血／增益（營火即可料理；食材靠營火採集，領隊／隨車鍋增加採集量）=====
 // v0.8：料理 buff 從純 ATK/DEF 數值，改成「一次性功能」(grant)，保留補血。
 // grant：shield 下場開場護盾(amt)｜revive 下場一次陣亡復活充能｜firstCrit 下場全隊首擊必暴
 const RECIPES = [
   {id:'soup',  name:'野菜湯',     need:{herb:1},          desc:'全隊立即回復 30% HP',                     heal:0.30},
   {id:'bbq',   name:'獸肉燒烤',   need:{meat:1},          desc:'下一場戰鬥全隊開場獲得 20 點護盾',         grant:'shield', amt:20},
   {id:'fish',  name:'深海魚料理', need:{fish:1},          desc:'全隊回復 50% HP，並獲得一次「陣亡復活」充能', heal:0.50, grant:'revive'},
-  {id:'feast', name:'異香料盛宴', need:{spice:1,meat:1},  desc:'全隊回復 40% HP，下一場戰鬥全隊首擊必暴',   heal:0.40, grant:'firstCrit'},
+  {id:'feast', name:'異香料盛宴', need:{spice:2},          desc:'全隊回復 40% HP，下一場戰鬥全隊首擊必暴',   heal:0.40, grant:'firstCrit'},
 ];
 // ===== 工坊強化（工匠解鎖，一次性，全部屬後勤）：craftReq 工匠階級門檻 =====
-// feature：deck2 清掉精英戰後 +3 貨格｜campstove 無領隊也能在營火料理
+// feature：deck2 清掉精英戰後 +3 貨格｜campstove 每次營火多採集 1 份食材
 const UPGRADES = [
   {id:'rack1',    name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},           desc:'貨格 +2'},
   {id:'deck2',    name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},           desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
-  {id:'campstove',name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}}, desc:'無領隊也能在途中烹煮料理'},
+  {id:'campstove',name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}}, desc:'每次營火多採集 1 份食材'},
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
 // 每級：growthHp 加血、growthAtk 加攻擊（升級兼顧生存與輸出）；另由升級 perk（state.js heroPerks）給功能。
