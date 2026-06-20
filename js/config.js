@@ -39,7 +39,7 @@ const CFG = {
 
   // 敵人強度縮放：scale = (1+層數*layerScale)*(1+(階級-1)*tierScale)；王戰用 bossTierScale
   // v0.7 平衡：壓低 layer 斜率（緩和開局深層/精英過硬）、拉高 tier 斜率（讓中後期不再無腦輾壓）
-  enemy: { depthScale:1.2, tierScale:0.40, bossTierScale:0.50 },   // depthScale：探險 0→100% 帶來的額外強度
+  enemy: { depthScale:0.9, tierScale:0.40, bossTierScale:0.50 },   // depthScale：探險 0→100% 額外強度（1.2→0.9 收斂後段）
 
 
   // v0.9 雙軌經濟（數值為架構草案，平衡期再調）

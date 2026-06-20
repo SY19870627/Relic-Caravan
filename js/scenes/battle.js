@@ -33,6 +33,8 @@ class Battle extends Phaser.Scene {
     this.pauseBtn.setDepth(60);
     this.targetBtn = button(this, W-176, 50, 100, 26, this._targetTopLabel(), ()=>this.openTargetOrder(), {size:12,fill:0x335b48,stroke:0x5ad08c,hover:0x46996a});
     this.targetBtn.setDepth(60);
+    this.sipBtn = button(this, 220, 54, 150, 24, '💧 喝水 '+autoSipLabel(), ()=>{ cycleAutoSip(); this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); }, {size:11,fill:0x2f5a6b,stroke:0x5ab0d0,hover:0x40788c});
+    this.sipBtn.setDepth(60);
     if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
     this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
     this.potText = txt(this, 26, 54, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0).setDepth(62);
@@ -81,6 +83,7 @@ class Battle extends Phaser.Scene {
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0); this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
     if(this._envText){ this._envText.destroy(); this._envText=null; }
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
+    autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
     this.enemies=[]; this.all=[...this.heroes];
     this.updatePctBar(); this.updateGold(); this.updatePotions();
@@ -262,9 +265,8 @@ class Battle extends Phaser.Scene {
   }
   // 戰鬥中自動喝水：最低血隊員 < 門檻時自動喝「最弱的補血藥水」（保留強藥），整隊回復；有冷卻避免狂喝
   autoSip(){
-    if(GUILD.settings && GUILD.settings.autoSip===false) return;
+    const frac=autoSipFrac(); if(frac<=0) return;
     const alive=this.aliveOf('hero'); if(!alive.length) return;
-    const frac=(CFG.autoSip&&CFG.autoSip.hpFrac)||0.30;
     const cd=(CFG.autoSip&&CFG.autoSip.cooldownMs)||2500;
     // 每名隊員各自的喝水冷卻：挑「低於門檻、且自己冷卻已過」的最虛弱者，一瓶只補他一人
     let target=null,lowest=9;

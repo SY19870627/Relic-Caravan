@@ -10,17 +10,23 @@ Object.assign(Battle.prototype, {
     if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; }
     const c=this.add.container(0,0).setDepth(130); this.pauseUI=c;
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
-    c.add(panel(this,W/2,H/2,440,340,{accent:'gold'}));
-    c.add(txt(this,W/2,H/2-134,'⏸ 暫停',24,TH.gold));
-    c.add(txt(this,W/2,H/2-104,'遊戲暫停中 · 可調整設定',12,TH.dim));
-    const on=!(GUILD.settings && GUILD.settings.autoSip===false);
-    c.add(this.add.rectangle(W/2,H/2-54,392,60,0x241a30,0.6).setStrokeStyle(2,0x55476b));
-    c.add(txt(this,W/2-176,H/2-64,'⚔ 戰鬥自動喝水',15,TH.text,0));
-    c.add(txt(this,W/2-176,H/2-42,'最低血隊員 <30% 自動喝補血藥水',10,TH.dim,0));
-    c.add(button(this,W/2+140,H/2-54,104,42, on?'開啟 ✓':'關閉', ()=>{ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoSip=!on; saveGuild(); this._renderPause(); }, {variant:on?'go':'info', size:14}));
+    c.add(panel(this,W/2,H/2,440,360,{accent:'gold'}));
+    c.add(txt(this,W/2,H/2-150,'⏸ 暫停',24,TH.gold));
+    c.add(txt(this,W/2,H/2-124,'遊戲暫停中 · 可調整設定',12,TH.dim));
+    const mkSet=(ry,label,desc,btnLabel,variant,handler)=>{
+      c.add(this.add.rectangle(W/2,ry,392,42,0x241a30,0.6).setStrokeStyle(2,0x55476b));
+      c.add(txt(this,W/2-180,ry-10,label,14,TH.text,0)); c.add(txt(this,W/2-180,ry+8,desc,9.5,TH.dim,0));
+      c.add(button(this,W/2+146,ry,92,32,btnLabel,handler,{variant,size:13}));
+    };
+    const sf=autoSipFrac();
+    mkSet(H/2-86,'⚔ 自動喝水','最虛弱隊員低於門檻就自動喝補血藥水',autoSipLabel(), sf>0?'go':'info',
+      ()=>{ cycleAutoSip(); if(this.sipBtn&&this.sipBtn.label) this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); this._renderPause(); });
+    const ae=autoEquipOn();
+    mkSet(H/2-38,'🛡 自動裝備','入手新裝／升級時自動換上最佳裝備', ae?'開啟 ✓':'關閉', ae?'go':'info',
+      ()=>{ toggleAutoEquip(); this._renderPause(); });
     if(!this.overlay){ const nG=(RUN&&RUN.cargo)?RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length:0;
-      c.add(button(this,W/2,H/2+18,240,42,'🎒 整裝（換裝備 '+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:15})); }
-    c.add(button(this,W/2,H/2+96,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
+      c.add(button(this,W/2,H/2+30,240,42,'🎒 整裝（換裝備 '+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:15})); }
+    c.add(button(this,W/2,H/2+104,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
   }
 ,
   // 戰後升級三選一：三張並排直式卡片（逐一處理 RUN.pendingLevelups）

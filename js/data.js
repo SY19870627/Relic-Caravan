@@ -333,7 +333,7 @@ const MONSTER_GROUPS = (function(){
       // 哥布林部族
       G('gob_scouts',0,'goblins','normal',1, [at(grunt(),560,330,'front'), at(arch(),678,232,'mid')]),
       G('gob_pack',0,'goblins','normal',2, [at(sol(),535,250,'front'), at(wolf(),575,422,'front'), at(archS(),702,182,'mid'), at(scout(),690,360,'mid')]),
-      G('gob_warhost',0,'goblins','elite',3, [at(bers(),548,332,'front'), at(wolf(),596,200,'front'), at(wolf(),566,472,'front'), at(sol(),686,152,'mid'), at(archS(),716,300,'mid'), at(archS(),680,456,'mid'), at(sham(),815,360,'back')]),
+      G('gob_warhost',0,'goblins','elite',3, [at(bers(),548,332,'front'), at(wolf(),596,200,'front'), at(wolf(),566,472,'front'), at(sol(),686,152,'mid'), at(archS(),716,300,'mid')]),
       G('gob_boss_chief',0,'goblins','boss',2,
         [at(sol(),555,262,'front'), at(wolf(),592,420,'front'), at(archS(),712,330,'mid')],
         [at(E('gobChief','哥布林酋長',340,[26,18,34],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(sham(),550,236,'mid'), at(arch(),562,430,'mid')]),
@@ -341,7 +341,7 @@ const MONSTER_GROUPS = (function(){
       G('con_patrol',0,'construct','normal',1, [at(shound(),560,330,'front'), at(rune(),678,232,'mid')]),
       G('con_pack',0,'construct','normal',2, [at(shound(),545,258,'front'), at(shound(),580,422,'front'), at(rune(),700,320,'mid')]),
       G('con_guard',0,'construct','elite',2, [at(stone(),548,332,'front'), at(shound(),582,205,'front'), at(rune(),702,250,'mid'), at(rune(),712,452,'mid')]),
-      G('con_phalanx',0,'construct','elite',3, [at(stone(),548,332,'front'), at(shound(),596,200,'front'), at(shound(),566,472,'front'), at(rune(),700,250,'mid'), at(rune(),700,420,'mid'), at(stone(),815,330,'back')]),
+      G('con_phalanx',0,'construct','elite',3, [at(stone(),548,332,'front'), at(shound(),596,200,'front'), at(shound(),566,472,'front'), at(rune(),700,250,'mid'), at(rune(),700,420,'mid')]),
       G('con_boss_guardian',0,'construct','boss',2,
         [at(shound(),555,262,'front'), at(shound(),592,420,'front'), at(rune(),712,330,'mid')],
         [at(E('guardian','遺跡守護者',360,[30,18,42],6,1350,0,{boss:true,skills:[quake]}),700,330,'front'), at(rune(),548,330,'mid')]),
@@ -364,14 +364,14 @@ const MONSTER_GROUPS = (function(){
       // 枯骨軍團
       G('bone_patrol',1,'bone','normal',1, [at(bone(),560,330,'front'), at(barch(),678,232,'mid')]),
       G('bone_band',1,'bone','normal',2, [at(bone(),535,250,'front'), at(knight(),575,422,'front'), at(barch(),702,182,'mid'), at(bhound(),690,360,'mid')]),
-      G('bone_legion',1,'bone','elite',3, [at(bguard(),542,322,'front'), at(knight(),584,182,'front'), at(bhound(),562,472,'front'), at(bwar(),678,152,'mid'), at(barchS(),708,300,'mid'), at(barchS(),672,452,'mid'), at(bhound(),812,242,'back'), at(bwar(),822,412,'back')]),
+      G('bone_legion',1,'bone','elite',3, [at(bguard(),542,322,'front'), at(knight(),584,182,'front'), at(bhound(),562,472,'front'), at(bwar(),678,152,'mid'), at(barchS(),708,300,'mid')]),
       G('bone_boss_king',1,'bone','boss',2,
         [at(bwar(),555,262,'front'), at(knight(),592,420,'front'), at(barchS(),712,330,'mid')],
         [at(E('boneBrute','枯骨之王',380,[32,20,44],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(barchS(),550,330,'mid')]),
       // 亡靈
       G('spirit_haunt',1,'spirit','normal',1, [at(wraith(),560,330,'front'), at(banshee(),678,232,'mid')]),
       G('spirit_coven',1,'spirit','normal',2, [at(wraith(),535,250,'front'), at(wraith(),575,422,'front'), at(banshee(),702,210,'mid'), at(necro(),700,400,'mid')]),
-      G('spirit_dirge',1,'spirit','elite',3, [at(wraith(),520,272,'front'), at(wraith(),560,452,'front'), at(wraith(),592,170,'front'), at(banshee(),690,300,'mid'), at(banshee(),700,160,'mid'), at(necro(),666,460,'mid'), at(banshee(),815,330,'back')]),
+      G('spirit_dirge',1,'spirit','elite',3, [at(wraith(),520,272,'front'), at(wraith(),560,452,'front'), at(wraith(),592,170,'front'), at(banshee(),690,300,'mid'), at(necro(),666,460,'mid')]),
       G('spirit_boss_lich',1,'spirit','boss',2,
         [at(wraith(),555,262,'front'), at(wraith(),592,420,'front'), at(banshee(),712,330,'mid')],
         [at(E('lich','巫妖',360,[24,20,28],4,1300,1,{boss:true,healer:true,heal:14,skills:[combo,power]}),700,330,'front'), at(necro(),550,236,'mid'), at(banshee(),562,430,'mid')])
@@ -391,7 +391,7 @@ const MONSTER_GROUPS = (function(){
       // 溺亡者
       G('drowned_patrol',2,'drowned','normal',1, [at(drn(),560,330,'front'), at(darch(),678,232,'mid')]),
       G('drowned_band',2,'drowned','normal',2, [at(dguard(),535,250,'front'), at(dbrute(),575,432,'front'), at(darch(),702,186,'mid'), at(dsol(),696,360,'mid')]),
-      G('drowned_legion',2,'drowned','elite',3, [at(dbrute(),542,322,'front'), at(dguard(),584,184,'front'), at(dguard(),562,472,'front'), at(dsol(),678,154,'mid'), at(darchS(),708,300,'mid'), at(darchS(),672,452,'mid'), at(tpr(),822,360,'back')]),
+      G('drowned_legion',2,'drowned','elite',3, [at(dbrute(),542,322,'front'), at(dguard(),584,184,'front'), at(dguard(),562,472,'front'), at(dsol(),678,154,'mid'), at(darchS(),708,300,'mid')]),
       G('drowned_boss_king',2,'drowned','boss',2,
         [at(dguard(),555,262,'front'), at(dbrute(),592,420,'front'), at(darchS(),712,330,'mid')],
         [at(E('drownedKing','溺亡君王',460,[28,20,36],8,1380,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(tpr(),550,236,'mid'), at(darchS(),562,430,'mid')]),
@@ -399,7 +399,7 @@ const MONSTER_GROUPS = (function(){
       G('sea_reef',2,'seabeast','normal',1, [at(serpent(),560,330,'front'), at(angler(),678,232,'mid')]),
       G('sea_pod',2,'seabeast','normal',2, [at(serpent(),545,258,'front'), at(serpent(),580,422,'front'), at(angler(),700,320,'mid')]),
       G('sea_shoal',2,'seabeast','elite',2, [at(coral(),548,332,'front'), at(serpent(),582,205,'front'), at(angler(),702,250,'mid'), at(angler(),712,452,'mid')]),
-      G('sea_deepswarm',2,'seabeast','elite',3, [at(reef(),542,322,'front'), at(serpent(),586,184,'front'), at(serpent(),562,472,'front'), at(coral(),678,160,'mid'), at(angler(),708,310,'mid'), at(angler(),672,460,'mid'), at(angler(),815,330,'back')]),
+      G('sea_deepswarm',2,'seabeast','elite',3, [at(reef(),542,322,'front'), at(serpent(),586,184,'front'), at(serpent(),562,472,'front'), at(coral(),678,160,'mid'), at(angler(),708,310,'mid')]),
       G('sea_boss_leviathan',2,'seabeast','boss',2,
         [at(serpent(),555,262,'front'), at(reef(),592,420,'front'), at(angler(),712,330,'mid')],
         [at(E('coralGolem','深海巨像',440,[30,20,42],8,1400,0,{boss:true,skills:[quake]}),700,330,'front'), at(angler(),550,330,'mid')])
@@ -419,14 +419,14 @@ const MONSTER_GROUPS = (function(){
       // 虛空教團
       G('void_pair',3,'voidcult','normal',1, [at(vl(),560,330,'front'), at(vcast(),678,232,'mid')]),
       G('void_band',3,'voidcult','normal',2, [at(vfren(),535,250,'front'), at(vhunt(),575,422,'front'), at(vcast(),702,186,'mid'), at(apostle(),700,380,'mid')]),
-      G('void_swarm',3,'voidcult','elite',3, [at(vfren(),506,234,'front'), at(vhunt(),546,372,'front'), at(vl(),586,492,'front'), at(vcol(),650,166,'mid'), at(vfren(),694,302,'mid'), at(vcast(),660,452,'mid'), at(vcastS(),800,216,'back'), at(apostle(),828,356,'back'), at(vl(),794,486,'back')]),
+      G('void_swarm',3,'voidcult','elite',3, [at(vfren(),506,234,'front'), at(vhunt(),546,372,'front'), at(vl(),586,492,'front'), at(vcol(),650,166,'mid'), at(vfren(),694,302,'mid'), at(vcast(),660,452,'mid')]),
       G('void_boss_titan',3,'voidcult','boss',2,
         [at(vfren(),555,262,'front'), at(vhunt(),592,420,'front'), at(vcastS(),712,330,'mid')],
         [at(E('voidColossus','虛空泰坦',500,[34,22,46],6,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(apostle(),550,236,'mid'), at(vcastS(),562,430,'mid')]),
       // 裂隙異獸
       G('aberr_pair',3,'aberration','normal',1, [at(gnaw(),560,330,'front'), at(eye(),678,232,'mid')]),
       G('aberr_brood',3,'aberration','normal',2, [at(gnaw(),535,250,'front'), at(gnaw(),575,422,'front'), at(eye(),702,210,'mid'), at(eye(),700,400,'mid')]),
-      G('aberr_horror',3,'aberration','elite',3, [at(wyrm(),520,300,'front'), at(gnaw(),566,170,'front'), at(gnaw(),562,470,'front'), at(eye(),690,250,'mid'), at(eye(),700,430,'mid'), at(wyrm(),812,330,'back')]),
+      G('aberr_horror',3,'aberration','elite',3, [at(wyrm(),520,300,'front'), at(gnaw(),566,170,'front'), at(gnaw(),562,470,'front'), at(eye(),690,250,'mid'), at(wyrm(),812,330,'back')]),
       G('aberr_boss_nullstar',3,'aberration','boss',2,
         [at(gnaw(),555,262,'front'), at(wyrm(),592,420,'front'), at(eye(),712,330,'mid')],
         [at(E('nullStar','虛無之星',520,[30,36,24],6,1300,1,{boss:true,skills:[combo,power,quake]}),700,330,'front'), at(eye(),550,236,'mid'), at(eye(),562,430,'mid')])

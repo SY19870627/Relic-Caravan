@@ -19,8 +19,10 @@ function rollItem(risk, kind){
   }
   const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random(); return r<0.5?'貴重物品':(r<0.72?'防具':(r<0.88?'武器':'道具')); })();
   if(pick==='貴重物品') return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier};
-  if(pick==='防具'){ const a=Phaser.Utils.Array.GetRandom(ARMORS); return {kind:'防具', name:a.name, icon:'🛡', value:L.gearBase+tier*L.gearPerTier, gear:a}; }
-  if(pick==='武器'){ const w=Phaser.Utils.Array.GetRandom(WEAPONS); return {kind:'武器', name:w.name, icon:'⚔', value:L.gearBase+tier*L.gearPerTier, gear:w}; }
+  if(pick==='防具'){ const a=rollGear('防具'); if(a) return {kind:'防具', name:a.name, icon:'🛡', value:L.gearBase+tier*L.gearPerTier, gear:a};
+    return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier}; }
+  if(pick==='武器'){ const w=rollGear('武器'); if(w) return {kind:'武器', name:w.name, icon:'⚔', value:L.gearBase+tier*L.gearPerTier, gear:w};
+    return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier}; }
   return {kind:'道具', name:LOOT.consum[tier-1]||'藥水', icon:'🧪', value:L.consumBase+tier*L.consumPerTier};
 }
 function equipSwap(item, heroIndex){
@@ -63,7 +65,7 @@ function buildEncounter(n){
   return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,scale))) : [];
 }
 function buildBoss(){
-  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+(t-1)*CFG.enemy.bossTierScale)*(0.55+0.12*p);   // 王戰也隨人數縮放
+  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.bossTierScale)*(0.62+0.13*p);   // 王＝末段：補上深度縮放，成為真正的最強戰
   const g=pickGroup('boss');
   return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,s))) : [];   // 該組自含波次（小兵波→王波）
 }
