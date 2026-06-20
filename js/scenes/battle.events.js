@@ -46,10 +46,12 @@ Object.assign(Battle.prototype, {
     c.add(panel(this,W/2,H/2,o.w||440,o.h||220,{accent:o.accent||'gold'})); this.overlay=c; return c; }
 ,
   evChest(){ const W=this.scale.width,H=this.scale.height; const di=RUN.destIndex||0, _r=Math.random();
-    const it = _r<0.34 ? (makeMaterialItem(di)||rollItem(2,'武器')) : rollItem(2, Math.random()<0.55?'武器':'防具');
-    const o=this.mkOverlay({accent:'gold',h:180});
-    let msg; if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; } else msg='貨車已滿，放棄 '+it.icon+' '+it.name;
-    o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,it.kind==='遺物'?TH.cyan:TH.text));
+    const o=this.mkOverlay({accent:'gold',h:180}); let msg;
+    if(_r<0.34){ const m=gainMaterial(di); msg = m? ('獲得 '+m.icon+' '+m.name+' ×1（已入庫，供工坊強化）') : '寶箱空空如也'; }
+    else { const it=rollItem(2, Math.random()<0.55?'武器':'防具');
+      if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
+      else msg='貨車已滿，放棄 '+it.icon+' '+it.name; }
+    o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,TH.text));
     this.time.delayedCall(1250,()=>this.advanceStep()); }
 ,
   evCamp(){ let n=0;

@@ -14,8 +14,8 @@ function rollItem(risk, kind){
   const L=CFG.loot;
   const wantRelic = kind==='遺物' || (!kind && Math.random()<L.relicChanceBase+risk*L.relicChancePerRisk+(relicEffects().drop||0));
   if(wantRelic){ const it=rollRelicForDest(RUN.destIndex||0); if(it) return it; }   // 已收齊則改掉其他戰利品
-  if(!kind || kind==='道具' || kind==='貴重物品'){ const rr=Math.random();   // 素材／食材也可從一般戰/菁英掉，供強化與料理
-    if(rr<0.14){ const m=makeMaterialItem(RUN.destIndex||0); if(m) return m; }
+  if(!kind || kind==='道具' || kind==='貴重物品'){
+    if(Math.random()<0.14) gainMaterial(RUN.destIndex||0);   // 素材立即入庫（不佔貨格、全滅也不失），再正常給一件戰利品
   }
   const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random(); return r<0.5?'貴重物品':(r<0.72?'防具':(r<0.88?'武器':'道具')); })();
   if(pick==='貴重物品') return {kind:'貴重物品', name:LOOT.valuable[tier-1]||'寶物', icon:'💎', value:L.valuableBase+tier*L.valuablePerTier};

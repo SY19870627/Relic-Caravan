@@ -84,6 +84,8 @@ loadGuild(); ensureRoster();
 // ---- 素材 / 食材 資源存取（名稱→數量）----
 function addMaterial(name,n){ GUILD.materials[name]=(GUILD.materials[name]||0)+(n||1); }
 function matCount(name){ return GUILD.materials[name]||0; }
+// 素材掉落→立即入庫（持久、不佔貨格、全滅也不失），對應目的地素材
+function gainMaterial(di){ const m=MATERIAL_BY_DEST[di]; if(m){ addMaterial(m.id); saveGuild(); } return m; }
 // 食材：持久公會庫存（像素材），不佔貨格
 function addIngredient(id,n){ GUILD.ingredients[id]=(GUILD.ingredients[id]||0)+(n||1); }
 function ingCount(id){ return GUILD.ingredients[id]||0; }
