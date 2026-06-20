@@ -82,4 +82,43 @@ Object.assign(Battle.prototype, {
   }
 ,
   _nextLevelup(){ RUN.pendingLevelups.shift(); this.showLevelups(); }
+,
+  // 🎯 鎖定優先順序：開啟可重排的覆蓋層（戰鬥暫停）
+  openTargetOrder(){ if(this.over||this._targetUI||this._menuPaused||this.infoUI) return;
+    this.paused=true; this.tweens.pauseAll(); this.time.paused=true;
+    if(this.banner) this.banner.setText('').setAlpha(0);
+    this._renderTargetOrder(); }
+,
+  _renderTargetOrder(){ const W=this.scale.width,H=this.scale.height;
+    if(this._targetUI){ this._targetUI.destroy(); this._targetUI=null; }
+    const DEF=['lowHp','healer','back','front','lowDef','status'];
+    if(typeof TARGET_ORDER==='undefined'||!TARGET_ORDER||!TARGET_ORDER.length) TARGET_ORDER=DEF.slice();
+    const NAME={ lowHp:['🩸 低血優先','目前血量最低的敵人優先'],
+      lowDef:['🗡 低防優先','防禦最低者（對其輸出最高）'],
+      status:['💫 狀態優先','優先攻擊被暈眩等狀態的敵人'],
+      healer:['✚ 治療者優先','先解決敵方補師'],
+      back:['🏹 後排優先','先拆後排弓手／法師／術士'],
+      front:['🛡 前排優先','先打最前線的敵人'] };
+    const n=TARGET_ORDER.length, rowH=46, panelH=Math.max(300,150+n*rowH);
+    const c=this.add.container(0,0).setDepth(130); this._targetUI=c;
+    c.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
+    c.add(panel(this,W/2,H/2,480,panelH,{accent:'gold'}));
+    const tT=H/2-panelH/2+26;
+    c.add(txt(this,W/2,tT,'🎯 鎖定優先順序',22,TH.gold));
+    c.add(txt(this,W/2,tT+25,'由上到下：英雄會優先攻擊排在前面的目標',11,TH.dim));
+    const top=tT+58, x0=W/2-218;
+    TARGET_ORDER.forEach((k,i)=>{ const y=top+i*rowH; const info=NAME[k]||[k,''];
+      c.add(this.add.rectangle(W/2,y,438,rowH-6,0x241a30,0.6).setStrokeStyle(2,0x55476b));
+      c.add(txt(this,x0+10,y-9,(i+1)+'.  '+info[0],14,TH.text,0));
+      c.add(txt(this,x0+10,y+11,info[1],10,TH.dim,0));
+      if(i>0) c.add(button(this,W/2+158,y,34,34,'▲',()=>{ const t=TARGET_ORDER[i-1]; TARGET_ORDER[i-1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
+      if(i<n-1) c.add(button(this,W/2+196,y,34,34,'▼',()=>{ const t=TARGET_ORDER[i+1]; TARGET_ORDER[i+1]=TARGET_ORDER[i]; TARGET_ORDER[i]=t; this._renderTargetOrder(); },{size:15,variant:'info'}));
+    });
+    c.add(button(this,W/2,H/2+panelH/2-28,150,38,'完成',()=>this.closeTargetOrder(),{variant:'go',size:15})); }
+,
+  closeTargetOrder(){ if(this._targetUI){ this._targetUI.destroy(); this._targetUI=null; }
+    this.paused=false; this.tweens.resumeAll(); this.time.paused=false;
+    if(this.targetBtn&&this.targetBtn.label) this.targetBtn.label.setText(this._targetTopLabel()); }
+,
+  _targetTopLabel(){ const S={lowHp:'低血',lowDef:'低防',status:'狀態',healer:'治療',back:'後排',front:'前排'}; const k=(typeof TARGET_ORDER!=='undefined'&&TARGET_ORDER&&TARGET_ORDER[0])||'lowHp'; return '🎯 '+(S[k]||'鎖定'); }
 });

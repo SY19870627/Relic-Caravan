@@ -31,6 +31,8 @@ class Battle extends Phaser.Scene {
     this.speedBtn.setDepth(60);
     this.pauseBtn = button(this, W-176, 20, 92, 28, '⏸ 暫停', ()=>this.togglePause(), {size:12,fill:0x4a3f63,stroke:0x7a6f93,hover:0x5d5080});
     this.pauseBtn.setDepth(60);
+    this.targetBtn = button(this, W-176, 50, 100, 26, this._targetTopLabel(), ()=>this.openTargetOrder(), {size:12,fill:0x335b48,stroke:0x5ad08c,hover:0x46996a});
+    this.targetBtn.setDepth(60);
     if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
     this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
     this.potText = txt(this, 26, 54, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0).setDepth(62);
@@ -245,7 +247,9 @@ class Battle extends Phaser.Scene {
     ui.add(txt(this,px+20,py+2,`出手速度 ${(c.interval/1000).toFixed(1)} 秒/次（傷害依序循環）`,12,TH.dim,0));
     const skTxt=(c.skills&&c.skills.length)? c.skills.map(s=> s.cd!==undefined?`${s.name}(CD${s.cd/1000}s×${s.uses})`:`${s.name}(被動)`).join('、') : '無';
     ui.add(txt(this,px+20,py+24,`技能：${skTxt}`,11,'#ffd24a',0));
-    ui.add(txt(this,px,py+54,BIO[c.sprite]||'',12,TH.cyan,0.5));
+    if(c.side==='hero' && c.ref){ const lv=(ROSTER[c.ref.idx]&&ROSTER[c.ref.idx].level)||1; const pk=[]; Object.keys(PERKS).forEach(k=>{ if(lv>=+k) pk.push((PERKS[k].label||'').split('：')[0]); });
+      ui.add(txt(this,px+20,py+42,'能力：'+(pk.length?pk.join('・'):'尚無（Lv3 疾行・Lv5 護身・Lv7 熟練）'),11,'#9fe0ff',0)); }
+    ui.add(txt(this,px,py+66,BIO[c.sprite]||'',12,TH.cyan,0.5));
     ui.add(button(this,px,py+98,120,32,'關閉',()=>{ ui.destroy(); this.infoUI=null; this.paused=false; },{size:14,fill:0x4a3f63,stroke:0x7a6f93}));
   }
   update(time){
@@ -279,6 +283,22 @@ class Battle extends Phaser.Scene {
     target._sipUntil=this.time.now+cd;
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
+  // 我方鎖定：依玩家排定的 TARGET_ORDER 做字典序挑目標（由上到下逐條比較，先決定者勝）
+  pickTarget(c,foes){ if(!foes||!foes.length) return null;
+    const order=(typeof TARGET_ORDER!=='undefined'&&TARGET_ORDER&&TARGET_ORDER.length)?TARGET_ORDER:['lowHp','healer','back','front','lowDef','status'];
+    const rank={front:0,mid:1,back:2};
+    const key=(f,crit)=>{ switch(crit){
+      case 'lowHp':  return f.hp;                          // 目前血量最低（低血優先）
+      case 'lowDef':    return f.def||0;                   // 防禦最低（對其輸出最高）
+      case 'status':    return f.stunned?0:1;              // 有狀態(暈眩)者優先
+      case 'healer': return f.healer?0:1;          // 敵方治療者優先
+      case 'back':   return 2-(rank[f.row]||1);    // 後排優先（back→0 最佳）
+      case 'front':  return (rank[f.row]||1);      // 前排優先（front→0 最佳）
+      default: return 0; } };
+    let best=foes[0];
+    for(let i=1;i<foes.length;i++){ const f=foes[i];
+      for(const crit of order){ const a=key(f,crit), b=key(best,crit); if(a<b){ best=f; break; } if(a>b) break; } }
+    return best; }
   pickByRow(foes){ const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
     for(let i=0;i<foes.length;i++){ r-=w[i]; if(r<=0) return foes[i]; } return foes[foes.length-1]; }
   getSkill(c,type){ return (c.skills||[]).find(s=>s.type===type); }
@@ -302,13 +322,13 @@ class Battle extends Phaser.Scene {
       foes.forEach(f=>{ if(f.alive) this.damage(c,f,{aoeHit:true}); }); return; }
     if(c.aoe){ this.aoeCast(c); }
     else {
-      const target = c.side==='enemy' ? this.pickByRow(foes) : Phaser.Utils.Array.GetRandom(foes);
+      const target = c.side==='enemy' ? this.pickByRow(foes) : this.pickTarget(c,foes);
       if(c.ranged) this.ranged(c,target,c.healer); else this.melee(c,target);
     }
     // 連射／連環施法：追加一擊（CD＋次數）
     if(this.trySkill(c,'doubleHit')){
       this.time.delayedCall(300,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
-        if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=Phaser.Utils.Array.GetRandom(fs); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
+        if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
   }
   // 全滅 → 結算（撤退/全滅都走 Result）
   finish(win){
@@ -316,6 +336,12 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
     this.time.delayedCall(700,()=>{ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); });
   }
+  // 升級獲得 perk（疾行/護身/熟練）浮字提示：把原本被丟棄的 gainXP 回傳接回來顯示
+  _showPerkGains(msgs){ if(!msgs||!msgs.length) return; const W=this.scale.width;
+    msgs.forEach((m,i)=>{ const y=100+i*30;
+      const t=txt(this,W/2,y+14,m,16,'#ffe08a').setDepth(141).setStroke('#000',5).setAlpha(0);
+      this.tweens.add({targets:t,alpha:1,y:y,duration:260,ease:'Back.out'});
+      this.tweens.add({targets:t,alpha:0,y:y-24,delay:2000+i*250,duration:650,onComplete:()=>t.destroy()}); }); }
   // 本場清空：結算經驗/掉落，推進探險%，王→通關，否則行軍到下一場
   clearStep(){
     if(this.over) return; this.over=true;
@@ -323,7 +349,8 @@ class Battle extends Phaser.Scene {
     const wasBoss=RUN.isBoss, node=RUN.node;
     this.time.delayedCall(700,()=>{
       const xp = wasBoss?CFG.battleXp.boss:(CFG.battleXp.base+(node?node.risk:1)*CFG.battleXp.perRisk);
-      gainXP(xp); saveGuild();
+      const _ups=gainXP(xp); saveGuild();
+      this._showPerkGains((_ups||[]).filter(u=>typeof u==='string' && u.indexOf('✨')>=0));
       const re=relicEffects();
       const rec=horseFeature()==='recovery'?0.12:0;
       RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;

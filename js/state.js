@@ -48,6 +48,7 @@ function ensureRoster(){ while(ROSTER.length<CLASS_ORDER.length) ROSTER.push(new
 function activeRoster(){ const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) out.push(i); }); const list=out.length?out:[0]; return list.slice(0, Math.max(1, GUILD.partySize||1)); }
 
 let BATTLE_SPEED = 1;   // 戰鬥速度倍率（1/2/4），跨場記住
+let TARGET_ORDER = ['lowHp','healer','back','front','lowDef','status'];   // 我方鎖定優先序（由上到下），跨場記住
 
 // ---- 存檔持久化（localStorage）。SAVE_KEY 升 v2：舊檔不遷移、直接以新結構重置 ----
 const SAVE_KEY = 'relicCaravanSave_v4';   // v0.9 roguelike：只持久化公會資產；隊伍免洗、跑地城不存檔
