@@ -93,7 +93,7 @@ class Battle extends Phaser.Scene {
       const useBonus=(pk.useBonus||0);
       const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
-      c.shield=startShield; return c;
+      c.maxShield=startShield; c.shield=startShield; this.bar(c); return c;   // 每場開場：護盾補滿（與 HP 分開）
     });
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
   }
@@ -103,7 +103,8 @@ class Battle extends Phaser.Scene {
       c.interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1))); c.useBonus=(pk.useBonus||0);
       c.skills=s.skills; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.aoe=h.aoe; c.ranged=h.ranged; c.healer=h.healer;
       c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
-      c.shield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
+      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(horseFeature()==='vanguard'?20:0);
+      c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c._proc=null;
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
@@ -175,9 +176,10 @@ class Battle extends Phaser.Scene {
     const nameText=txt(this,0,-54,d.name,12,'#fff').setStroke('#000',3);
     const barBg=this.add.rectangle(0,-42,52,7,0x000000,0.75).setStrokeStyle(1,0x000000);
     const barFill=this.add.rectangle(-25,-42,50,5,side==='hero'?0x5ad06a:0xd05a5a).setOrigin(0,0.5);
-    cont.add([shadow,spr,nameText,barBg,barFill]);
+    const shieldFill=this.add.rectangle(-25,-42,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false);   // 護盾段（青色）：與 HP 同一條，緊接在 HP 之後
+    cont.add([shadow,spr,nameText,barBg,barFill,shieldFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
-    const obj={...d,side,container:cont,spr,barFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0};
+    const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0,maxShield:0};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
     if(side==='hero') this.buildSkillPips(obj);
@@ -238,7 +240,7 @@ class Battle extends Phaser.Scene {
     const type=c.boss?'首領':(c.healer?'治療':(c.ranged?'遠程':'近戰'));
     ui.add(txt(this,px+20,py-96,c.name,18, c.side==='hero'?TH.gold:'#ff8a8a',0));
     ui.add(txt(this,px+20,py-64,`陣營：${c.side==='hero'?'我方':'敵方'}　類型：${type}`,12,TH.text,0));
-    ui.add(txt(this,px+20,py-40,`HP ${Math.max(0,Math.round(c.hp))} / ${c.maxHp}`,15,'#9fd0a0',0));
+    ui.add(txt(this,px+20,py-40,`HP ${Math.max(0,Math.round(c.hp))} / ${c.maxHp}`+((c.maxShield>0||c.shield>0)?`　🛡 ${Math.round(c.shield||0)} / ${Math.round(c.maxShield||0)}`:''),15,'#9fd0a0',0));
     ui.add(txt(this,px+20,py-16,`ATK ${(c.atkSeq||[]).join(' / ')}　DEF ${c.def}`,14,TH.text,0));
     ui.add(txt(this,px+20,py+2,`出手速度 ${(c.interval/1000).toFixed(1)} 秒/次（傷害依序循環）`,12,TH.dim,0));
     const skTxt=(c.skills&&c.skills.length)? c.skills.map(s=> s.cd!==undefined?`${s.name}(CD${s.cd/1000}s×${s.uses})`:`${s.name}(被動)`).join('、') : '無';
@@ -366,6 +368,7 @@ class Battle extends Phaser.Scene {
       pixelNum(this,a.container.x,a.container.y-34,'+'+amt,0x7dff9a);
       if(this._healToShield && over>0){ a.shield=(a.shield||0)+over; pixelNum(this,a.container.x,a.container.y-52,'🛡+'+over,0x9fd0ff); }   // 遺物・遺忘之鈴
       if(shieldOnHeal){ a.shield=(a.shield||0)+(shieldOnHeal.amt||12); this.skillProc(c,shieldOnHeal.name,{throttle:1500}); }
+      if((this._healToShield&&over>0)||shieldOnHeal) this.bar(a);   // 護盾增減即時反映到血條
       if(cleanse && a.stunned){ a.stunUntil=0; a.stunned=false; if(a.stunStar){a.stunStar.destroy(); a.stunStar=null;} if(a.alive) a.spr.clearTint(); if(sCleanse)this.skillProc(c,sCleanse.name,{throttle:1200}); }
       if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
       const ring=this.add.circle(a.container.x,a.container.y,10,0x7dff9a,0.5).setDepth(40);
@@ -451,7 +454,16 @@ class Battle extends Phaser.Scene {
       if(c.sprite==='ranger' && this._bondKillCdCut && c.alive) this.cutPriestCd();    // 羈絆・神諭指引
     }
   }
-  bar(c){ c.barFill.width=50*(c.hp/c.maxHp); c.barFill.fillColor = (c.hp/c.maxHp)<0.3 ? 0xff5050 : (c.side==='hero'?0x5ad06a:0xd05a5a); }
+  bar(c){
+    const W=50, hp=Math.max(0,c.hp), sh=Math.max(0,c.shield||0);
+    const effMaxSh=Math.max(c.maxShield||0, sh);            // 容許臨時溢盾，刻度仍不爆框
+    const denom=(c.maxHp||0)+effMaxSh;                      // 同一條：HP + 護盾 共用刻度
+    const hpW=denom>0 ? W*(hp/denom) : 0;
+    const shW=denom>0 ? W*(sh/denom) : 0;
+    c.barFill.width=hpW;
+    c.barFill.fillColor=(c.maxHp>0 && hp/c.maxHp<0.3) ? 0xff5050 : (c.side==='hero'?0x5ad06a:0xd05a5a);   // HP 低於 30% 轉紅
+    if(c.shieldFill){ c.shieldFill.width=shW; c.shieldFill.x=-25+hpW; c.shieldFill.setVisible(sh>0); }     // 護盾段緊接 HP 右側，青色
+  }
   shake(dur,intensity){ this.cameras.main.shake(dur, intensity); }
   screenFlash(color,alpha,dur){ if(!this.fxFlash) return; this.fxFlash.setFillStyle(color,1).setAlpha(alpha);
     this.tweens.add({targets:this.fxFlash,alpha:0,duration:dur||180,ease:'Quad.out'}); }
