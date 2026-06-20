@@ -8,6 +8,11 @@ const PAL = {
   A:'#ff5a4a', t:'#8a8f9c', T:'#5b606e',
   u:'#8a6fd0', U:'#4f3a8f',
   F:'#ff9a3a', Y:'#ffe27a', P:'#caa6ff',
+  // v1.1 地區主題色：沉沒神城（teal）／虛空裂隙（magenta-void）／骨／珊瑚
+  v:'#2f9aa6', V:'#1c5f6b',   // 深海皮膚（亮/暗 teal）
+  x:'#c46bff', z:'#2a1640',   // 虛空亮紫 / 虛空暗紫黑
+  j:'#aab2c4',                // 骨頭陰影灰
+  f:'#ff8f6a',                // 珊瑚橘
 };
 const SPRITES = {
   warrior:["...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...","..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..","WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
@@ -22,6 +27,22 @@ const SPRITES = {
   campfire:["............","......Y.....",".....YFY....",".....FAF....","....YFAFY...","....FFAFF...","...YFFAFFY..","...FFFFFFF..","....FFFFF...","..K......K..",".bBBBBBBBBb.","..bBBBBBBb..","...KK..KK...","............"],
   merchant:["...KKKK.....","..KuuuuK....",".KuUUUUuK...",".KuSSSSuK...",".KuSKKSuK...",".KuSSSSuK...","..KuSSuK....",".KUUUUUUK.G.","KUUUUUUUUKGY","KUUbbbUUUKG.","KUUUUUUUUK..",".KUUUUUUK...",".KUU..UUK...",".KK....KK...","............"],
   mystery:["......M.....","....M.q.....",".....KqK....","....KquqK...","...KquUqK...","...quUPUq...","...KqUPqK...","....KquK....",".....KqK....",".....KuK....","...tTTTTt...","..tTTTTTTt..","...tTTTTt...","............"],
+  // ===== v1.1 地區主題敵人 =====
+  // 枯骨峽谷（dest 1）：不死骸骨，脆皮高攻
+  skeleton:["............","...MMMMM....","..MMMMMMMM..","..MjMMMMjM..","..MKMMMKMM..","..MMMMMMMM..","...MjjjM....","..MMMMMM.W..",".KMMMMMMKW..",".KMjMMjMK...",".KiiiiiiK...",".KiiKiiK....",".KjjKjjK....",".KKK.KKK....","............","............"],
+  skeletonArcher:["............","...MMMMM....","..MMMMMMMM..","..MjMMMMjM..","..MKMMMKMM..","..MMMMMMMM..","...MjjjM....","..MMMMMMo...",".KMMMMMMKoi.",".KMjMMjMKoi.",".KiiiiiiK.o.",".KiiKiiK....",".KjjKjjK....",".KKK.KKK....","............","............"],
+  boneBrute:["............",".jjjjjjjjjj.",".jMMMMMMMMj.",".jMAMMMMAMj.",".jMMMMMMMMj.",".jMjjjjjjMj.",".jMMMMMMMMj.",".jMMMMMMMMj.","jjMMMMMMMMjj","jjMMMMMMMMjj",".jMMMMMMMMj.",".jMMMMMMMMj.",".jMMMMMMMMj.",".jjj..jjj...",".KKK..KKK...","............"],
+  necromancer:["...nnnnn....","..nnnnnnn...","..nMMMMMn...","..nMKMKMn...","..nMMMMMn...","..nMKKKMn...","...nMMMn.u..","..nnnnnnu...",".KnnnnnnKu..",".KnUUUUnK...",".KnUUUUnK...",".KnUUUUnK...",".KnnUnnK....",".KnnKnnK....",".KK..KK.....","............"],
+  // 沉沒神城（dest 2）：溺亡與海怪，厚血強補
+  drowned:["............","...vvvvv....","..vvvvvvvv..","..vVvvvvVv..","..vqvvvqvv..","..vvvvvvvv..","...vVVVv....","..vvvvvv.q..",".KvvvvvvKq..",".KvVvvVvK...",".KVVVVVVK...",".KVVKVVK....",".KqqKqqK....",".KKK.KKK....","............","............"],
+  drownedArcher:["............","...vvvvv....","..vvvvvvvv..","..vVvvvvVv..","..vqvvvqvv..","..vvvvvvvv..","...vVVVv....","..vvvvvvo...",".KvvvvvvKoi.",".KvVvvVvKoi.",".KVVVVVVK.o.",".KVVKVVK....",".KqqKqqK....",".KKK.KKK....","............","............"],
+  coralGolem:["............",".TTTTTTTTTT.",".TttttttttT.",".TtqttttqtT.",".TttttttttT.",".TtfTTTTftT.",".TttfttfttT.",".TttttttttT.","TTTttttttTTT","TTTtfttftTTT",".TttttttttT.",".TtfttttftT.",".TttttttttT.",".TTT..TTT...",".KKK..KKK...","............"],
+  tidePriest:["...VVVVV....","..VVVVVVV...","..VvvvvvV...","..VvqvqvV...","..VvvvvvV...","..VvVVVvV...","...VvvvV.q..","..VVVVVVq...",".KVVVVVVKq..",".KVqqqqVK...",".KVqqqqVK...",".KVqqqqVK...",".KVVqVVK....",".KVVKVVK....",".KK..KK.....","............"],
+  // 虛空裂隙（dest 3）：虛空魔物，爆發多技
+  voidling:["............","...uuuuu....","..uuuuuuuu..","..uUuuuuUu..","..uAuuuAuu..","..uuuuuuuu..","...uUUUu....","..uuuuuu.x..",".KuuuuuuKx..",".KuUuuUuK...",".KUUUUUUK...",".KUUKUUK....",".KUUKUUK....",".KKK.KKK....","............","............"],
+  voidArcher:["............","...uuuuu....","..uuuuuuuu..","..uUuuuuUu..","..uAuuuAuu..","..uuuuuuuu..","...uUUUu....","..uuuuuu.x..",".KuuuuuuKxx.",".KuUuuUuK.x.",".KUUUUUUK...",".KUUKUUK....",".KUUKUUK....",".KKK.KKK....","............","............"],
+  voidColossus:["............",".UUUUUUUUUU.",".UuuuuuuuuU.",".UuAuuuuAuU.",".UuuuuuuuuU.",".UuxUUUUxuU.",".UuuxuuxuuU.",".UuuuuuuuuU.","UUUuuuuuuUUU","UUUuxuuxuUUU",".UuuuuuuuuU.",".UuxuuuuxuU.",".UuuuuuuuuU.",".UUU..UUU...",".KKK..KKK...","............"],
+  voidSeer:["...zzzzz....","..zzzzzzz...","..zPPPPPz...","..zPAPAPz...","..zPPPPPz...","..zPxxxPz...","...zPPPz.x..","..zzzzzzx...",".KzzzzzzKx..",".KzxxxxzK...",".KzxxxxzK...",".KzxxxxzK...",".KzzxzzK....",".KzzKzzK....",".KK..KK.....","............"],
 };
 const GLYPH = {
   '0':["111","101","101","101","111"],'1':["010","110","010","010","111"],'2':["111","001","111","100","111"],'3':["111","001","111","001","111"],'4':["101","101","111","001","001"],'5':["111","100","111","001","111"],'6':["111","100","111","101","111"],'7':["111","001","010","010","010"],'8':["111","101","111","101","111"],'9':["111","101","111","001","111"],'-':["000","000","111","000","000"],'+':["000","010","111","010","000"],
@@ -208,6 +229,15 @@ const BIO = {
   guardian:'古文明留下的石像守衛，堅硬沉重、傷害驚人。',
   mage:'教團法師，後排施放範圍魔法，一次掃蕩成群敵人。',
   rogue:'教團暗影，高速近戰，靠偷襲與連刺見血、割喉收割。',
+  // 枯骨峽谷
+  skeleton:'被詛咒喚醒的骸骨兵，防禦薄弱卻揮砍兇狠。', skeletonArcher:'枯骨弓手，從遠處放出帶寒氣的骨箭。',
+  boneBrute:'由無數骸骨堆疊成的巨魔，重壓與粉碎皆致命。', necromancer:'操縱亡者的死靈術士，邊治療同伴邊低語咒術。',
+  // 沉沒神城
+  drowned:'沉入海底的亡魂，皮厚水重、緩慢而難纏。', drownedArcher:'深海射手，以骨叉與尖刺遠程襲擊。',
+  coralGolem:'珊瑚與礁岩凝成的守衛，堅硬如石、一擊震懾。', tidePriest:'潮汐祭司，引海潮為同伴回復、源源不絕。',
+  // 虛空裂隙
+  voidling:'從裂隙爬出的虛空爬行者，速度與爆發兼具。', voidArcher:'虛空術士，擲出扭曲現實的紫焰。',
+  voidColossus:'吞噬空間的虛空巨像，連擊與重擊交織。', voidSeer:'窺見舊神的先知，治療與詛咒並施。',
 };
 // 技能：依職業等級解鎖，戰鬥中自動觸發
 // 主動技能：cd（毫秒冷卻）+ uses（每場次數上限）；冷卻好且還有次數時，下一次行動自動觸發
@@ -236,3 +266,125 @@ const SKILLS = {
             {lv:6,name:'致命',type:'critVsStunned',desc:'被動：攻擊被暈眩的敵人時必定暴擊'},
             {lv:8,name:'割喉',type:'stun',cd:6000,uses:2,dur:1200,desc:'CD 6 秒・每場 2 次：割喉擊暈 1.2 秒'} ],
 };
+// ===== v1.3 怪物組系統（站位＝自由像素座標）=====
+// 一個「怪物組」＝一場戰鬥的完整內容：含 1 或多波（王戰＝小兵波＋王波）。
+// 每隻怪用 at(怪, x, y, row) 直接擺在任意像素座標 —— 想怎麼排就怎麼排，不再受格子限制。
+//   敵方活動區參考：x≈500~840、y≈150~510（我方在左側 x≈130~380）。
+//   一般怪約 48×64px、王約 72×96px，相鄰中心建議間隔 ≳70px 以免重疊。
+//   row 影響「被鎖定權重」：front 前排最易挨打 / mid / back（省略時預設 mid）。
+// 標籤：region 地城(0-3)、kind(normal/elite/boss)、tier 等級(1-3；依探險深度開放，越深越大組)。
+// 數值為未縮放基準，由 map.js 依目的地階級／探險深度／出戰人數縮放。單波最多 9 隻。
+const MONSTER_GROUPS = (function(){
+  const sneak ={name:'偷襲',  type:'crit',     cd:7000,uses:2,mult:2};
+  const frenzy={name:'狂亂',  type:'doubleHit',cd:5000,uses:3};
+  const smash ={name:'重擊',  type:'stun',     cd:6000,uses:2,dur:1200};
+  const gheal ={name:'治療波',type:'groupHeal',cd:9000,uses:2};
+  const quake ={name:'震地',  type:'stun',     cd:6000,uses:3,dur:1400};
+  const combo ={name:'碎地連擊',type:'doubleHit',cd:4500,uses:4};
+  const quake2={name:'震地',  type:'stun',     cd:7000,uses:2,dur:1200};
+  const power ={name:'強擊',  type:'crit',     cd:7000,uses:2,mult:1.8};
+  const E=(sprite,name,hp,atk,def,intv,ranged,extra)=>Object.assign(
+    {sprite,name,hp,atkSeq:atk,def,interval:intv,ranged:!!ranged,healer:false,heal:0}, extra||{});
+  const heal=(h)=>({healer:true,heal:h,skills:[gheal]});
+  // 把一隻怪擺到任意像素座標（x,y）；row 省略時預設 mid。一波＝若干 at(...) 組成的陣列。
+  const at=(e,x,y,row)=>Object.assign({},e,{x,y,row:row||'mid'});
+  const G=(id,region,kind,tier,...waves)=>({id,region,kind,tier,waves});
+  const out=[];
+  // ---------- region 0：近郊遺跡 ----------
+  (function(){
+    const grunt=()=>E('goblin','哥布林',62,[11,16],2,1400,0), grunt2=()=>E('goblin','哥布林',62,[10,14],2,1450,0);
+    const arch=()=>E('goblinArcher','哥布林弓手',50,[16,20],1,1150,1), archS=()=>E('goblinArcher','哥布林弓手',55,[20,24],1,1100,1);
+    const scout=()=>E('goblin','哥布林斥候',54,[12,16],1,1200,0,{skills:[sneak]}), sham=()=>E('goblinArcher','哥布林薩滿',56,[10,12],1,1500,1,heal(10));
+    const sol=()=>E('goblin','哥布林兵',68,[12,16],3,1300,0), bers=()=>E('goblin','哥布林狂戰士',86,[15,20],2,1100,0,{skills:[frenzy]});
+    const stone=()=>E('guardian','殘缺石衛',124,[16,21],4,1500,0,{skills:[smash]});
+    const ward=()=>E('goblin','遺跡守衛',90,[16,20],3,1250,0), sentry=()=>E('goblinArcher','遺跡哨兵',64,[18,20],1,1100,1);
+    out.push(
+      G('ruins_scouts',0,'normal',1, [at(grunt(),560,330,'front'), at(arch(),678,232,'mid')]),
+      G('ruins_duo',0,'normal',1, [at(grunt(),545,258,'front'), at(grunt2(),602,402,'front')]),
+      G('ruins_warband',0,'normal',2, [at(sol(),535,250,'front'), at(sol(),575,422,'front'), at(archS(),702,182,'mid'), at(scout(),690,360,'mid')]),
+      G('ruins_horde',0,'normal',3, [at(grunt(),512,300,'front'), at(grunt(),560,186,'front'), at(grunt2(),582,438,'front'), at(arch(),690,160,'mid'), at(archS(),708,330,'mid'), at(sham(),666,476,'mid')]),
+      G('ruins_trio',0,'elite',1, [at(sol(),545,250,'front'), at(sol(),588,418,'front'), at(archS(),702,330,'mid')]),
+      G('ruins_pack',0,'elite',2, [at(bers(),548,332,'front'), at(sol(),582,205,'front'), at(sol(),560,462,'front'), at(archS(),702,250,'mid'), at(sham(),712,424,'mid')]),
+      G('ruins_siege',0,'elite',3, [at(stone(),548,332,'front'), at(bers(),596,200,'front'), at(sol(),566,472,'front'), at(sol(),686,152,'mid'), at(archS(),716,300,'mid'), at(archS(),680,456,'mid'), at(sham(),815,360,'back')]),
+      G('ruins_boss_guardian',0,'boss',2,
+        [at(ward(),555,262,'front'), at(ward(),592,420,'front'), at(sentry(),712,330,'mid')],
+        [at(E('guardian','遺跡守護者',360,[30,18,42],6,1350,0,{boss:true,skills:[quake]}),700,330,'front'), at(arch(),548,330,'mid')]),
+      G('ruins_boss_fallen',0,'boss',2,
+        [at(ward(),545,250,'front'), at(ward(),582,416,'front'), at(sentry(),702,196,'mid'), at(sentry(),706,360,'mid')],
+        [at(E('guardian','墮落守護者',410,[26,32,38],7,1300,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(sham(),550,236,'mid'), at(arch(),562,430,'mid')])
+    );
+  })();
+  // ---------- region 1：枯骨峽谷 ----------
+  (function(){
+    const bone=()=>E('skeleton','骷髏兵',60,[13,18],1,1300,0), bone2=()=>E('skeleton','骷髏兵',60,[12,16],1,1300,0);
+    const barch=()=>E('skeletonArcher','骷髏弓手',48,[18,22],1,1100,1), barchS=()=>E('skeletonArcher','骷髏弓手',54,[22,26],1,1050,1);
+    const shield=()=>E('skeleton','持盾骷髏',70,[11,15],4,1400,0), bfren=()=>E('skeleton','骷髏狂徒',56,[14,18],1,1150,0,{skills:[sneak]});
+    const necro=()=>E('necromancer','死靈術士',58,[11,14],1,1500,1,heal(12)), bwar=()=>E('skeleton','骸骨戰士',72,[14,19],2,1250,0);
+    const brute=()=>E('boneBrute','巨骨魔',96,[17,23],2,1100,0,{skills:[frenzy]}), bguard=()=>E('boneBrute','骨甲衛',130,[18,23],5,1500,0,{skills:[smash]});
+    const kw=()=>E('skeleton','枯骨衛',86,[17,21],2,1220,0), ks=()=>E('skeletonArcher','枯骨哨兵',62,[19,21],1,1080,1);
+    out.push(
+      G('bone_pair',1,'normal',1, [at(bone(),556,322,'front'), at(barch(),680,216,'mid')]),
+      G('bone_shield',1,'normal',1, [at(shield(),550,332,'front'), at(bone2(),610,202,'front')]),
+      G('bone_band',1,'normal',2, [at(bone(),540,258,'front'), at(bwar(),572,426,'front'), at(barch(),702,190,'mid'), at(bfren(),696,360,'mid')]),
+      G('bone_horde',1,'normal',3, [at(bone(),512,232,'front'), at(bwar(),546,372,'front'), at(bone(),586,490,'front'), at(barch(),672,178,'mid'), at(bwar(),702,322,'mid'), at(barchS(),666,456,'mid'), at(necro(),816,302,'back')]),
+      G('bone_trio',1,'elite',1, [at(bwar(),546,250,'front'), at(bwar(),586,418,'front'), at(barchS(),702,330,'mid')]),
+      G('bone_pack',1,'elite',2, [at(brute(),548,332,'front'), at(bwar(),582,206,'front'), at(barchS(),702,252,'mid'), at(bfren(),562,462,'front'), at(necro(),714,426,'mid')]),
+      G('bone_legion',1,'elite',3, [at(bguard(),542,322,'front'), at(brute(),584,182,'front'), at(bwar(),562,472,'front'), at(bwar(),678,152,'mid'), at(barchS(),708,300,'mid'), at(barchS(),672,452,'mid'), at(bfren(),812,242,'back'), at(necro(),822,412,'back')]),
+      G('bone_boss_king',1,'boss',2,
+        [at(kw(),556,262,'front'), at(kw(),592,420,'front'), at(ks(),712,330,'mid')],
+        [at(E('boneBrute','枯骨之王',380,[32,20,44],5,1300,0,{boss:true,skills:[quake]}),700,330,'front'), at(ks(),550,330,'mid')]),
+      G('bone_boss_immortal',1,'boss',2,
+        [at(kw(),545,250,'front'), at(kw(),582,416,'front'), at(ks(),702,196,'mid'), at(ks(),706,360,'mid')],
+        [at(E('boneBrute','不朽骨將',420,[28,34,40],6,1280,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(E('necromancer','死靈祭司',82,[13,15],2,1400,1,heal(18)),550,236,'mid'), at(ks(),562,430,'mid')])
+    );
+  })();
+  // ---------- region 2：沉沒神城 ----------
+  (function(){
+    const drn=()=>E('drowned','溺亡者',78,[12,16],3,1450,0), drn2=()=>E('drowned','溺亡者',78,[11,15],3,1450,0);
+    const darch=()=>E('drownedArcher','深海射手',58,[16,20],2,1200,1), darchS=()=>E('drownedArcher','深海射手',64,[20,24],2,1150,1);
+    const serv=()=>E('drowned','潮汐侍從',72,[12,15],4,1400,0), dsol=()=>E('drowned','溺亡兵',70,[13,17],3,1300,0,{skills:[sneak]});
+    const tpr=()=>E('tidePriest','潮汐祭司',66,[11,13],2,1500,1,heal(16)), dguard=()=>E('drowned','深淵守卒',90,[14,18],4,1350,0);
+    const coral=()=>E('coralGolem','珊瑚石像',120,[16,20],5,1300,0,{skills:[smash]}), reef=()=>E('coralGolem','礁岩巨怪',150,[18,22],6,1500,0,{skills:[smash]});
+    const cw=()=>E('drowned','神城守衛',110,[16,20],4,1250,0), cs=()=>E('drownedArcher','神城哨兵',76,[18,20],2,1100,1);
+    out.push(
+      G('sea_pair',2,'normal',1, [at(drn(),560,324,'front'), at(darch(),678,218,'mid')]),
+      G('sea_servants',2,'normal',1, [at(serv(),550,332,'front'), at(drn2(),606,204,'front')]),
+      G('sea_band',2,'normal',2, [at(dguard(),540,256,'front'), at(dguard(),576,422,'front'), at(darch(),702,186,'mid'), at(dsol(),696,360,'mid')]),
+      G('sea_horde',2,'normal',3, [at(drn(),512,234,'front'), at(dguard(),548,374,'front'), at(drn(),586,490,'front'), at(darch(),672,176,'mid'), at(dguard(),702,322,'mid'), at(darchS(),666,456,'mid'), at(tpr(),816,306,'back')]),
+      G('sea_trio',2,'elite',1, [at(dguard(),546,250,'front'), at(dguard(),586,418,'front'), at(darchS(),702,330,'mid')]),
+      G('sea_pack',2,'elite',2, [at(coral(),548,332,'front'), at(dguard(),582,206,'front'), at(darchS(),702,252,'mid'), at(dsol(),562,462,'front'), at(tpr(),714,426,'mid')]),
+      G('sea_legion',2,'elite',3, [at(reef(),542,322,'front'), at(coral(),586,184,'front'), at(dguard(),562,472,'front'), at(dguard(),678,154,'mid'), at(darchS(),708,300,'mid'), at(darchS(),672,452,'mid'), at(dsol(),812,244,'back'), at(tpr(),822,412,'back')]),
+      G('sea_boss_leviathan',2,'boss',2,
+        [at(cw(),556,262,'front'), at(cw(),592,420,'front'), at(cs(),712,330,'mid')],
+        [at(E('coralGolem','深海巨像',440,[30,20,42],8,1400,0,{boss:true,skills:[quake]}),700,330,'front'), at(cs(),550,330,'mid')]),
+      G('sea_boss_tidelord',2,'boss',2,
+        [at(cw(),545,250,'front'), at(cw(),582,416,'front'), at(cs(),702,196,'mid'), at(cs(),706,360,'mid')],
+        [at(E('coralGolem','潮汐領主',480,[26,32,38],8,1350,0,{boss:true,skills:[combo,quake2]}),705,330,'front'), at(E('tidePriest','深淵祭司',96,[12,14],3,1400,1,heal(22)),550,236,'mid'), at(cs(),562,430,'mid')])
+    );
+  })();
+  // ---------- region 3：虛空裂隙 ----------
+  (function(){
+    const vl=()=>E('voidling','虛空爬行者',70,[15,20],1,1200,0), vl2=()=>E('voidling','虛空爬行者',70,[14,18],1,1200,0);
+    const vcast=()=>E('voidArcher','虛空術士',56,[20,24],1,1050,1), vcastS=()=>E('voidArcher','虛空術士',60,[22,26],1,1000,1);
+    const vhunt=()=>E('voidling','虛空獵手',66,[16,20],2,1150,0,{skills:[sneak]}), vfren=()=>E('voidling','虛空狂徒',62,[16,21],1,1100,0,{skills:[frenzy]});
+    const vseer=()=>E('voidSeer','虛空先知',60,[13,16],1,1450,1,heal(14)), vcol=()=>E('voidColossus','虛空巨像',110,[18,24],3,1250,0,{skills:[smash]});
+    const vrift=()=>E('voidColossus','裂隙魔像',140,[20,26],4,1300,0,{skills:[combo]});
+    const rc=()=>E('voidling','裂隙爬蟲',100,[18,22],2,1150,0), rs=()=>E('voidArcher','裂隙術士',84,[20,22],1,1000,1);
+    out.push(
+      G('void_pair',3,'normal',1, [at(vl(),560,322,'front'), at(vcast(),680,218,'mid')]),
+      G('void_hunters',3,'normal',1, [at(vhunt(),550,332,'front'), at(vl2(),608,202,'front')]),
+      G('void_band',3,'normal',2, [at(vl(),540,256,'front'), at(vfren(),576,422,'front'), at(vcast(),702,186,'mid'), at(vhunt(),696,360,'mid')]),
+      G('void_swarm',3,'normal',3, [at(vl(),506,234,'front'), at(vfren(),546,372,'front'), at(vl2(),586,492,'front'), at(vcast(),650,166,'mid'), at(vhunt(),694,302,'mid'), at(vfren(),660,452,'mid'), at(vcast(),800,216,'back'), at(vseer(),828,356,'back'), at(vl(),794,486,'back')]),
+      G('void_trio',3,'elite',1, [at(vcol(),548,330,'front'), at(vcastS(),702,250,'mid'), at(vcastS(),702,420,'mid')]),
+      G('void_pack',3,'elite',2, [at(vrift(),548,332,'front'), at(vfren(),582,204,'front'), at(vfren(),562,464,'front'), at(vcastS(),706,256,'mid'), at(vseer(),714,426,'mid')]),
+      G('void_legion',3,'elite',3, [at(vcol(),520,272,'front'), at(vrift(),562,462,'front'), at(vfren(),592,150,'front'), at(vfren(),668,302,'mid'), at(vhunt(),702,162,'mid'), at(vcastS(),666,460,'mid'), at(vcastS(),800,236,'back'), at(vseer(),828,382,'back'), at(vl(),794,496,'back')]),
+      G('void_boss_titan',3,'boss',2,
+        [at(rc(),545,250,'front'), at(rc(),582,416,'front'), at(rs(),702,196,'mid'), at(rs(),706,360,'mid')],
+        [at(E('voidColossus','虛空泰坦',500,[34,22,46],6,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(vcast(),550,330,'mid')]),
+      G('void_boss_avatar',3,'boss',2,
+        [at(rc(),545,250,'front'), at(rc(),582,416,'front'), at(rs(),702,196,'mid'), at(rs(),706,360,'mid')],
+        [at(E('voidColossus','舊神化身',540,[30,36,42],7,1280,0,{boss:true,skills:[quake,power]}),705,330,'front'), at(vseer(),550,236,'mid'), at(vcast(),562,430,'mid')])
+    );
+  })();
+  return out;
+})();

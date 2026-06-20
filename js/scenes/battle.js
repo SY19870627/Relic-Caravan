@@ -8,11 +8,16 @@ class Battle extends Phaser.Scene {
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
     this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null;
     const W=this.scale.width, H=this.scale.height;
-    this.bgWall=this.add.tileSprite(0,0,W,360,'wall').setOrigin(0).setTileScale(2,2);
-    this.bgFloor=this.add.tileSprite(0,360,W,H-360,'floor').setOrigin(0).setTileScale(2,2);
+    // v1.1：依目的地切換戰鬥背景主題（牆／地板／火把色），各區視覺區隔
+    const di=(RUN&&RUN.destIndex)||0;
+    const wallKey=this.textures.exists('wall'+di)?('wall'+di):'wall';
+    const floorKey=this.textures.exists('floor'+di)?('floor'+di):'floor';
+    this.bgWall=this.add.tileSprite(0,0,W,360,wallKey).setOrigin(0).setTileScale(2,2);
+    this.bgFloor=this.add.tileSprite(0,360,W,H-360,floorKey).setOrigin(0).setTileScale(2,2);
     this.add.rectangle(0,360,W,3,0x0a0710).setOrigin(0);
     const _hb=this.add.graphics().setDepth(59); _hb.fillStyle(UI.bg2,0.8); _hb.fillRoundedRect(8,8,W-16,62,10); _hb.lineStyle(1.5,UI.lineN,0.6); _hb.strokeRoundedRect(8,8,W-16,62,10);
-    this.torch(120,150); this.torch(W-120,150);
+    const TORCH=[[0xffb347,0xffe08a],[0x9be0a0,0xe6ffe0],[0x6fd0e0,0xbff0f5],[0xc46bff,0xe8b0ff]][di]||[0xffb347,0xffe08a];
+    this.torch(120,150,TORCH[0],TORCH[1]); this.torch(W-120,150,TORCH[0],TORCH[1]);
     this.fxFlash=this.add.rectangle(0,0,W,H,0xffffff,1).setOrigin(0).setDepth(95).setAlpha(0); // 全螢幕閃光層
     this.buildPctBar();
     // 戰鬥速度（跨場記住）
@@ -103,7 +108,7 @@ class Battle extends Phaser.Scene {
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
-      c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setAngle(0).setAlpha(c.alive?1:0.25);
+      c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setDepth(fs.y/200).setAngle(0).setAlpha(c.alive?1:0.25);
       c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
       if(c.nameText) c.nameText.setText(`${h.name} Lv${s.level}`);
       this.bar(c);
@@ -111,13 +116,24 @@ class Battle extends Phaser.Scene {
       this.buildSkillPips(c);
     });
   }
+  // 後備站位：怪物組未指定 x,y 時，依數量自動排版（最多 9）
+  autoEnemyPos(n){
+    if(n<=1) return [[660,330]];
+    if(n===2) return [[575,245],[575,410]];
+    if(n===3) return [[560,205],[560,450],[700,330]];
+    const cols=[555,690,815], out=[], per=Math.ceil(n/3); let i=0;
+    for(let c=0;c<3 && i<n;c++){ const cnt=Math.min(per,n-i);
+      for(let r=0;r<cnt;r++){ const y=(cnt===1)?330:Math.round(175+r*(300/(cnt-1))); out.push([cols[c],y]); i++; } }
+    return out;
+  }
   spawnWave(){
     const ec=this.waves[this.waveIndex];
     const W=this.scale.width;
-    const epos = ec.length===1?[[640,360]] : ec.length===2?[[620,255],[620,440]] : [[600,235],[600,455],[720,350]];
+    const fb = this.autoEnemyPos(ec.length);   // 後備站位（資料未指定 x,y 時才用）
     const fresh = ec.map((e,idx)=>{ const big=e.boss;
+      const px=(e.x!=null)?e.x:fb[idx][0], py=(e.y!=null)?e.y:fb[idx][1];
       const eAtk=e.atkSeq.map(a=>Math.max(1,a+(this._enemyAtkMod||0))), eDef=e.def+(this._enemyDefMod||0);
-      const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:eAtk,def:eDef,heal:e.heal||0,interval:e.interval,ranged:e.ranged,healer:!!e.healer,boss:e.boss,skills:e.skills}, 'enemy', epos[idx]?epos[idx][0]:640, epos[idx]?epos[idx][1]:300, big?6:SCALE);
+      const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:eAtk,def:eDef,heal:e.heal||0,interval:e.interval,ranged:e.ranged,healer:!!e.healer,boss:e.boss,skills:e.skills,row:e.row}, 'enemy', px, py, big?6:SCALE);
       // 從畫面右側走進場，到定位才開打
       c.container.x = W + 80 + idx*70;
       this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:idx*90});
@@ -141,16 +157,17 @@ class Battle extends Phaser.Scene {
     else { this.banner.setText(msg).setAlpha(1);
       this.tweens.add({targets:this.banner,alpha:0,delay:850,duration:450,onComplete:()=>this.banner.setText('')}); }
   }
-  torch(x,y){
+  torch(x,y,flameCol,coreCol){
+    flameCol=(flameCol===undefined)?0xffb347:flameCol; coreCol=(coreCol===undefined)?0xffe08a:coreCol;
     this.add.rectangle(x,y,8,22,0x4d3019).setDepth(5);
-    const glow=this.add.circle(x,y-14,30,0xffb347,0.12).setDepth(4);
-    const flame=this.add.ellipse(x,y-16,12,20,0xffb347).setDepth(6);
-    const core=this.add.ellipse(x,y-15,6,12,0xffe08a).setDepth(7);
+    const glow=this.add.circle(x,y-14,30,flameCol,0.12).setDepth(4);
+    const flame=this.add.ellipse(x,y-16,12,20,flameCol).setDepth(6);
+    const core=this.add.ellipse(x,y-15,6,12,coreCol).setDepth(7);
     this.tweens.add({targets:[flame,core],scaleY:0.78,scaleX:1.15,duration:160,yoyo:true,repeat:-1,ease:'Sine.inOut'});
     this.tweens.add({targets:glow,alpha:0.05,duration:200,yoyo:true,repeat:-1});
   }
   makeCombatant(d,side,x,y,scl){
-    const cont=this.add.container(x,y);
+    const cont=this.add.container(x,y).setDepth(y/200);   // Y-sort：越靠下(大 y)畫得越前面，重疊時景深自然（範圍 <4，仍在 HUD/火把之下）
     const facing=side==='hero'?1:-1;
     const shadow=this.add.ellipse(0,34,40,12,0x000000,0.4);
     const spr=this.add.image(0,0,d.sprite).setScale(scl||SCALE);

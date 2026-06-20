@@ -34,39 +34,37 @@ function equipSwap(item, heroIndex){
   const ci=RUN.cargo.indexOf(item); if(ci>=0) RUN.cargo.splice(ci,1);
   RUN.cargo.push({kind: slot==='weapon'?'武器':'防具', name:old.name, icon: slot==='weapon'?'⚔':'🛡', value:25, gear:old});}
 // 回傳「波次陣列」：每個元素是一波敵人；清完一波才進下一波
+// v1.2：敵人改由「怪物組」MONSTER_GROUPS 提供。一場戰鬥＝挑一組（可多波，王戰＝小兵波＋王波），
+// 每隻怪的站位固定寫在資料裡；此處只負責「依標籤＋深度挑組」與「數值縮放」。
+function scaleEnemy(e, scale){
+  return {sprite:e.sprite, name:e.name, hp:Math.round(e.hp*scale),
+    atkSeq:e.atkSeq.map(a=>Math.round(a*scale)), def:e.def, interval:e.interval,
+    ranged:!!e.ranged, healer:!!e.healer, heal:e.heal||0, boss:!!e.boss, skills:e.skills,
+    x:e.x, y:e.y, row:e.row};
+}
+// 探險深度等級（1~3）：越深開放越大的怪物組（淺層只出小組）；高階目的地（神城/虛空）提早一級。
+function expedDepthLevel(){
+  const ex=RUN.exped; const prog=(ex&&ex.plan&&ex.plan.length)? Math.min(1, ex.i/ex.plan.length) : 0;
+  const base = prog<0.34?1 : (prog<0.67?2 : 3);
+  return Math.min(3, base + (((RUN.destTier||1)>=3)?1:0));
+}
+// 依「地城標籤 region＋種類 kind＋等級標籤 tier(≤當前深度)」過濾後隨機挑一組怪物組
+function pickGroup(kind){
+  const region=RUN.destIndex||0, dl=expedDepthLevel();
+  let pool=MONSTER_GROUPS.filter(g=>g.region===region && g.kind===kind && g.tier<=dl);
+  if(!pool.length) pool=MONSTER_GROUPS.filter(g=>g.region===region && g.kind===kind);   // 後備：忽略深度
+  if(!pool.length) pool=MONSTER_GROUPS.filter(g=>g.kind===kind);                          // 後備：忽略地城
+  return pool.length ? Phaser.Utils.Array.GetRandom(pool) : null;
+}
 function buildEncounter(n){
-  const t=RUN.destTier||1;
-  const p=Math.max(1, activeRoster().length);
-  const partyMul=0.5+0.13*p;   // v0.9：敵人強度隨出戰人數縮放（solo≈0.63、5人≈1.15），讓 1 人開局可玩
+  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), partyMul=0.5+0.13*p;   // 敵人強度隨出戰人數縮放
   const prog=(RUN.exped&&RUN.exped.plan&&RUN.exped.plan.length)? Math.min(1, RUN.exped.i/RUN.exped.plan.length) : 0;
   const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
-  const mk=(sprite,name,hp,atkSeq,def,interval,ranged,extra)=>Object.assign(
-    {sprite,name,hp:Math.round(hp*scale),atkSeq:atkSeq.map(a=>Math.round(a*scale)),def,interval,ranged,healer:false,heal:0}, extra||{});
-  const normalWave=()=>{ const r=Math.random();
-    if(r<0.34) return [mk('goblin','哥布林',62,[11,16],2,1400,false), mk('goblinArcher','哥布林弓手',50,[16,20],1,1150,true)];
-    if(r<0.67) return [mk('goblin','哥布林',62,[10,14],2,1400,false), mk('goblin','哥布林',62,[10,14],2,1450,false)];
-    return [mk('goblin','哥布林斥候',54,[12,16],1,1200,false,{skills:[{name:'偷襲',type:'crit',cd:7000,uses:2,mult:2}]}), mk('goblinArcher','哥布林薩滿',56,[10,12],1,1500,true,{healer:true,heal:10,skills:[{name:'治療波',type:'groupHeal',cd:9000,uses:2}]})];
-  };
-  const eliteWave=()=>{ const pool=[
-      [mk('goblin','哥布林兵',68,[12,16],3,1300,false), mk('goblin','哥布林兵',68,[12,16],3,1350,false), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
-      [mk('goblin','哥布林狂戰士',86,[15,20],2,1100,false,{skills:[{name:'狂亂',type:'doubleHit',cd:5000,uses:3}]}), mk('goblinArcher','哥布林薩滿',60,[10,12],1,1500,true,{healer:true,heal:12,skills:[{name:'治療波',type:'groupHeal',cd:9000,uses:2}]})],
-      [mk('guardian','殘缺石衛',124,[16,21],4,1500,false,{skills:[{name:'重擊',type:'stun',cd:6000,uses:2,dur:1200}]}), mk('goblinArcher','哥布林弓手',55,[20,24],1,1100,true)],
-    ]; return Phaser.Utils.Array.GetRandom(pool); };
-  if(n.type==='elite'){
-    const w=(p<=2?1:2)+(t>=3?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(eliteWave()); return waves;   // 小隊伍少一波
-  }
-  const w=(p<=2?1:2)+(t>=4?1:0); const waves=[]; for(let i=0;i<w;i++) waves.push(normalWave()); return waves;        // 小隊伍少一波
+  const g=pickGroup(n.type==='elite'?'elite':'normal');
+  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,scale))) : [];
 }
 function buildBoss(){
   const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+(t-1)*CFG.enemy.bossTierScale)*(0.55+0.12*p);   // 王戰也隨人數縮放
-  const bosses=[
-    [{sprite:'guardian',name:'遺跡守護者',hp:360,atkSeq:[30,18,42],def:6,interval:1350,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'震地',type:'stun',cd:6000,uses:3,dur:1400}]},
-     {sprite:'goblinArcher',name:'哥布林弓手',hp:64,atkSeq:[16,18],def:1,interval:1100,ranged:true,healer:false,heal:0}],
-    [{sprite:'guardian',name:'墮落守護者',hp:410,atkSeq:[26,32,38],def:7,interval:1300,ranged:false,healer:false,heal:0,boss:true,skills:[{name:'碎地連擊',type:'doubleHit',cd:4500,uses:4},{name:'震地',type:'stun',cd:7000,uses:2,dur:1200}]},
-     {sprite:'goblinArcher',name:'哥布林薩滿',hp:80,atkSeq:[12,14],def:2,interval:1400,ranged:true,healer:true,heal:16,skills:[{name:'治療波',type:'groupHeal',cd:8000,uses:3}]}],
-  ];
-  const boss=Phaser.Utils.Array.GetRandom(bosses).map(e=>Object.assign({},e,{hp:Math.round(e.hp*s), atkSeq:e.atkSeq.map(a=>Math.round(a*s))}));
-  const mk=(sprite,name,hp,atkSeq,def,interval,ranged)=>({sprite,name,hp:Math.round(hp*s),atkSeq:atkSeq.map(a=>Math.round(a*s)),def,interval,ranged,healer:false,heal:0});
-  const minions=[mk('goblin','遺跡守衛',90,[16,20],3,1250,false), mk('goblinArcher','遺跡哨兵',64,[18,20],1,1100,true)];
-  return [minions, boss];   // 第一波小兵 → 第二波王本體
+  const g=pickGroup('boss');
+  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,s))) : [];   // 該組自含波次（小兵波→王波）
 }

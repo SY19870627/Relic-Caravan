@@ -247,6 +247,32 @@ function buildTextures(scene){
     c.fillStyle='#241d42'; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
     t.refresh();
   }
+  // v1.1 各地區戰鬥背景：wall0~wall3 / floor0~floor3（演算法同上，僅換主題色）。
+  // 原 'wall'/'floor' 保留給公會大廳等場景使用，不受影響。
+  const BG_THEMES=[
+    {wall:{base:'#1a1712',b1:'#2f2a20',b2:'#262017',hi:'#3f4a2a'}, floor:{base:'#141009',tile:'#221c12',hi:'#2f3a1e'}}, // 0 近郊遺跡：苔蝕石牆
+    {wall:{base:'#1c1814',b1:'#3a3024',b2:'#2e2619',hi:'#5a4a36'}, floor:{base:'#161108',tile:'#2a2114',hi:'#3e3220'}}, // 1 枯骨峽谷：枯黃砂岩
+    {wall:{base:'#0b1a1e',b1:'#15323a',b2:'#102a30',hi:'#2f8190'}, floor:{base:'#08161a',tile:'#103038',hi:'#1c6675'}}, // 2 沉沒神城：幽藍水域
+    {wall:{base:'#140a1e',b1:'#2a1640',b2:'#1f1030',hi:'#7a47b0'}, floor:{base:'#0e0618',tile:'#20123a',hi:'#48267a'}}, // 3 虛空裂隙：暗紫虛空
+  ];
+  BG_THEMES.forEach((th,di)=>{
+    const wk='wall'+di;
+    if(!scene.textures.exists(wk)){
+      const t=scene.textures.createCanvas(wk,32,32), c=t.getContext();
+      c.fillStyle=th.wall.base; c.fillRect(0,0,32,32);
+      for(let row=0;row<4;row++){ const y=row*8; for(let bx=-1;bx<3;bx++){ const x=bx*16+(row%2?8:0);
+        c.fillStyle=((row+bx)%2)?th.wall.b1:th.wall.b2; c.fillRect(x+1,y+1,14,6); c.fillStyle=th.wall.hi; c.fillRect(x+1,y+1,14,1);} }
+      t.refresh();
+    }
+    const fk='floor'+di;
+    if(!scene.textures.exists(fk)){
+      const t=scene.textures.createCanvas(fk,32,32), c=t.getContext();
+      c.fillStyle=th.floor.base; c.fillRect(0,0,32,32);
+      c.fillStyle=th.floor.tile; c.fillRect(1,1,30,14); c.fillRect(1,17,14,14); c.fillRect(17,17,14,14);
+      c.fillStyle=th.floor.hi; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
+      t.refresh();
+    }
+  });
 }
 
 function pixelNum(scene,x,y,str,color,big){
