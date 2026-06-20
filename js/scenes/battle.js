@@ -234,7 +234,7 @@ class Battle extends Phaser.Scene {
     this.heroes.forEach(c=>{ if(!c.skillPips) return;
       for(const name in c.skillPips){ const p=c.skillPips[name]; let alpha=1;
         if(!c.alive) alpha=0.18;
-        else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : (now-st.last < p.skill.cd ? 0.5 : 1); } }
+        else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : (now-st.last < p.skill.cd/this.speed ? 0.5 : 1); } }
         p.c.setAlpha(alpha);
       }
     });
@@ -266,7 +266,7 @@ class Battle extends Phaser.Scene {
     const now=this.time.now;
     for(const c of (this.all||[])){
       if(!c||!c.stunLabel) continue;
-      const rem=Math.max(0,((c.stunUntil||0)-now)/1000);
+      const rem=Math.max(0,((c.stunUntil||0)-now)/1000*(c.stunSpeed||1));   // stunUntil 已依倍率縮短 → 乘回倍率顯示「遊戲秒數」
       c.stunLabel.setText((c.stunName||'暈眩')+' '+rem.toFixed(1)+'s');
       if(c.container) c.stunLabel.setPosition(c.container.x, c.baseY-80);
     }
@@ -299,7 +299,7 @@ class Battle extends Phaser.Scene {
     pixelNum(this,target.container.x,target.container.y-34,'+'+h,0x7dff9a);
     this.floatLabel(target.baseX,target.baseY-58,'喝下 '+(best.icon||'🧪')+best.name,'#9fe8a0');
     this.updatePotions();
-    target._sipUntil=this.time.now+cd;
+    target._sipUntil=this.time.now+cd/this.speed;   // v2.2：依倍率縮放
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
   // 防溢殺：估算「即將落在某敵人身上、尚未結算」的我方傷害（排除自己）
@@ -341,7 +341,7 @@ class Battle extends Phaser.Scene {
   trySkill(c,type){
     const s=(c.skills||[]).find(k=>k.type===type); if(!s || s.cd===undefined) return null;
     const st=c.skillCD[s.name]; if(!st || st.left<=0) return null;
-    if(this.time.now - st.last < s.cd) return null;
+    if(this.time.now - st.last < s.cd/this.speed) return null;   // v2.2：技能 CD 依倍率縮放
     st.last=this.time.now; st.left--; this.skillCast(c,s); return s;
   }
   act(c){
@@ -357,7 +357,7 @@ class Battle extends Phaser.Scene {
     if(c.aoe){ this.aoeCast(c); }
     else {
       const target = c.side==='enemy' ? this.pickByRow(foes) : this.pickTarget(c,foes);
-      if(c.side==='hero' && target){ c._aimTarget=target; c._aimUntil=this.time.now+450; c._estDmg=this._estDamage(c,target); }   // 防溢殺：登記這一擊的預定傷害
+      if(c.side==='hero' && target){ c._aimTarget=target; c._aimUntil=this.time.now+450/this.speed; c._estDmg=this._estDamage(c,target); }   // 防溢殺：登記這一擊的預定傷害
       if(c.ranged) this.ranged(c,target,c.healer); else this.melee(c,target);
     }
     // 連射／連環施法：追加一擊（CD＋次數）

@@ -21,7 +21,7 @@ Object.assign(Battle.prototype, {
   stun(target,sk,caster){
     // 遺物・枯骨王徽（不倒）：我方低血免疫暈眩
     if(target.side==='hero' && this._lastStand && target.hp/target.maxHp<0.25){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
-    target.stunUntil=this.time.now+sk.dur;
+    target.stunUntil=this.time.now+sk.dur/this.speed; target.stunSpeed=this.speed;   // v2.2：場景時鐘為原始時間，需依倍率縮短才會「與速度一致」
     this.floatLabel(target.baseX,target.baseY-52, (sk.name||'暈眩')+'!','#ffd24a');
     this.screenFlash(0xffd24a,0.10,140);
     target.stunned=true; target.spr.setTint(0x9a9ad0);   // 被暈：偏紫灰
@@ -68,7 +68,7 @@ Object.assign(Battle.prototype, {
       if(shieldOnHeal){ a.shield=(a.shield||0)+(shieldOnHeal.amt||12); this.skillProc(c,shieldOnHeal.name,{throttle:1500}); }
       if((this._healToShield&&over>0)||shieldOnHeal) this.bar(a);   // 護盾增減即時反映到血條
       if(cleanse && a.stunned){ a.stunUntil=0; a.stunned=false; if(a.stunStar){a.stunStar.destroy(); a.stunStar=null;} if(a.alive) a.spr.clearTint(); if(sCleanse)this.skillProc(c,sCleanse.name,{throttle:1200}); }
-      if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
+      if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000/this.speed; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
       const ring=this.add.circle(a.container.x,a.container.y,10,0x7dff9a,0.5).setDepth(40);
       this.tweens.add({targets:ring,radius:36,alpha:0,duration:450,onComplete:()=>ring.destroy()}); };
     if(this.trySkill(c,'groupHeal')){ this.aliveOf(c.side).forEach(healOne); }
@@ -176,7 +176,7 @@ Object.assign(Battle.prototype, {
   screenFlash(color,alpha,dur){ if(!this.fxFlash) return; this.fxFlash.setFillStyle(color,1).setAlpha(alpha);
     this.tweens.add({targets:this.fxFlash,alpha:0,duration:dur||180,ease:'Quad.out'}); }
 ,
-  hitstop(ms){ this.hitstopUntil=Math.max(this.hitstopUntil, this.time.now+ms); }
+  hitstop(ms){ this.hitstopUntil=Math.max(this.hitstopUntil, this.time.now+ms/this.speed); }   // v2.2：依倍率縮放
 ,
   burst(x,y,color){ for(let i=0;i<10;i++){ const a=Math.random()*Math.PI*2, d=20+Math.random()*26;
     const p=this.add.rectangle(x,y,4,4,color).setDepth(60);
