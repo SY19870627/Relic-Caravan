@@ -31,7 +31,10 @@
   <script src="js/scenes/outfit.js?v=2"></script>
   <script src="js/scenes/worldmap.js?v=2"></script> <!-- 世界地圖：選目的地 -->
   <script src="js/scenes/map.js?v=2"></script>    <!-- 含地圖場景與探險邏輯（掉落、遭遇、換裝） -->
-  <script src="js/scenes/battle.js?v=2"></script>
+  <script src="js/scenes/battle.js?v=2"></script>              <!-- Battle 場景本體：class 定義＋場景生命週期/設定/HUD/出手迴圈 -->
+  <script src="js/scenes/battle.combat.js?v=2"></script>       <!-- 擴充：戰鬥結算（攻擊/治療/傷害/護盾血條/死亡/特效） -->
+  <script src="js/scenes/battle.events.js?v=2"></script>       <!-- 擴充：非戰鬥遭遇（寶箱/紮營/料理/換裝/道具/商店/事件） -->
+  <script src="js/scenes/battle.menu.js?v=2"></script>         <!-- 擴充：暫停選單＋升級三選一 -->
   <script src="js/scenes/result.js?v=2"></script>
   <script src="js/main.js?v=2"></script>          <!-- 啟動 Phaser.Game -->
 </body>
