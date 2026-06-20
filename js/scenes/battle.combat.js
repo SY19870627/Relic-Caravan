@@ -103,6 +103,9 @@ Object.assign(Battle.prototype, {
     // 羈絆・以信護盾：無敵時間內完全格擋
     if(target.invulnUntil && this.time.now < target.invulnUntil){
       this.floatLabel(target.baseX,target.baseY-40,'格擋','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
+    // 遺物・古神之眼（洞察）：每位成員本場第一次受到的攻擊無效
+    if(target.side==='hero' && this._firstHitBlock && !target.firstBlockUsed){
+      target.firstBlockUsed=true; this.floatLabel(target.baseX,target.baseY-46,'洞察!','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
     // 護盾吸收（守護／治療轉盾／裝備／升級／料理）
     let dmg=raw, absorbed=0;
     if(target.shield>0){ absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed; }

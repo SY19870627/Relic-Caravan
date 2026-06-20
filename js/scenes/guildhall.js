@@ -11,7 +11,7 @@ class GuildHall extends Phaser.Scene {
     const add=(label,acc)=>out.push({label,accent:acc,size:11,h:22});
     if(e.atk)add('ATK +'+e.atk,'gold'); if(e.def)add('DEF +'+e.def,'blue'); if(e.hp)add('HP +'+e.hp,'green');
     if(e.heal)add('治療 +'+e.heal,'green'); if(e.drop)add('遺物率 +'+Math.round(e.drop*100)+'%','violet'); if(e.extraLoot)add('額外掉落 +'+e.extraLoot,'gold');
-    if(e.firstHitCrit)add('首擊必暴','gold'); if(e.reviveOnce)add('復活一次','green');
+    if(e.firstHitCrit)add('首擊必暴','gold'); if(e.reviveOnce)add('復活一次','green'); if(e.firstHitBlock)add('洞察格擋','blue');
     if(e.fullHealAfterBattle)add('戰後全回','green'); if(e.splash)add('濺射','ember'); if(e.startShield)add('開場護盾 '+e.startShield,'blue');
     if(e.regen)add('行動回復 '+Math.round(e.regen*100)+'%','green'); if(e.killCrit)add('擊殺爆擊','gold'); if(e.healToShield)add('治療轉盾','blue');
     if(e.lastStand)add('背水','red'); if(e.firstDeathHeal)add('陣亡回援 '+Math.round(e.firstDeathHeal*100)+'%','green'); if(e.firstStrikeAoe)add('首擊全體','violet');
@@ -43,7 +43,7 @@ class GuildHall extends Phaser.Scene {
 
     // ====== 遺物收藏（寬版圖鑑）======
     const P=add(panel(this, W/2, 213, 868, 246, {accent:'violet', title:'遺物收藏', icon:'relic', titleSize:16}));
-    add(txt(this, P.left+22, P.bodyTop+6, '已收集 '+GUILD.relics.length+' / '+relicTotalCount()+' 件　·　每件遺物即時生效；點亮＝已尋得，? ＝尚未尋得', 11.5, UI.dim, 0, 0.5));
+    add(txt(this, P.left+22, P.bodyTop+6, '已收集 '+GUILD.relics.length+' / '+relicTotalCount()+' 件　·　收進收藏後每趟探險永久生效；點亮＝已尋得，? ＝尚未尋得', 11.5, UI.dim, 0, 0.5));
     const n=RELIC_CATALOG.length, sz=44, pitch=52, x0=W/2-((n-1)*pitch)/2, slotY=P.bodyTop+74;
     // 區域標籤（每 4 個一組）
     for(let g=0;g<4;g++){ const gc=x0+(g*4+1.5)*pitch; const d=DESTINATIONS[g];
@@ -89,7 +89,7 @@ class GuildHall extends Phaser.Scene {
     add(txt(this, 46, y+20, got?r.icon:'?', got?24:22, got?'#fff':UI.faint));
     add(txt(this, 80, y+8, got?r.name:'？？？', 15, ac.hex, 0, 0.5));
     add(txt(this, 80, y+28, (got?'':'尚未尋得 ・ ')+'產地：'+(d?d.name:'')+' '+'★'.repeat(r.dest+1), 11, UI.dim, 0, 0.5));
-    add(txt(this, 250, y+8, got? r.desc : '在「'+(d?d.name:'')+'」探索取得後，效果將即時生效。', 11.5, got?UI.text:UI.faint, 0).setWordWrapWidth(W-250-30));
+    add(txt(this, 250, y+8, got? r.desc : '在「'+(d?d.name:'')+'」探索取得、帶回收藏後永久生效。', 11.5, got?UI.text:UI.faint, 0).setWordWrapWidth(W-250-30));
   }
   flash(msg){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,486,msg,14,UI.red).setDepth(99);
     this.tweens.add({targets:this._f,alpha:0,delay:800,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }

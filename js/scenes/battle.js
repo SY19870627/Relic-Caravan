@@ -64,7 +64,7 @@ class Battle extends Phaser.Scene {
     if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
     if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
     const _re=relicEffects();
-    this._firstHitCrit=!!_re.firstHitCrit; this._reviveOnce=!!_re.reviveOnce; this.reviveUsed=false;
+    this._firstHitCrit=!!_re.firstHitCrit; this._reviveOnce=!!_re.reviveOnce; this.reviveUsed=false; this._firstHitBlock=!!_re.firstHitBlock;
     this._splash=!!_re.splash; this._regen=_re.regen||0; this._killCrit=!!_re.killCrit; this._healToShield=!!_re.healToShield;
     this._lastStand=!!_re.lastStand; this._firstDeathHeal=_re.firstDeathHeal||0; this._firstDeathDone=false;
     this._firstStrikeAoe=!!_re.firstStrikeAoe; this._lifesteal=_re.lifesteal||0; this._startShield=_re.startShield||0;
@@ -107,7 +107,7 @@ class Battle extends Phaser.Scene {
       c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
       const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
-      c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c._proc=null;
+      c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });

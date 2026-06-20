@@ -33,7 +33,7 @@ class Result extends Phaser.Scene {
     const pnl=panel(this,W/2,346,720,356,{accent:acc,title:'戰利品結算　·　遺物入收藏、素材入庫、雜物登錄圖鑑',icon:'chest',titleSize:15});
     this.bodyTop=pnl.bodyTop;
     let yy=pnl.bodyTop+4;
-    if(relics.length){ const rc=chip(this,0,yy+8,{label:'遺物 ×'+relics.length+'　'+relics.map(r=>r.name).join('、')+'　→ 入收藏即時生效',accent:'violet',icon:'relic',size:11,h:24}); rc.setX(W/2-rc.w/2); }
+    if(relics.length){ const rc=chip(this,0,yy+8,{label:'遺物 ×'+relics.length+'　'+relics.map(r=>r.name).join('、')+'　→ 入收藏後每趟永久生效',accent:'violet',icon:'relic',size:11,h:24}); rc.setX(W/2-rc.w/2); }
     else txt(this,W/2,yy+8,'（本趟沒有帶回遺物）',12,UI.faint);
     yy+=30;
     if(resources.length){ const rcc={}; resources.forEach(r=>rcc[r.name]=(rcc[r.name]||0)+1);
@@ -75,7 +75,7 @@ class Result extends Phaser.Scene {
     });
     const ry=pnl.bodyTop+182;
     if(relics.length){
-      txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏即時生效',13,UI.violet);
+      txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏後每趟永久生效',13,UI.violet);
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
     } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
     button(this,W/2,528,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});

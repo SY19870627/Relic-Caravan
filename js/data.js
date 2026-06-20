@@ -121,7 +121,7 @@ const RELIC_CATALOG = [
   {id:'idol',  name:'破碎神像', icon:'🗿', dest:0, desc:'碎裂的舊神石像，殘留戰意。每位成員每第 3 次攻擊，對全部敵人造成濺射傷害。', effect:{splash:true}},
   {id:'plate', name:'鏽蝕神牌', icon:'🛡', dest:0, desc:'斑駁的護身神牌。每場戰鬥開始，全隊獲得可吸收 18 點傷害的護盾。', effect:{startShield:18}},
   {id:'charm', name:'殘缺護符', icon:'🧿', dest:0, desc:'半枚護符，護佑生機。非治療成員每次行動回復 4% 最大生命。', effect:{regen:0.04}},
-  {id:'eye',   name:'古神之眼', icon:'👁', dest:0, desc:'窺見寶藏所在。每場戰鬥額外掉落 1 件戰利品。', effect:{extraLoot:1}},
+  {id:'eye',   name:'古神之眼', icon:'👁', dest:0, desc:'舊神之眼窺破來襲。每位成員本場第一次受到的攻擊無效（格擋）。', effect:{firstHitBlock:true}},
   // 枯骨峽谷（dest 1）
   {id:'tablet',name:'低語石板', icon:'⚔', dest:1, desc:'低語著殺意的石板。擊殺敵人後，該成員下一次攻擊必定暴擊。', effect:{killCrit:true}},
   {id:'bell',  name:'遺忘之鈴', icon:'🔔', dest:1, desc:'清音安撫傷者。治療超過生命上限的部分轉為護盾。', effect:{healToShield:true}},

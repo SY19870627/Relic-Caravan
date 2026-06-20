@@ -120,7 +120,7 @@ function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ let need=
 function relicEffects(){
   const e={atk:0,def:0,hp:0,heal:0,drop:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, fullHealAfterBattle:false,
     // v0.8 規則型旗標
-    splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0};
+    splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0, firstHitBlock:false};
   (GUILD.relics||[]).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
     for(const k in ef){ if(typeof ef[k]==='boolean'){ e[k]=e[k]||ef[k]; } else { e[k]=(e[k]||0)+ef[k]; } } });
   return e;
