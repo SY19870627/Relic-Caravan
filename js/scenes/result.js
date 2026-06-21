@@ -99,6 +99,7 @@ class Result extends Phaser.Scene {
       else { discover(it.name); }
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
+    awardClassPoints();   // 大改版：活著回來 → 依各出戰職業當趟最終等級累加職業點數上限
     saveGuild(); initRun(); this.scene.start('GuildHall');
   }
   // v1.5 連續遠征：通關後接續下一地城。戰利品先安全入庫（遺物效果立即生效）、清空貨車、全隊回滿，再依新階級重建遠征。

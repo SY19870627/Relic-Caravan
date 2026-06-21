@@ -21,6 +21,9 @@ const PAL = {
   I:'#c8eeff', X:'#b24de0',                              // 晶光 / 異變紫
 };
 const SPRITES = {
+  // 戰士變身型態（大改版・職業規劃器）：bearman 防禦／minotaur 攻擊
+  bearman:["....KKKK....","..KKbbbbKK..","..KBBBBBBK..",".KBBBBBBBBK.",".KBSSKKSSBK.",".KBBSSSSBBK.","..KBBSSBBK..",".KBBBBBBBBK.","KBBBBBBBBBBK","KBBoBBBBoBBK","KBBBBBBBBBBK",".KBBBWWBBBK.",".KBBK..KBBK.",".KbbK..KbbK.",".KK......KK.","............"],
+  minotaur:[".M......M...",".MM....MM...","..MKCCCCKM..","..KCCCCCCK..",".KCCCCCCCCK.",".KCSSKKSSCK.",".KCCSSSSCCK.","..KCMSSMCK..",".KCCCCCCCCK.","KCCCCCCCCCCK","KCcCCCCCCcCK","KCCCCCCCCCCK",".KCCKBBKCCK.",".KBBK..KBBK.",".KK......KK.","............"],
   warrior:["...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...","..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..","WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
   ranger:["...HHHHH....","..HHHHHHH...","..HhSSShH...","..HSSSSSH...","..HSKSKSH...","..HhSSShH...","...hSSSh....","..HHHHHHo...",".KHHHHHKoi..",".KHhhhHKoi..",".KBhhhBKoi..",".KhhhhhK.o..",".KhhKhhK....",".KnnKnnK....",".KK..KK.....","............"],
   priest:["...GGGGG....","..GRRRRRG...","..GRSSSRG...","..RSSSSSR...","..RSKSKSR...","..RrSSSrR...","...RSSSR.q..","..GRRRRRGo..",".KRRRRRKo...",".KRrrrRKo...",".KRrrrRKo...",".KrrrrrKo...",".KrrKrrK....",".KnnKnnK....",".KK..KK.....","............"],
@@ -361,6 +364,32 @@ const HERO_BASE = [
   {sprite:'mage',    name:'法師', hp:54, interval:1700, ranged:true,  healer:false, defWeapon:6, defArmor:0, growthHp:6, aoe:true, growthAtk:3},
   {sprite:'rogue',   name:'盜賊', hp:60, interval:900,  ranged:false, healer:false, defWeapon:7, defArmor:1, growthHp:6, growthAtk:2},
 ];
+// （早期重複定義已移除；正式技能池在本檔後段的 const SKILLS，戰士技能池已更新為職業規劃器版本）
+const _SKILLS_DEPRECATED_DUP = {
+  _unused:[
+    // —— 大招（變身，二選一裝 1）——
+    {name:'熊人變身', role:'ultimate', type:'transform', form:'bearman',  cd:12000, uses:3, dur:6000, amt:8,  frac:0.25, taunt:true, tier:3, desc:'變身為熊人：限時 DEF 大增、受傷 −25%、嘲諷敵人'},
+    {name:'牛頭人變身', role:'ultimate', type:'transform', form:'minotaur', cd:12000, uses:3, dur:6000, amt:12, frac:0.50,            tier:3, desc:'變身為牛頭人：限時 ATK 大增、破甲 50%、暴擊'},
+    // —— 主動小招（選 3）——
+    {name:'挑釁',     role:'active', type:'taunt',    cd:6000, uses:3, dur:2500,            tier:2, desc:'數秒內敵人優先攻擊戰士'},
+    {name:'大吼',     role:'active', type:'stunAll',  cd:8000, uses:2, dur:800,             tier:2, desc:'對全體敵人暈眩 0.8s'},
+    {name:'蠻牛衝鋒', role:'active', type:'nuke',     cd:9000, uses:3, mult:2.5,            tier:3, desc:'一次重擊，傷害 ×2.5'},
+    {name:'連擊',     role:'active', type:'doubleHit', cd:5000, uses:4,                     tier:2, desc:'攻擊時追加一擊'},
+    {name:'戰吼',     role:'active', type:'atkBuff',  cd:8000, uses:3, amt:8, dur:4000,     tier:1, desc:'數秒內自身 ATK +8'},
+    // —— 被動（免費不佔槽，不限數）——
+    {name:'霸體',     role:'passive', type:'hyperarmor', frac:0.15, tier:3, desc:'免疫暈眩；受到傷害 −15%'},
+    {name:'掩護',     role:'passive', type:'cover',      frac:0.20, tier:3, desc:'後排隊友受傷 20% 轉由戰士承受'},
+    {name:'棘刺皮毛', role:'passive', type:'reflect',    frac:0.25, tier:2, desc:'反彈受到傷害 25%'},
+    {name:'不屈',     role:'passive', type:'deathSave',             tier:2, desc:'每場首次致命傷免死，留 1 HP'},
+    {name:'背水',     role:'passive', type:'lowHpDef',              tier:1, desc:'HP<35% 時 DEF 翻倍且免暈'},
+    {name:'熊皮護盾', role:'passive', type:'startShield', amt:20,   tier:1, desc:'每場開場護盾 +20'},
+    {name:'破甲',     role:'passive', type:'pierce',     frac:0.40, tier:3, desc:'攻擊無視 40% 敵方 DEF'},
+    {name:'致命',     role:'passive', type:'critVsStunned',         tier:2, desc:'對暈眩中敵人必定暴擊 ×2'},
+    {name:'嗜血',     role:'passive', type:'lifesteal',  frac:0.20, tier:2, desc:'造成傷害回復 20% 為自身 HP'},
+    {name:'處決',     role:'passive', type:'execute',    frac:0.50, tier:2, desc:'對 HP<30% 敵人傷害 +50%'},
+    {name:'蠻力',     role:'passive', type:'atkBonus',   amt:6,     tier:1, desc:'ATK +6'},
+  ],
+};
 // 寶箱物品池（依風險階級 1-4）
 const LOOT = {
   // 階級 1-8（第二世界 tier 5-8 沿用後段更高階名稱與價值）
@@ -411,10 +440,25 @@ const BIO = {
 // 條件型被動 type：reflect 反傷｜lowHpDef 低血DEF翻倍｜critVsFull 對滿血必暴｜critHealLow 對半血以下治療翻倍
 //   shieldOnHeal 被治療者得護盾｜cleanseOnHeal 治療解暈｜deathSave 每場免死一次｜aoeBonus 多目標追加全體｜critVsStunned 對暈必暴
 const SKILLS = {
-  warrior:[ {lv:2,name:'敲暈',type:'stun',cd:5000,uses:2,dur:1500,desc:'CD 5 秒・每場 2 次：擊暈敵人 1.5 秒'},
-            {lv:4,name:'堅守',type:'reflect',frac:0.25,desc:'被動：被攻擊時，反彈 25% 傷害給攻擊者'},
-            {lv:6,name:'強擊',type:'crit',cd:7000,uses:2,mult:1.8,desc:'CD 7 秒・每場 2 次：重擊（傷害 ×1.8）'},
-            {lv:8,name:'鐵骨',type:'lowHpDef',desc:'被動：生命低於 30% 時，DEF 翻倍'} ],
+  warrior:[
+    {name:'熊人變身', role:'ultimate', type:'transform', form:'bearman',  cd:12000, uses:3, dur:6000, amt:8,  frac:0.25, taunt:true, tier:3, desc:'變身為熊人：限時 DEF 大增、受傷 −25%、嘲諷敵人'},
+    {name:'牛頭人變身', role:'ultimate', type:'transform', form:'minotaur', cd:12000, uses:3, dur:6000, amt:12, frac:0.50, tier:3, desc:'變身為牛頭人：限時 ATK 大增、破甲 50%、暴擊'},
+    {name:'挑釁', role:'active', type:'taunt', cd:6000, uses:3, dur:2500, tier:2, desc:'數秒內敵人優先攻擊戰士'},
+    {name:'大吼', role:'active', type:'stunAll', cd:8000, uses:2, dur:800, tier:2, desc:'對全體敵人暈眩 0.8s'},
+    {name:'蠻牛衝鋒', role:'active', type:'nuke', cd:9000, uses:3, mult:2.5, tier:3, desc:'一次重擊，傷害 ×2.5'},
+    {name:'連擊', role:'active', type:'doubleHit', cd:5000, uses:4, tier:2, desc:'攻擊時追加一擊'},
+    {name:'戰吼', role:'active', type:'atkBuff', cd:8000, uses:3, amt:8, dur:4000, tier:1, desc:'數秒內自身 ATK +8'},
+    {name:'霸體', role:'passive', type:'hyperarmor', frac:0.15, tier:3, desc:'免疫暈眩；受到傷害 −15%'},
+    {name:'掩護', role:'passive', type:'cover', frac:0.20, tier:3, desc:'後排隊友受傷 20% 轉由戰士承受'},
+    {name:'棘刺皮毛', role:'passive', type:'reflect', frac:0.25, tier:2, desc:'反彈受到傷害 25%'},
+    {name:'不屈', role:'passive', type:'deathSave', tier:2, desc:'每場首次致命傷免死，留 1 HP'},
+    {name:'背水', role:'passive', type:'lowHpDef', tier:1, desc:'HP<35% 時 DEF 翻倍且免暈'},
+    {name:'熊皮護盾', role:'passive', type:'startShield', amt:20, tier:1, desc:'每場開場護盾 +20'},
+    {name:'破甲', role:'passive', type:'pierce', frac:0.40, tier:3, desc:'攻擊無視 40% 敵方 DEF'},
+    {name:'致命', role:'passive', type:'critVsStunned', tier:2, desc:'對暈眩中敵人必定暴擊 ×2'},
+    {name:'嗜血', role:'passive', type:'lifesteal', frac:0.20, tier:2, desc:'造成傷害回復 20% 為自身 HP'},
+    {name:'處決', role:'passive', type:'execute', frac:0.50, tier:2, desc:'對 HP<30% 敵人傷害 +50%'},
+    {name:'蠻力', role:'passive', type:'atkBonus', amt:6, tier:1, desc:'ATK +6'} ],
   ranger:[  {lv:2,name:'連射',type:'doubleHit',cd:4000,uses:3,desc:'CD 4 秒・每場 3 次：追加一擊'},
             {lv:4,name:'弱點射擊',type:'crit',cd:6000,uses:2,mult:2,desc:'CD 6 秒・每場 2 次：暴擊傷害×2'},
             {lv:6,name:'鷹眼',type:'critVsFull',desc:'被動：攻擊滿血敵人時必定暴擊'},

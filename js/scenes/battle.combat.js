@@ -21,6 +21,8 @@ Object.assign(Battle.prototype, {
   stun(target,sk,caster){
     // 遺物・枯骨王徽（不倒）：我方低血免疫暈眩
     if(target.side==='hero' && this._lastStand && target.hp/target.maxHp<0.25){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
+    // 大改版・霸體／熊人變身：免疫暈眩
+    if(target.side==='hero' && (this.getSkill(target,'hyperarmor') || (target.formUntil&&this.time.now<target.formUntil&&target.form==='bearman'))){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
     target.stunUntil=this.time.now+sk.dur/this.speed; target.stunSpeed=this.speed;   // v2.2：場景時鐘為原始時間，需依倍率縮短才會「與速度一致」
     this.floatLabel(target.baseX,target.baseY-52, (sk.name||'暈眩')+'!','#ffd24a');
     this.screenFlash(0xffd24a,0.10,140);
@@ -80,9 +82,13 @@ Object.assign(Battle.prototype, {
     const seq=c.atkSeq&&c.atkSeq.length?c.atkSeq:[1];
     let atk=seq[c.atkI % seq.length]; c.atkI++;
     if(opt.weak) atk=Math.round(atk*opt.weak);
+    const _now=this.time.now;
+    if(c.atkBuffUntil && _now<c.atkBuffUntil) atk+=(c.atkBuffAmt||0);              // 大改版・戰吼：限時加攻
+    if(c.formUntil && _now<c.formUntil && c.formAtk) atk+=c.formAtk;               // 大改版・牛頭人變身：加攻
     let crit=false, mult=2;
     if(opt.crit!==undefined){ crit=opt.crit; mult=opt.mult||2; }            // 範圍攻擊：暴擊一次套全體
-    else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; } }
+    else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; }
+      else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; this.floatLabel(c.baseX,c.baseY-58,'蠻牛衝鋒!','#ff8a3a'); } } }   // 大改版・蠻牛衝鋒：重擊
     // 條件型暴擊（我方）
     if(!crit && c.side==='hero'){
       if(c.killCrit){ crit=true; mult=2; c.killCrit=false; }                                       // 遺物・低語石板（殺意）
@@ -95,16 +101,20 @@ Object.assign(Battle.prototype, {
     if(crit) atk=Math.round(atk*mult);
     // v2.1 稱號・對族群增傷（取所有生效稱號中最高的比例）
     if(c.side==='hero' && this._title){ const _p=titleDmgVsFor(target.sprite,this._title); if(_p>0) atk=Math.round(atk*(1+_p)); }
-    // 有效防禦：破甲（武器特性）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
+    if(c.side==='hero'){ const ex=this.getSkill(c,'execute'); if(ex && target.maxHp>0 && target.hp/target.maxHp<0.30){ atk=Math.round(atk*(1+(ex.frac||0.5))); this.skillProc(c,ex.name,{throttle:1500}); } }   // 大改版・處決：低血增傷
+    // 有效防禦：破甲（武器特性／技能）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
     let tdef=target.def;
     if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
+    { let sp=0; const psk=this.getSkill(c,'pierce'); if(psk) sp+=(psk.frac||0.4); if(c.formUntil&&_now<c.formUntil&&c.formPierce) sp+=c.formPierce; if(sp>0) tdef=Math.round(tdef*(1-Math.min(0.9,sp))); }   // 大改版・破甲/牛頭人變身
     if(target.side==='hero'){
       const _lowHp=this.hasSkillType(target,'lowHpDef') && target.hp/target.maxHp<0.30;
       const lowDef=(this._lastStand && target.hp/target.maxHp<0.25) || _lowHp;
       if(lowDef) tdef*=2;
+      if(target.formUntil&&_now<target.formUntil&&target.formDef) tdef+=target.formDef;   // 大改版・熊人變身：加防
       if(_lowHp){ const _s=this.getSkill(target,'lowHpDef'); if(_s)this.skillProc(target,_s.name,{throttle:2600}); }
     }
-    const raw=Math.max(1, atk - tdef);
+    let raw=Math.max(1, atk - tdef);
+    if(target.side==='hero'){ let red=0; const ha=this.getSkill(target,'hyperarmor'); if(ha) red+=(ha.frac||0.15); if(target.formUntil&&_now<target.formUntil&&target.formReduce) red+=target.formReduce; if(red>0){ raw=Math.max(1,Math.round(raw*(1-Math.min(0.85,red)))); if(ha)this.skillProc(target,ha.name,{throttle:2600}); } }   // 大改版・霸體/熊人變身：受傷減免
     // 羈絆・以信護盾：無敵時間內完全格擋
     if(target.invulnUntil && this.time.now < target.invulnUntil){
       this.floatLabel(target.baseX,target.baseY-40,'格擋','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
@@ -114,6 +124,10 @@ Object.assign(Battle.prototype, {
     // 護盾吸收（守護／治療轉盾／裝備／升級／料理）
     let dmg=raw, absorbed=0;
     if(target.shield>0){ absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed; }
+    // 大改版・掩護：部分傷害轉由持「掩護」的隊友承受（不遞迴、不雙重結算）
+    if(target.side==='hero' && dmg>1){ const cov=(this.heroes||[]).find(h=>h.alive&&h!==target&&this.getSkill(h,'cover'));
+      if(cov){ const cv=this.getSkill(cov,'cover'); const redir=Math.min(dmg-1, Math.round(dmg*(cv.frac||0.20)));
+        if(redir>0){ dmg-=redir; cov.hp=Math.max(0,cov.hp-redir); this.bar(cov); pixelNum(this,cov.container.x,cov.container.y-30,'-'+redir,0x9fd0ff); this.skillProc(cov,cv.name,{throttle:1500}); if(cov.hp<=0) this.die(cov); } } }
     // 免死（被動・護體罩）：每場第一次受致命傷殘留 1 HP
     if(target.side==='hero' && dmg>=target.hp && this.hasSkillType(target,'deathSave') && !target.deathSaveUsed){
       target.deathSaveUsed=true; dmg=Math.max(0,target.hp-1); const _s=this.getSkill(target,'deathSave'); if(_s)this.skillProc(target,_s.name); this.floatLabel(target.baseX,target.baseY-60,'免死!','#ffd24a'); this.screenFlash(0xffd24a,0.2,200); }
@@ -137,7 +151,7 @@ Object.assign(Battle.prototype, {
     else if(heavy){ this.shake(120,0.007); this.hitstop(45); }
     else { this.shake(55,0.003); }
     // 吸血（遺物・虛空之心 ＋ 武器吸血特性）
-    if(c.side==='hero' && dmg>0 && c.alive){ const ls=(this._lifesteal||0)+((c.weaponTrait&&c.weaponTrait.lifesteal)||0);
+    if(c.side==='hero' && dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(this._lifesteal||0)+((c.weaponTrait&&c.weaponTrait.lifesteal)||0)+(lsk?(lsk.frac||0.2):0);
       if(ls>0 && c.hp<c.maxHp){ const hp=Math.max(1,Math.round(dmg*ls)); c.hp=Math.min(c.maxHp,c.hp+hp); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'+'+hp,0x7dff9a); } }
     // 反傷（被動・堅守 ＋ 防具反甲）：我方被敵攻擊時反彈
     if(target.side==='hero' && c.side==='enemy' && c.alive && dmg>0){

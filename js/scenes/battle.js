@@ -87,6 +87,7 @@ class Battle extends Phaser.Scene {
     if(this._envText){ this._envText.destroy(); this._envText=null; }
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
     autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
+    activeRoster().forEach(idx=>syncPlannedSkills(idx));   // 大改版：依最新配置表＋目前等級重建技能（修正：配置常在 initRun 之後才改）
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
     this.enemies=[]; this.all=[...this.heroes];
     this.updatePctBar(); this.updateGold(); this.updatePotions();
@@ -99,7 +100,7 @@ class Battle extends Phaser.Scene {
       const pk=heroPerks(h.idx);
       const interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1)));
       const useBonus=(pk.useBonus||0);
-      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
+      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
       c.maxShield=startShield; c.shield=startShield; this.bar(c); return c;   // 每場開場：護盾補滿（與 HP 分開）
     });
@@ -112,9 +113,10 @@ class Battle extends Phaser.Scene {
       c.interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1))); c.useBonus=(pk.useBonus||0);
       c.skills=s.skills; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.aoe=h.aoe; c.ranged=h.ranged; c.healer=h.healer;
       c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
-      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0);
+      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
+      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.atkBuffUntil=0; c.tauntUntil=0; if(c.spr) c.spr.setTexture(c.sprite);   // 大改版：每場重置變身/buff/吸引
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
@@ -230,7 +232,7 @@ class Battle extends Phaser.Scene {
   }
   // 技能格：畫進該員的上方卡片（亮=可用、暗=冷卻/用盡）。資料結構同舊版，只是位置改到卡片。
   buildSkillPips(c){
-    const sk=c.skills||[]; c.skillPips=null; if(!c.card || !sk.length) return;
+    const sk=(c.skills||[]).filter(s=>s.cd!==undefined); c.skillPips=null; if(!c.card || !sk.length) return;   // 角色卡技能格只顯示主動技能（有 CD），被動不顯示
     c.skillPips={};
     const ps=16, gap=4, total=sk.length*ps+(sk.length-1)*gap;
     const cont=this.add.container(c.card.w/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont);
@@ -367,7 +369,8 @@ class Battle extends Phaser.Scene {
     for(let i=1;i<foes.length;i++){ const f=foes[i];
       for(const crit of order){ const a=key(f,crit), b=key(best,crit); if(a<b){ best=f; break; } if(a>b) break; } }
     return best; }
-  pickByRow(foes){ const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
+  pickByRow(foes){ const _now=this.time.now; const tt=foes.filter(f=>f.tauntUntil&&_now<f.tauntUntil); if(tt.length) foes=tt;   // 大改版・挑釁/熊人變身：強制吸引火力
+    const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
     for(let i=0;i<foes.length;i++){ r-=w[i]; if(r<=0) return foes[i]; } return foes[foes.length-1]; }
   getSkill(c,type){ return (c.skills||[]).find(s=>s.type===type); }
   hasSkillType(c,type){ return (c.skills||[]).some(s=>s.type===type); }
@@ -378,9 +381,42 @@ class Battle extends Phaser.Scene {
     if(this.time.now - st.last < s.cd/this.speed) return null;   // v2.2：技能 CD 依倍率縮放
     st.last=this.time.now; st.left--; this.skillCast(c,s); return s;
   }
+  // 大改版：每次行動嘗試觸發主動大招/小招（變身/戰吼/挑釁/大吼），各自 CD＋次數
+  tryActiveBuffs(c){
+    const now=this.time.now;
+    const tf=this.trySkill(c,'transform'); if(tf) this.doTransform(c,tf);
+    const ab=this.trySkill(c,'atkBuff'); if(ab){ c.atkBuffUntil=now+(ab.dur||4000)/this.speed; c.atkBuffAmt=(ab.amt||8); this.floatLabel(c.baseX,c.baseY-58,'戰吼!','#ffd24a'); }
+    const tt=this.trySkill(c,'taunt'); if(tt){ c.tauntUntil=now+(tt.dur||2500)/this.speed; this.floatLabel(c.baseX,c.baseY-58,'挑釁!','#ffb347'); }
+    const sa=this.trySkill(c,'stunAll'); if(sa){ this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,sa,c); }); this.floatLabel(c.baseX,c.baseY-58,'大吼!','#ffd24a'); }
+  }
+  // 變身（大招）：換 sprite＋型態增益，計時還原
+  doTransform(c,sk){
+    const now=this.time.now; c.form=sk.form; c.formUntil=now+(sk.dur||6000)/this.speed;
+    c.formToken=(c.formToken||0)+1; const tok=c.formToken;   // 每次變身一個 token：還原計時器只還原自己這次
+    if(sk.form==='minotaur'){ c.formAtk=(sk.amt||12); c.formPierce=(sk.frac||0.5); c.formDef=0; c.formReduce=0; }
+    else { c.formDef=(sk.amt||8); c.formReduce=(sk.frac||0.25); c.formAtk=0; c.formPierce=0; c.tauntUntil=c.formUntil; }   // 熊人：防禦＋嘲諷
+    if(c.spr && this.textures.exists(sk.form)) c.spr.setTexture(sk.form);
+    this.screenFlash(0xffb347,0.2,260); this.shake(160,0.01);   // 變身提示改用通用技能徽章(skillProc)，formBadge 保留但停用
+    this.time.delayedCall(sk.dur||6000,()=>{ if(!c.form || c.formToken!==tok) return;   // 只還原自己這次的變身（避免上一場殘留計時器提前還原）
+      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0;
+      if(c.alive && c.spr){ c.spr.setTexture(c.sprite); this.skillProc(c, '變回戰士'); } });
+  }
+  // 變身瞬間的狀態徽章：頭頂彈出（放大→定住→停留→上浮淡出），比一般浮字更醒目
+  formBadge(c,label,colNum){
+    const cont=this.add.container(c.container.x, c.baseY-78).setDepth(88);
+    const t=txt(this,0,0,label,16,'#ffffff').setStroke('#000',3); const w=Math.max(60, t.width+24);
+    const g=this.add.graphics(); g.fillStyle(0x07060f,0.95); g.fillRoundedRect(-w/2,-16,w,32,10);
+    g.lineStyle(3,colNum,1); g.strokeRoundedRect(-w/2,-16,w,32,10);
+    g.fillStyle(colNum,0.18); g.fillRoundedRect(-w/2,-16,w,32,10);
+    cont.add([g,t]); cont.setScale(0.3);
+    this.tweens.add({targets:cont, scale:1.2, duration:200, ease:'Back.out'});
+    this.tweens.add({targets:cont, scale:1, duration:160, delay:200, ease:'Quad.out'});
+    this.tweens.add({targets:cont, y:cont.y-26, alpha:0, duration:560, delay:1000, ease:'Quad.in', onComplete:()=>cont.destroy()});
+  }
   act(c){
     // 遺物・殘缺護符（生機）：非治療成員每次行動回復少量 HP
     if(c.side==='hero' && this._regen>0 && !c.healer && c.alive && c.hp>0 && c.hp<c.maxHp){ const h=Math.max(1,Math.round(c.maxHp*this._regen)); c.hp=Math.min(c.maxHp,c.hp+h); this.bar(c); pixelNum(this,c.container.x,c.container.y-34,'+'+h,0x7dff9a); }
+    if(c.side==='hero') this.tryActiveBuffs(c);   // 大改版：主動大招/buff（變身/戰吼/挑釁/大吼）自動觸發
     if(c.healer){ const al=this.aliveOf(c.side); const low=al.reduce((a,b)=>(b.hp/b.maxHp<a.hp/a.maxHp?b:a),al[0]);
       if(low&&low.hp/low.maxHp<CFG.battle.healThreshold){ this.heal(c,low); return; } }
     const foes=this.aliveOf(c.side==='hero'?'enemy':'hero'); if(!foes.length) return;

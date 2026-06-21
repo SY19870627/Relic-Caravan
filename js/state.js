@@ -38,6 +38,8 @@ function defaultGuild(){ return {
   discovered:{},                 // 收藏圖鑑：曾取得過的物品名稱
   owned:{},                      // 已擁有的武器/防具（唯一，不計數量）
   questKills:{}, questStage:{}, titles:{},   // v2.1 任務累計擊殺 / 已領取階數 / 已解鎖稱號（全開生效）
+  classPoints:{},   // 職業規劃器：各職業點數上限 {warrior:Number,...}（活著回來累計）
+  classPlans:{},    // 職業規劃器：各職業配置 {warrior:{slots:[{act,skill},...長度20]}}
 }; }
 let GUILD = defaultGuild();
 
@@ -68,6 +70,7 @@ function loadGuild(){ try{
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
     if(!GUILD.titles) GUILD.titles={}; if(!GUILD.questKills) GUILD.questKills={}; if(!GUILD.questStage) GUILD.questStage={};   // v2.1
+    if(!GUILD.classPoints) GUILD.classPoints={}; if(!GUILD.classPlans) GUILD.classPlans={};   // 職業規劃器（舊存檔相容）
     if(typeof QUEST_LINES!=='undefined') QUEST_LINES.forEach(l=>{ const s1=l.stages[0].title.id;   // 遷移舊存檔：沿用擊殺數、依已解鎖稱號推回階數
       if(GUILD.questKills[l.id]==null) GUILD.questKills[l.id]=(GUILD.quests&&GUILD.quests[s1])||0;
       if(GUILD.questStage[l.id]==null){ let n=0; for(const st of l.stages){ if(GUILD.titles[st.title.id]) n++; else break; } GUILD.questStage[l.id]=n; } });
@@ -264,12 +267,56 @@ function gainXP(amount){
   if(RUN && !Array.isArray(RUN.pendingLevelups)) RUN.pendingLevelups=[];
   activeRoster().forEach(i=>{ const r=ROSTER[i]; r.xp+=amount;   // v1.0：等級無上限
     while(r.xp>=xpNeed(r.level)){ r.xp-=xpNeed(r.level); r.level++; ups.push(`${HERO_BASE[i].name} → Lv${r.level}`);
-      if(RUN) RUN.pendingLevelups.push(i);   // 每升一級＝一次升級三選一（戰後結算抉擇）
+      if(RUN){ const sm=grantPlannedSkill(i, r.level); if(sm) ups.push('🎓 '+sm); }   // 大改版：依職業規劃表自動發放/升級，不再戰後三選一
       const pk=perkAtLevel(r.level); if(pk) ups.push(`✨ ${HERO_BASE[i].name} ${pk.label}`); }
   });
   return ups;
 }
-// ---- v0.9 升級三選一：技能取得/強化，每人最多 2 個技能槽 ----
+// ---- 大改版・職業規劃器：點數成本 / 驗證 / 升級自動發放 ----
+function skillByName(sprite, name){ return (SKILLS[sprite]||[]).find(s=>s.name===name)||null; }
+function skillLearnCost(sprite, name){ const s=skillByName(sprite,name); return s? (s.tier||1) : 0; }   // 習得：T1/2/3 = 1/2/3 點
+function upgradeStepCost(nth){ return nth; }   // 升級：第 n 次升級花 n 點（遞增）
+// 累計某職業配置表已花的點數（習得＋各次升級遞增）
+function planSpent(sprite){ const plan=GUILD.classPlans&&GUILD.classPlans[sprite]; if(!plan||!plan.slots) return 0;
+  let total=0; const ups={};
+  plan.slots.forEach(s=>{ if(!s||!s.skill) return;
+    if(s.act==='learn'){ total+=skillLearnCost(sprite,s.skill); }
+    else if(s.act==='upgrade'){ ups[s.skill]=(ups[s.skill]||0)+1; total+=upgradeStepCost(ups[s.skill]); } });
+  return total; }
+const CLASS_POINT_BASE = 3;   // 起始基底點數（讓新玩家就能配最小 build）；其餘靠活著回來累加
+function classPointCap(sprite){ return CLASS_POINT_BASE + ((GUILD.classPoints&&GUILD.classPoints[sprite])||0); }
+// 配置合法性：總花費 ≤ 上限，且 大招 ≤1、主動小招 ≤3（被動不限）
+function planValid(sprite){ const plan=GUILD.classPlans&&GUILD.classPlans[sprite]; if(!plan||!plan.slots) return true;
+  if(planSpent(sprite)>classPointCap(sprite)) return false;
+  const cnt={ultimate:0,active:0,passive:0}, seen={};
+  for(const s of plan.slots){ if(!s||!s.skill||s.act!=='learn'||seen[s.skill]) continue; seen[s.skill]=true;
+    const sk=skillByName(sprite,s.skill); const role=(sk&&sk.role)||'active'; cnt[role]=(cnt[role]||0)+1; }
+  return cnt.ultimate<=1 && cnt.active<=3; }
+// 升級到 lv（含 Lv1）時，依配置表 slots[lv-1] 靜默發放/升級該技能；回傳提示字串(或 null)
+function grantPlannedSkill(idx, lv){ if(!ROSTER[idx]) return null; const sprite=HERO_BASE[idx].sprite;
+  const plan=GUILD.classPlans&&GUILD.classPlans[sprite]; if(!plan||!plan.slots) return null;
+  const slot=plan.slots[lv-1]; if(!slot||!slot.skill) return null;
+  if(!skillByName(sprite, slot.skill)) return null;
+  if(!Array.isArray(ROSTER[idx].skills)) ROSTER[idx].skills=[];
+  if(!ROSTER[idx].skillPlus) ROSTER[idx].skillPlus={};
+  if(slot.act==='upgrade'){
+    if(!ROSTER[idx].skills.includes(slot.skill)) return null;   // 尚未習得→不能升（合法配置不會發生）
+    ROSTER[idx].skillPlus[slot.skill]=(ROSTER[idx].skillPlus[slot.skill]||0)+1;
+    return `${HERO_BASE[idx].name} ${slot.skill} +${ROSTER[idx].skillPlus[slot.skill]}`;
+  }
+  if(ROSTER[idx].skills.includes(slot.skill)) return null;   // 已習得→略過
+  ROSTER[idx].skills.push(slot.skill);
+  return `${HERO_BASE[idx].name} 習得 ${slot.skill}`;
+}
+// 活著回來：依各出戰職業當趟最終等級，累加職業點數上限（規劃器預算成長；於 result 結算呼叫）
+function awardClassPoints(){ if(typeof RUN==='undefined'||!RUN||!RUN.heroes) return;
+  if(!GUILD.classPoints) GUILD.classPoints={};
+  RUN.heroes.forEach(h=>{ const lv=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1; GUILD.classPoints[h.sprite]=(GUILD.classPoints[h.sprite]||0)+lv; }); }
+// 依「目前配置表＋目前等級」重建該職業本趟技能（idempotent）。修正：配置常在 initRun 之後才改，故每場開戰前重套。
+function syncPlannedSkills(idx){ if(!ROSTER[idx]) return; const lv=ROSTER[idx].level||1;
+  ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
+  for(let L=1; L<=lv; L++) grantPlannedSkill(idx, L); }
+// ---- v0.9 升級三選一（已停用，保留供參考）：技能取得/強化 ----
 function skillWithPlus(base, plus){ if(!plus) return base; const s=Object.assign({}, base);
   if(s.cd!==undefined){ s.uses=(s.uses||1)+plus; s.cd=Math.max(800, Math.round(s.cd*Math.pow(0.85,plus))); }
   if(s.mult!==undefined) s.mult=+(s.mult+0.2*plus).toFixed(2);
@@ -322,6 +369,7 @@ function initRun(){
     heroes: activeRoster().map(idx=>{ const h=HERO_BASE[idx];
       // 免洗隊伍：每趟重置為 Lv1、職業起始裝、技能清空（技能改由地城升級取得，P2）
       ROSTER[idx].level=1; ROSTER[idx].xp=0; ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
+      grantPlannedSkill(idx, 1);   // Lv1 配置格立即發放（每趟免洗起手）
       const weapon = startKitWeapon(idx);
       const armor  = startKitArmor(idx);
       ROSTER[idx].weapon=weapon.name; ROSTER[idx].armor=armor.name;
@@ -344,6 +392,7 @@ function heroStat(h){
   const plusMap = ROSTER[h.idx].skillPlus || {};
   let sk = equipped.map(name=>{ const base=(SKILLS[h.sprite]||[]).find(s=>s.name===name); return base? skillWithPlus(base, plusMap[name]||0) : null; }).filter(Boolean);
   let pdef=0, healB=0, patk=0, phpB=0;
+  (sk||[]).forEach(s=>{ if(s.type==='atkBonus') patk+=s.amt||0; if(s.type==='defBonus') pdef+=s.amt||0; if(s.type==='hpBonus') phpB+=s.amt||0; });   // 大改版：被動數值技能（蠻力等）生效
   const bl=relicEffects();   // 遺物即時效果（數值部分；規則部分由戰鬥讀取）
   const tl=titleEffects();   // v2.0 稱號數值加成（atk/def/hp）
   const bo=formationMod(h.sprite); // 隊形站位加減成（取代固定羈絆）

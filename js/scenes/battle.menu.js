@@ -29,25 +29,8 @@ Object.assign(Battle.prototype, {
     c.add(button(this,W/2,H/2+104,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
   }
 ,
-  // 戰後升級三選一：三張並排直式卡片（逐一處理 RUN.pendingLevelups）
-  showLevelups(){
-    if(!RUN.pendingLevelups || !RUN.pendingLevelups.length){ this.advanceStep(); return; }
-    const idx=RUN.pendingLevelups[0];
-    if(idx==null){ RUN.pendingLevelups.shift(); this.showLevelups(); return; }
-    const choices=rollLevelChoices(idx), hero=HERO_BASE[idx], W=this.scale.width,H=this.scale.height;
-    const o=this.mkOverlay({accent:'gold', w:620, h:452});
-    o.add(txt(this,W/2,H/2-196,'⬆ '+hero.name+' 升級！',22,TH.gold));
-    const cur=((ROSTER[idx]&&ROSTER[idx].skills)||[]).join('、')||'（尚無技能）';
-    o.add(txt(this,W/2,H/2-168,'選擇一項　·　目前技能：'+cur+'（最多 2 個）',12,TH.cyan));
-    o.add(txt(this,W/2,H/2-150,'🟢 綠卡＝習得新技能　·　🟡 金卡＝強化現有技能',11,TH.dim));
-    const cw=174, gap=18, n=choices.length, x0=W/2-((n-1)*(cw+gap))/2, cy=H/2+14;
-    choices.forEach((c,i)=>{ this.levelCard(o, x0+i*(cw+gap), cy, cw, 250, c, ()=>{
-      const eq=(ROSTER[idx]&&ROSTER[idx].skills)||[];
-      if(c.type==='newSkill' && eq.length>=2 && !eq.includes(c.name)){ this.showReplace(idx,c); return; }
-      applyLevelChoice(idx,c); this._nextLevelup();
-    }); });
-    if(RUN.pendingLevelups.length>1) o.add(txt(this,W/2,H/2+200,'尚有 '+(RUN.pendingLevelups.length-1)+' 次升級待選',11,TH.dim));
-  }
+  // 大改版：技能改由職業規劃器配置、升級時(gainXP)自動發放；取消戰後三選一彈窗，直接推進流程。
+  showLevelups(){ if(RUN&&RUN.pendingLevelups) RUN.pendingLevelups.length=0; this.advanceStep(); }
 ,
   // 單張技能卡（圖示＋名稱＋說明＋習得/強化標籤；hover 浮起）
   levelCard(o, x, y, w, h, c, onPick){

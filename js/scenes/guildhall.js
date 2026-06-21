@@ -68,8 +68,9 @@ class GuildHall extends Phaser.Scene {
       {x:cxL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
       {x:cxM, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
       {x:cxR, y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'達成條件領聲望與稱號', s:'QuestHall'},
-      {x:W/2-(cw+gp)/2, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
-      {x:W/2+(cw+gp)/2, y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具', s:'WarehouseHall'},
+      {x:cxL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
+      {x:cxM, y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build：大招／小招／被動', s:'SkillTreeHall'},
+      {x:cxR, y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具', s:'WarehouseHall'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 
