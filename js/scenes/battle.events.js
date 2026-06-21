@@ -306,7 +306,7 @@ Object.assign(Battle.prototype, {
   evEvent(){ const W=this.scale.width,H=this.scale.height;
     const pool=[
       {t:'⛲ 治療之泉',d:'飲下清泉，全隊回復 40% 體力',b:'飲用',auto:true,act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
-      {t:'🏛 古老祭壇',d:'供奉 💰120，換得本關一件未尋得的遺物',b:'供奉 💰120',cond:()=>(RUN.gold||0)>=120&&RUN.cargo.length<RUN.slots&&uncollectedRelicsForDest(RUN.destIndex||0).length>0,act:()=>{ spendGold(120); const it=rollRelicForDest(RUN.destIndex||0); if(it) RUN.cargo.push(it); }},
+      {t:'🏛 古老祭壇',d:'供奉 💰100，換得一件精良裝備（遺物僅首領掉落）',b:'供奉 💰100',cond:()=>(RUN.gold||0)>=100&&RUN.cargo.length<RUN.slots,act:()=>{ spendGold(100); const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }},
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];
     if(ev.auto){   // 治療之泉等：不跳選擇，直接生效後自動前進

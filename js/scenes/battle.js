@@ -121,7 +121,7 @@ class Battle extends Phaser.Scene {
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
       c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setDepth(fs.y/200).setAngle(0).setAlpha(c.alive?1:0.25);
       c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
-      if(c.nameText) c.nameText.setText(`${h.name} Lv${s.level}`);
+      c.name=`${h.name} Lv${s.level}`; if(c.nameText) c.nameText.setText(c.name);   // v2.3：同步更新 c.name，讓上方卡片等級跟著升級
       this.bar(c);
     });
     this.buildPartyHud();

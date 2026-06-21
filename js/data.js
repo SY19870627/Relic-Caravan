@@ -168,47 +168,19 @@ const WORLD_META = [
 //   splash 每3擊濺射全體｜startShield 開場護盾(數值)｜regen 行動回復(比例)｜killCrit 擊殺後下一擊必暴
 //   healToShield 治療溢出轉護盾｜lastStand 低血DEF翻倍+免暈｜firstDeathHeal 首位陣亡全隊回援(比例)
 //   firstStrikeAoe 首次攻擊打全體｜soloBoost 寡兵越強｜lifesteal 吸血(比例)
+// v2.3：每個地城固定 1 件「首領遺物」，只在擊敗該地城首領時取得（不再從菁英/事件/寶箱掉落）。
+//        想換成同地城其他效果，直接改該列的 effect/desc 即可。
 const RELIC_CATALOG = [
-  // 近郊遺跡（dest 0）
-  {id:'idol',  name:'破碎神像', icon:'🗿', dest:0, desc:'碎裂的舊神石像，殘留戰意。每位成員每第 3 次攻擊，對全部敵人造成濺射傷害。', effect:{splash:true}},
-  {id:'plate', name:'鏽蝕神牌', icon:'🛡', dest:0, desc:'斑駁的護身神牌。每場戰鬥開始，全隊獲得可吸收 18 點傷害的護盾。', effect:{startShield:18}},
-  {id:'charm', name:'殘缺護符', icon:'🧿', dest:0, desc:'半枚護符，護佑生機。非治療成員每次行動回復 4% 最大生命。', effect:{regen:0.04}},
-  {id:'eye',   name:'古神之眼', icon:'👁', dest:0, desc:'舊神之眼窺破來襲。每位成員本場第一次受到的攻擊無效（格擋）。', effect:{firstHitBlock:true}},
-  // 枯骨峽谷（dest 1）
-  {id:'tablet',name:'低語石板', icon:'⚔', dest:1, desc:'低語著殺意的石板。擊殺敵人後，該成員下一次攻擊必定暴擊。', effect:{killCrit:true}},
-  {id:'bell',  name:'遺忘之鈴', icon:'🔔', dest:1, desc:'清音安撫傷者。治療超過生命上限的部分轉為護盾。', effect:{healToShield:true}},
-  {id:'candle',name:'永燃聖燭', icon:'🔥', dest:1, desc:'聖火灼敵。每位成員本場「首次攻擊必定暴擊」。', effect:{firstHitCrit:true}},
-  {id:'bonecrest',name:'枯骨王徽', icon:'💀', dest:1, desc:'枯骨之王的徽記。成員生命低於 25% 時，DEF 翻倍且免疫暈眩。', effect:{lastStand:true}},
-  // 沉沒神城（dest 2）
-  {id:'emblem',name:'失落聖徽', icon:'🎖', dest:2, desc:'失落教團的聖徽。每場戰鬥首位成員陣亡時，全隊立即回復 30% 生命。', effect:{firstDeathHeal:0.30}},
-  {id:'core',  name:'星辰碎核', icon:'☄', dest:2, desc:'墜星的碎核。每位成員本場第一次攻擊，改為打擊全部敵人。', effect:{firstStrikeAoe:true}},
-  {id:'crown', name:'潮汐之冠', icon:'🌊', dest:2, desc:'海神的冠冕。每場戰鬥開場，全隊獲得可吸收 25 點傷害的護盾。', effect:{startShield:25}},
-  {id:'glass', name:'時之沙漏', icon:'⏳', dest:2, desc:'逆轉須臾。每場戰鬥首位陣亡的我方「復活一次」（半血）。', effect:{reviveOnce:true}},
-  // 虛空裂隙（dest 3）
-  {id:'diadem',name:'神王冠冕', icon:'👑', dest:3, desc:'神王的冠冕。出戰人數越少越強：每空一個出戰席位，全隊 ATK/DEF +3、HP +20。', effect:{soloBoost:true}},
-  {id:'page',  name:'創世殘頁', icon:'📜', dest:3, desc:'創世之書的殘頁。遺物掉落率 +10%、每場額外掉落 1 件。', effect:{drop:0.10, extraLoot:1}},
-  {id:'heart', name:'虛空之心', icon:'💜', dest:3, desc:'跳動的虛空之心。成員造成傷害時，回復其中 25% 為自身生命。', effect:{lifesteal:0.25}},
-  {id:'wheel', name:'永恆之輪', icon:'♾', dest:3, desc:'生生不息。每場戰鬥勝利後「全隊完全回復」。', effect:{fullHealAfterBattle:true}},
-  // ===== 第二世界 · 燔流沙漠（dest 4）=====
-  {id:'sunseal',  name:'烈陽封印', icon:'🌞', dest:4, desc:'烈日凝成的封印。每場戰鬥開始，全隊獲得可吸收 30 點傷害的護盾。', effect:{startShield:30}},
-  {id:'mirage',   name:'蜃景之紗', icon:'🏜', dest:4, desc:'沙海蜃樓編成的薄紗。每位成員本場第一次受到的攻擊無效（格擋），且 DEF +3。', effect:{firstHitBlock:true, def:3}},
-  {id:'scarab',   name:'聖甲蟲符', icon:'🪲', dest:4, desc:'聖甲蟲護佑生機。非治療成員每次行動回復 5% 最大生命。', effect:{regen:0.05}},
-  {id:'venomfang',name:'毒牙圖騰', icon:'🦂', dest:4, desc:'沙蠍毒牙串成的圖騰。成員造成傷害時，回復其中 15% 為自身生命。', effect:{lifesteal:0.15}},
-  // ===== 第二世界 · 綠洲水澤（dest 5）=====
-  {id:'lotus',     name:'蓮神聖像', icon:'🪷', dest:5, desc:'綠洲蓮神的聖像。治療溢出上限的部分轉為護盾，且治療量 +6。', effect:{healToShield:true, heal:6}},
-  {id:'tidestone', name:'澤潮之石', icon:'💧', dest:5, desc:'澤畔潮汐凝結之石。每場戰鬥首位成員陣亡時，全隊立即回復 30% 生命。', effect:{firstDeathHeal:0.30}},
-  {id:'swarmtotem',name:'蟲群圖騰', icon:'🐝', dest:5, desc:'召喚蟲群亂舞。每位成員每第 3 次攻擊，對全部敵人造成濺射傷害。', effect:{splash:true}},
-  {id:'croccrown', name:'鱷王之冠', icon:'🐊', dest:5, desc:'澤畔霸主的王冠。成員生命低於 25% 時，DEF 翻倍且免疫暈眩。', effect:{lastStand:true}},
-  // ===== 第二世界 · 翠冠叢林（dest 6）=====
-  {id:'jadeheart', name:'翠玉之心', icon:'💚', dest:6, desc:'叢林深處的翠玉。成員造成傷害時，回復其中 20% 為自身生命。', effect:{lifesteal:0.20}},
-  {id:'apexfang',  name:'王獸獠牙', icon:'🐆', dest:6, desc:'林冠霸主的獠牙。擊殺敵人後該成員下一擊必定暴擊，且全隊 ATK +3。', effect:{killCrit:true, atk:3}},
-  {id:'bloomseed', name:'繁花之種', icon:'🌺', dest:6, desc:'生生不息的繁花之種。非治療成員每次行動回復 6% 最大生命，全隊 HP +20。', effect:{regen:0.06, hp:20}},
-  {id:'mantisedge',name:'螳刃結晶', icon:'🦗', dest:6, desc:'螳螂利刃的結晶。每位成員本場首次攻擊必定暴擊。', effect:{firstHitCrit:true}},
-  // ===== 第二世界 · 蝕心雨林（dest 7）=====
-  {id:'rotcore',    name:'蝕心之核', icon:'🟢', dest:7, desc:'雨林心臟的蝕核。每場戰鬥勝利後「全隊完全回復」。', effect:{fullHealAfterBattle:true}},
-  {id:'crystaleye', name:'晶蝕之眼', icon:'🔮', dest:7, desc:'晶化異獸的複眼。每位成員本場第一次攻擊，改為打擊全部敵人。', effect:{firstStrikeAoe:true}},
-  {id:'chimeragene',name:'異變基因', icon:'🧬', dest:7, desc:'扭曲生命的異變基因。全隊 ATK +4、DEF +4、HP +30。', effect:{atk:4, def:4, hp:30}},
-  {id:'worldseed',  name:'噬世之種', icon:'🌐', dest:7, desc:'吞噬世界的種子。遺物掉落率 +12%、每場額外掉落 1 件。', effect:{drop:0.12, extraLoot:1}},
+  // 第一世界
+  {id:'idol',      name:'破碎神像', icon:'🗿', dest:0, desc:'近郊遺跡首領的遺物。每位成員每第 3 次攻擊，對全部敵人造成濺射傷害。', effect:{splash:true}},
+  {id:'candle',    name:'永燃聖燭', icon:'🔥', dest:1, desc:'枯骨峽谷首領的遺物。每位成員本場「首次攻擊必定暴擊」。', effect:{firstHitCrit:true}},
+  {id:'glass',     name:'時之沙漏', icon:'⏳', dest:2, desc:'沉沒神城首領的遺物。每場戰鬥首位陣亡的我方「復活一次」（半血）。', effect:{reviveOnce:true}},
+  {id:'wheel',     name:'永恆之輪', icon:'♾', dest:3, desc:'虛空裂隙首領的遺物。每場戰鬥勝利後「全隊完全回復」。', effect:{fullHealAfterBattle:true}},
+  // 第二世界
+  {id:'venomfang', name:'毒牙圖騰', icon:'🦂', dest:4, desc:'燔流沙漠首領的遺物。成員造成傷害時，回復其中 20% 為自身生命。', effect:{lifesteal:0.20}},
+  {id:'croccrown', name:'鱷王之冠', icon:'🐊', dest:5, desc:'綠洲水澤首領的遺物。成員生命低於 25% 時，DEF 翻倍且免疫暈眩。', effect:{lastStand:true}},
+  {id:'apexfang',  name:'王獸獠牙', icon:'🐆', dest:6, desc:'翠冠叢林首領的遺物。擊殺敵人後該成員下一擊必定暴擊，且全隊 ATK +3。', effect:{killCrit:true, atk:3}},
+  {id:'chimeragene',name:'異變基因', icon:'🧬', dest:7, desc:'蝕心雨林首領的遺物。全隊 ATK +4、DEF +4、HP +30。', effect:{atk:4, def:4, hp:30}},
 ];
 const RELIC_BY_ID={}; RELIC_CATALOG.forEach(r=>{ RELIC_BY_ID[r.id]=r; });
 const RELICS_BY_DEST=[]; RELIC_CATALOG.forEach(r=>{ (RELICS_BY_DEST[r.dest]=RELICS_BY_DEST[r.dest]||[]).push(r); });   // 動態：支援任意數量地城

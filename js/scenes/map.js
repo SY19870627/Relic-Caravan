@@ -12,8 +12,7 @@ function useConsumable(item){
 function rollItem(risk, kind){
   const tier=Math.min(LOOT.consum.length, Math.max(1,risk) + ((RUN.destTier||1)-1));  // 目的地階級越高，掉落階級越高（v2.2 上限隨 LOOT 表擴到 8 階）
   const L=CFG.loot;
-  const wantRelic = kind==='遺物' || (!kind && Math.random()<L.relicChanceBase+risk*L.relicChancePerRisk+(relicEffects().drop||0));
-  if(wantRelic){ const it=rollRelicForDest(RUN.destIndex||0); if(it) return it; }   // 已收齊則改掉其他戰利品
+  // v2.3：遺物改為「只有擊敗首領才取得」，一般/菁英戰利品與寶箱不再隨機出遺物
   if(!kind || kind==='道具' || kind==='貴重物品'){
     if(Math.random()<0.14) gainMaterial(RUN.destIndex||0);   // 素材立即入庫（不佔貨格、全滅也不失），再正常給一件戰利品
   }

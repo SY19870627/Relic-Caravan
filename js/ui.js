@@ -234,10 +234,22 @@ function pips(scene,x,y,n,col){ const c=scene.add.container(x,y); const g=scene.
 
 
 function buildTextures(scene){
+  // v2.3：第二世界生物在明亮背景上對比不足 → 自動為這些精靈加一圈深色描邊（利用既有空白邊格，不改變尺寸）
+  const OUTLINE_KEYS = new Set(['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm','crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth','jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus','chimeraBeast','crystalStalker','sporeHound','leechWyrm','heartOfRot','worldEater']);
   for(const key in SPRITES){
     if(scene.textures.exists(key)) continue;
     const grid=SPRITES[key], hh=grid.length, ww=Math.max(...grid.map(r=>r.length));
     const tex=scene.textures.createCanvas(key,ww,hh), ctx=tex.getContext();
+    if(OUTLINE_KEYS.has(key)){
+      const filled=(x,y)=> y>=0&&y<hh&&x>=0&&x<grid[y].length && !!PAL[grid[y][x]];
+      ctx.fillStyle='#120c08';   // 深色描邊
+      for(let y=0;y<hh;y++){ for(let x=0;x<ww;x++){
+        if(filled(x,y)) continue;                      // 已有顏色的格不畫描邊
+        let adj=false;
+        for(let dy=-1;dy<=1&&!adj;dy++){ for(let dx=-1;dx<=1;dx++){ if((dx||dy)&&filled(x+dx,y+dy)){ adj=true; break; } } }
+        if(adj) ctx.fillRect(x,y,1,1);                 // 緊鄰實心格的空白格 → 描邊
+      }}
+    }
     for(let y=0;y<hh;y++){ const row=grid[y]; for(let x=0;x<row.length;x++){ const col=PAL[row[x]]; if(!col) continue; ctx.fillStyle=col; ctx.fillRect(x,y,1,1);} }
     tex.refresh();
   }

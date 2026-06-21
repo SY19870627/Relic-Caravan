@@ -41,27 +41,25 @@ class GuildHall extends Phaser.Scene {
     const chips=specs.map(s=>chip(this,0,0,s)); const gap=10; let tot=chips.reduce((a,c)=>a+c.w,0)+gap*(chips.length-1);
     let cx=W/2-tot/2; chips.forEach(c=>{ c.setX(cx); c.setY(62); add(c); cx+=c.w+gap; });
 
-    // ====== 遺物收藏（寬版圖鑑）======
+    // ====== 遺物收藏（v2.3：每地城 1 件首領遺物，一次顯示 8 格、依世界分組）======
     const P=add(panel(this, W/2, 213, 868, 246, {accent:'violet', title:'遺物收藏', icon:'relic', titleSize:16}));
-    // v2.2：分世界翻頁（每世界 16 件，避免多世界一排塞不下）
-    if(this.galleryWorld===undefined) this.galleryWorld=0;
-    const gw=Phaser.Math.Clamp(this.galleryWorld,0,WORLD_COUNT-1); this.galleryWorld=gw;
-    const gMeta=WORLD_META[gw]||{name:'世界 '+(gw+1)};
-    const worldRelics=RELIC_CATALOG.filter(r=>worldOfDest(r.dest)===gw);
-    const gwBanked=worldRelics.filter(r=>relicCollected(r.id)).length;
-    add(txt(this, P.left+22, P.bodyTop+6, gMeta.name+' 遺物 '+gwBanked+'/'+worldRelics.length+'　·　總計 '+GUILD.relics.length+'/'+relicTotalCount()+'　·　點亮＝已尋得，? ＝尚未尋得', 11.5, UI.dim, 0, 0.5));
-    const n=worldRelics.length, sz=44, pitch=52, x0=W/2-((n-1)*pitch)/2, slotY=P.bodyTop+74;
-    // 區域標籤（每 4 個一組＝該世界的一個地城）
-    destsOfWorld(gw).forEach((di,g)=>{ const gc=x0+(g*4+1.5)*pitch; const d=DESTINATIONS[di];
-      add(txt(this, gc, P.bodyTop+38, (d?d.name:''), 11, accent(tierAccentName(d?d.tier:1)).hex, 0.5)); });
-    worldRelics.forEach((r,i)=> this.relicSlot(x0+i*pitch, slotY, sz, r));
-    // 世界切換（◀ ▶）
-    if(WORLD_COUNT>1){
-      add(button(this, W/2+352, P.bodyTop+9, 26, 22, '◀', ()=>{ this.galleryWorld=(gw-1+WORLD_COUNT)%WORLD_COUNT; this.render(); }, {size:13, fill:UI.raisedN, stroke:accent('violet').num, color:UI.text, radius:7}));
-      add(button(this, W/2+384, P.bodyTop+9, 26, 22, '▶', ()=>{ this.galleryWorld=(gw+1)%WORLD_COUNT; this.render(); }, {size:13, fill:UI.raisedN, stroke:accent('violet').num, color:UI.text, radius:7}));
-    }
+    const banked=GUILD.relics.filter(id=>RELIC_BY_ID[id]).length;
+    add(txt(this, P.left+22, P.bodyTop+6, '每個地城擊敗首領可獲得 1 件專屬遺物　·　已收集 '+banked+' / '+relicTotalCount()+'　·　收進收藏後每趟永久生效', 11.5, UI.dim, 0, 0.5));
+    const sz=48, slotGap=14, groupGap=46, slotY=P.bodyTop+72;
+    const groups=[]; for(let w=0;w<WORLD_COUNT;w++) groups.push(destsOfWorld(w));
+    const gW=g=>g.length*sz+(g.length-1)*slotGap;
+    const totalW=groups.reduce((a,g)=>a+gW(g),0)+groupGap*Math.max(0,groups.length-1);
+    let gx=W/2-totalW/2;
+    groups.forEach((g,wi)=>{
+      const wm=WORLD_META[wi]||{name:'世界 '+(wi+1)};
+      add(txt(this, gx+gW(g)/2, P.bodyTop+34, wm.name, 12, accent(wm.accent||'gold').hex, 0.5));
+      g.forEach((di,i)=>{ const x=gx+i*(sz+slotGap)+sz/2, d=DESTINATIONS[di], r=(RELICS_BY_DEST[di]||[])[0];
+        if(r) this.relicSlot(x, slotY, sz, r);
+        add(txt(this, x, slotY+sz/2+13, d?d.name:'', 9.5, accent(tierAccentName(d?d.tier:1)).hex, 0.5)); });
+      gx+=gW(g)+groupGap;
+    });
     // 詳細列（預設顯示生效效果，滑過遺物顯示該遺物）
-    this.rdetY=P.bodyTop+108; this._rdet=[];
+    this.rdetY=P.bodyTop+126; this._rdet=[];
     this.showRelicDetail(null);
 
     // ====== 導覽卡（3 欄：新增「任務/懸賞」入口）======
