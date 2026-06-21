@@ -8,7 +8,7 @@ class SkillTreeHall extends Phaser.Scene {
     this.from=(data&&data.from)||'GuildHall';
     this.sprite=(data&&data.sprite)||'warrior';
     sceneBg(this,{glow:0xa98bff});
-    sceneHeader(this,'職業規劃 · '+(CLASS_LABEL[this.sprite]||''),'1 大招 + 3 主動小招 + 任意被動（被動不佔槽）·升級照表自動發招',{accent:'violet'});
+    sceneHeader(this,'職業規劃','選職業配技能 build：1 大招 + 3 主動小招 + 任意被動（升級照表自動發招）',{accent:'violet'});
     if(!GUILD.classPlans) GUILD.classPlans={};
     if(!GUILD.classPlans[this.sprite] || !Array.isArray(GUILD.classPlans[this.sprite].slots)) GUILD.classPlans[this.sprite]={slots:[]};
     button(this, 86, 30, 150, 30, '返回大廳', ()=>this.scene.start(this.from), {variant:'info', size:13, icon:'home', iconSize:13});
@@ -48,6 +48,15 @@ class SkillTreeHall extends Phaser.Scene {
     if(this._ui) this._ui.forEach(o=>o.destroy()); this._ui=[];
     const add=o=>{ this._ui.push(o); return o; };
     const cap=this.cap(), spent=this.spent(), c=this.roleCounts(), valid=planValid(this.sprite);
+
+    // ===== 職業切換分頁（已解鎖職業）=====
+    const W=this.scale.width;
+    const unlocked=CLASS_ORDER.filter((sp,i)=>ROSTER[i]&&ROSTER[i].unlocked);
+    const tw=92, tg=8, ttot=unlocked.length*tw+(unlocked.length-1)*tg, tx=W/2-ttot/2+tw/2;
+    unlocked.forEach((sp,i)=>{ const on=sp===this.sprite;
+      add(button(this, tx+i*(tw+tg), 72, tw, 24, CLASS_LABEL[sp], ()=>{ this.sprite=sp;
+        if(!GUILD.classPlans[sp]||!Array.isArray(GUILD.classPlans[sp].slots)) GUILD.classPlans[sp]={slots:[]};
+        this.render(); }, {accent: on?'violet':'slate', size:12})); });
 
     // ===== 左：技能池 =====
     add(panel(this, 238, 314, 452, 456, {accent:'violet', title:'技能池（點選加入配置）', icon:'sparkle', titleSize:14}));

@@ -5,7 +5,8 @@ Object.assign(Battle.prototype, {
     this.tweens.add({targets:c.container,x:c.baseX-c.facing*8,duration:140,yoyo:true});
     const cx=foes.reduce((a,b)=>a+b.container.x,0)/foes.length, cy=foes.reduce((a,b)=>a+b.container.y,0)/foes.length;
     const orb=this.add.circle(c.container.x+c.facing*18, c.container.y-4, 7, 0x9a7fd0).setDepth(50).setStrokeStyle(2,0xffffff,0.7);
-    const cs=this.trySkill(c,'crit'); const opt = cs? {crit:true, mult:cs.mult} : {crit:false};
+    const cs=this.trySkill(c,'crit'); let opt = cs? {crit:true, mult:cs.mult} : {crit:false};
+    if(!cs){ const nk=this.trySkill(c,'nuke'); if(nk){ opt={crit:true, mult:nk.mult||2.5}; this.floatLabel(c.baseX,c.baseY-58,'魔力轟擊!','#ff8a3a'); } }   // 範圍職(法師)的 nuke 大招也能觸發
     this.tweens.add({targets:orb,x:cx,y:cy,duration:240,ease:'Quad.in',onComplete:()=>{ orb.destroy();
       const ring=this.add.circle(cx,cy,12,0xc9a0ff,0.5).setDepth(45); this.tweens.add({targets:ring,radius:95,alpha:0,duration:320,onComplete:()=>ring.destroy()});
       this.shake(120,0.008);
