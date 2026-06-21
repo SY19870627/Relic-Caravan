@@ -79,7 +79,8 @@ class Result extends Phaser.Scene {
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
     } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
     // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
-    const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length);
+    // v2.2：「繼續深入」僅限同一世界內（第一世界第 4 關不會接到第二世界；跨世界需回地圖用聲望解鎖）
+    const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
     if(hasNext){
       const nx=DESTINATIONS[di+1];
       txt(this, W/2, 500, '繼續深入：戰利品先安全入庫、全隊回滿，但下一地城更兇險（階級 '+nx.tier+'）', 11, UI.dim);

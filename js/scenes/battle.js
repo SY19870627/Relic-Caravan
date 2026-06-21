@@ -6,7 +6,7 @@ class Battle extends Phaser.Scene {
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
     // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
-    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null;
+    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null;
     const W=this.scale.width, H=this.scale.height;
     // v1.1：依目的地切換戰鬥背景主題（牆／地板／火把色），各區視覺區隔
     const di=(RUN&&RUN.destIndex)||0;
@@ -16,7 +16,8 @@ class Battle extends Phaser.Scene {
     this.bgFloor=this.add.tileSprite(0,360,W,H-360,floorKey).setOrigin(0).setTileScale(2,2);
     this.add.rectangle(0,360,W,3,0x0a0710).setOrigin(0);
     const _hb=this.add.graphics().setDepth(59); _hb.fillStyle(UI.bg2,0.8); _hb.fillRoundedRect(8,8,W-16,62,10); _hb.lineStyle(1.5,UI.lineN,0.6); _hb.strokeRoundedRect(8,8,W-16,62,10);
-    const TORCH=[[0xffb347,0xffe08a],[0x9be0a0,0xe6ffe0],[0x6fd0e0,0xbff0f5],[0xc46bff,0xe8b0ff]][di]||[0xffb347,0xffe08a];
+    const TORCH=[[0xffb347,0xffe08a],[0x9be0a0,0xe6ffe0],[0x6fd0e0,0xbff0f5],[0xc46bff,0xe8b0ff],
+      [0xffd27a,0xfff0c0],[0x5fe0d0,0xc0fff5],[0xa8da4e,0xe6ffb0],[0x9be0a0,0xd0b0ff]][di]||[0xffb347,0xffe08a];   // v2.2：4-7 為第二世界光暈
     this.torch(120,150,TORCH[0],TORCH[1]); this.torch(W-120,150,TORCH[0],TORCH[1]);
     this.fxFlash=this.add.rectangle(0,0,W,H,0xffffff,1).setOrigin(0).setDepth(95).setAlpha(0); // 全螢幕閃光層
     this.buildPctBar();
@@ -33,11 +34,12 @@ class Battle extends Phaser.Scene {
     this.pauseBtn.setDepth(60);
     this.targetBtn = button(this, W-176, 50, 100, 26, this._targetTopLabel(), ()=>this.openTargetOrder(), {size:12,fill:0x335b48,stroke:0x5ad08c,hover:0x46996a});
     this.targetBtn.setDepth(60);
-    this.sipBtn = button(this, 220, 54, 150, 24, '💧 喝水 '+autoSipLabel(), ()=>{ cycleAutoSip(); this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); }, {size:11,fill:0x2f5a6b,stroke:0x5ab0d0,hover:0x40788c});
+    this.sipBtn = button(this, W-64, 50, 100, 26, '💧 喝水 '+autoSipLabel(), ()=>{ cycleAutoSip(); this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); }, {size:11,fill:0x2f5a6b,stroke:0x5ab0d0,hover:0x40788c});
     this.sipBtn.setDepth(60);
     if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
-    this.goldText = txt(this, W-22, 50, '💰 '+((RUN&&RUN.gold)||0), 13, '#ffe08a', 1).setDepth(62);
-    this.potText = txt(this, 26, 54, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0).setDepth(62);
+    // v2.3：探險%／錢／藥水 同列靠左（接在進度條下方）
+    this.goldText = txt(this, 104, 50, '💰 '+((RUN&&RUN.gold)||0), 12, '#ffe08a', 0, 0.5).setDepth(62);
+    this.potText = txt(this, 170, 50, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0, 0.5).setDepth(62);
     this.waveText = txt(this,W/2,40,'',12,UI.gold).setDepth(60);
     this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(90);   // 90<浮窗96：選單開啟時不會被戰鬥橫幅蓋住
     if(!RUN.exped) initExpedition();
@@ -47,12 +49,12 @@ class Battle extends Phaser.Scene {
     const W=this.scale.width, x=18, y=16, w=W-250, h=12; this._pctBox={x,y,w,h};
     const g=this.add.graphics().setDepth(60); g.fillStyle(UI.inkN,0.9); g.fillRoundedRect(x,y,w,h,6); g.lineStyle(1.5,UI.lineN,0.7); g.strokeRoundedRect(x,y,w,h,6);
     this._pctFill=this.add.graphics().setDepth(61);
-    this._pctText=txt(this,x+8,y+h+8,'探險 0%',12,UI.gold,0).setDepth(62);
+    this._pctText=txt(this,18,50,'探險 0%',12,UI.gold,0,0.5).setDepth(62);
   }
   updatePctBar(){
     if(!this._pctFill||!RUN.exped) return; const {x,y,w,h}=this._pctBox, p=Math.max(0,Math.min(1,(RUN.exped.pct||0)/100));
     this._pctFill.clear(); if(p>0){ this._pctFill.fillStyle(p>=0.99?UI.redN:UI.goldN,1); this._pctFill.fillRoundedRect(x,y,Math.max(h,w*p),h,6); }
-    this._pctText.setText('探險 '+(RUN.exped.pct||0)+'%'+((RUN.exped.pct||0)>=99?'　·　守衛者現身！':''));
+    this._pctText.setText('探險 '+(RUN.exped.pct||0)+'%');   // v2.3：移除「守衛者現身！」提示
   }
   updateGold(){ if(this.goldText) this.goldText.setText('💰 '+((RUN&&RUN.gold)||0)); }
   healPotCount(){ const HP={'治療藥水':1,'聖水':1,'回復卷軸':1}; return (RUN&&RUN.cargo)? RUN.cargo.filter(it=>it.kind==='道具'&&HP[it.name]).length : 0; }
@@ -102,6 +104,7 @@ class Battle extends Phaser.Scene {
       c.maxShield=startShield; c.shield=startShield; this.bar(c); return c;   // 每場開場：護盾補滿（與 HP 分開）
     });
     this.heroes.forEach(c=>{ if(c.hp<=0){ c.alive=false; c.container.setAlpha(0.25); c.spr.setTint(0x555555);} });
+    this.buildPartyHud();
   }
   refreshHeroes(){
     this.heroes.forEach(c=>{ const h=c.ref, s=heroStat(h), fs=formationSlot(h.sprite), pk=heroPerks(h.idx);
@@ -120,9 +123,8 @@ class Battle extends Phaser.Scene {
       c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
       if(c.nameText) c.nameText.setText(`${h.name} Lv${s.level}`);
       this.bar(c);
-      if(c.pipsCont){ c.pipsCont.destroy(); c.pipsCont=null; c.skillPips=null; }
-      this.buildSkillPips(c);
     });
+    this.buildPartyHud();
   }
   // 後備站位：怪物組未指定 x,y 時，依數量自動排版（最多 9）
   autoEnemyPos(n){
@@ -193,21 +195,51 @@ class Battle extends Phaser.Scene {
     const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0,maxShield:0};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
-    if(side==='hero') this.buildSkillPips(obj);
+    // v2.3：技能格不再畫在頭頂；由 buildPartyHud() 統一畫進上方隊員卡片
     spr.setInteractive({useHandCursor:true}).on('pointerdown',()=>this.showInfo(obj));
     return obj;
   }
-  // 角色頭上技能格：顯示擁有的技能，亮=可用、暗=冷卻/用盡
+  // v2.3：上方隊員狀態卡片列（職業名＋HP條/數值＋技能格）。技能格由角色頭頂移到此處。
+  buildPartyHud(){
+    if(this.partyHud){ this.partyHud.destroy(); this.partyHud=null; }
+    const heroes=this.heroes||[]; const n=heroes.length; if(!n) return;
+    const hud=this.add.container(0,0).setDepth(60); this.partyHud=hud;
+    const cardW=170, cardH=52, gap=6, cardY=72;
+    const totalW=n*cardW+(n-1)*gap, startX=Math.round((this.scale.width-totalW)/2);
+    heroes.forEach((c,i)=>{
+      const left=startX+i*(cardW+gap);
+      const card=this.add.container(left,cardY); hud.add(card);
+      const acc=accent(c.healer?'green':(c.ranged?'blue':'gold'));
+      const g=this.add.graphics();
+      g.fillStyle(0x000000,0.34); g.fillRoundedRect(2,4,cardW,cardH,9);
+      g.fillStyle(UI.panelN,0.96); g.fillRoundedRect(0,0,cardW,cardH,9);
+      g.fillStyle(UI.panelHiN,0.5); g.fillRoundedRect(0,0,cardW,Math.round(cardH*0.42),9);
+      g.lineStyle(1.5, acc.num, 0.85); g.strokeRoundedRect(0,0,cardW,cardH,9);
+      g.fillStyle(acc.num,0.9); g.fillRoundedRect(0,0,4,cardH,{tl:9,bl:9,tr:0,br:0});
+      card.add(g);
+      card.add(txt(this,11,8,c.name,11,acc.hex,0,0));
+      const hpText=txt(this,cardW-9,8,'',10,'#9fd0a0',1,0); card.add(hpText);
+      const hbW=cardW-19;
+      card.add(this.add.rectangle(9,27,hbW,7,0x000000,0.6).setOrigin(0,0.5));
+      const hpFill=this.add.rectangle(9,27,hbW,5,0x5ad06a).setOrigin(0,0.5); card.add(hpFill);
+      const shFill=this.add.rectangle(9,27,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false); card.add(shFill);
+      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, hpFill, hpBarW:hbW, shFill, hpText, pipY:42};
+      this.buildSkillPips(c);
+      this.bar(c);
+    });
+  }
+  // 技能格：畫進該員的上方卡片（亮=可用、暗=冷卻/用盡）。資料結構同舊版，只是位置改到卡片。
   buildSkillPips(c){
-    const sk=c.skills||[]; c.pipsCont=null; c.skillPips=null; if(!sk.length) return;
+    const sk=c.skills||[]; c.skillPips=null; if(!c.card || !sk.length) return;
     c.skillPips={};
-    const ps=22, gap=5, total=sk.length*ps+(sk.length-1)*gap, cont=this.add.container(0,-84).setDepth(70); c.container.add(cont); c.pipsCont=cont;
-    let cx=-total/2+ps/2;
+    const ps=16, gap=4, total=sk.length*ps+(sk.length-1)*gap;
+    const cont=this.add.container(c.card.w/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont);
+    let cx=0;
     sk.forEach(s=>{ const sv=skillVisual(s), ac=accent(sv.accent), active=s.cd!==undefined;
       const pc=this.add.container(cx,0); const g=this.add.graphics();
-      g.fillStyle(0x07060f,0.88); g.fillRoundedRect(-ps/2,-ps/2,ps,ps,6);
-      g.lineStyle(1.5, ac.num, 0.95); g.strokeRoundedRect(-ps/2,-ps/2,ps,ps,6);
-      pc.add([g, icon(this,0,0,sv.icon,ps*0.62,ac.num)]); cont.add(pc);
+      g.fillStyle(0x07060f,0.9); g.fillRoundedRect(-ps/2,-ps/2,ps,ps,5);
+      g.lineStyle(1.5, ac.num, 0.95); g.strokeRoundedRect(-ps/2,-ps/2,ps,ps,5);
+      pc.add([g, icon(this,0,0,sv.icon,ps*0.64,ac.num)]); cont.add(pc);
       c.skillPips[s.name]={c:pc, acc:ac.num, active, skill:s};
       cx+=ps+gap;
     });
@@ -231,7 +263,9 @@ class Battle extends Phaser.Scene {
   // 每幀更新技能格亮暗（冷卻/用盡）
   updateSkillPips(){
     if(!this.heroes) return; const now=this.time.now;
-    this.heroes.forEach(c=>{ if(!c.skillPips) return;
+    this.heroes.forEach(c=>{
+      if(c.card&&c.card.cont) c.card.cont.setAlpha(c.alive?1:0.5);   // v2.3：陣亡淡化整張卡片
+      if(!c.skillPips) return;
       for(const name in c.skillPips){ const p=c.skillPips[name]; let alpha=1;
         if(!c.alive) alpha=0.18;
         else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : (now-st.last < p.skill.cd/this.speed ? 0.5 : 1); } }

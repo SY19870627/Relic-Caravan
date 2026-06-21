@@ -42,7 +42,7 @@ const CFG = {
   },
   // v1.6 商店：各階級每趟商店數、類型偏向裝備、每趟第一間保證裝備商
   // v1.7 類型權重：藥水商 / 流浪商人(綜合商) / 其餘平分給 武器商・防具商
-  shop: { perTier:[1,2,2,2], potionWeight:0.22, merchantWeight:0.26, guaranteeGearFirst:true },
+  shop: { perTier:[1,2,2,2,2,2,3,3], potionWeight:0.22, merchantWeight:0.26, guaranteeGearFirst:true },   // v2.2：擴到 8 階（第二世界 tier 5-8）
 
   // 敵人強度縮放：scale = (1+層數*layerScale)*(1+(階級-1)*tierScale)；王戰用 bossTierScale
   // v0.7 平衡：壓低 layer 斜率（緩和開局深層/精英過硬）、拉高 tier 斜率（讓中後期不再無腦輾壓）

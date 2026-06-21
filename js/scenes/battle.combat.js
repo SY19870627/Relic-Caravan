@@ -169,6 +169,12 @@ Object.assign(Battle.prototype, {
     c.barFill.width=hpW;
     c.barFill.fillColor=(c.maxHp>0 && hp/c.maxHp<0.3) ? 0xff5050 : (c.side==='hero'?0x5ad06a:0xd05a5a);   // HP 低於 30% 轉紅
     if(c.shieldFill){ c.shieldFill.width=shW; c.shieldFill.x=-25+hpW; c.shieldFill.setVisible(sh>0); }     // 護盾段緊接 HP 右側，青色
+    // v2.3：同步更新上方隊員卡片的 HP 條與數值
+    if(c.card){ const fw=c.card.hpBarW, hw=denom>0?fw*(hp/denom):0, sw=denom>0?fw*(sh/denom):0;
+      c.card.hpFill.width=hw; c.card.hpFill.fillColor=(c.maxHp>0&&hp/c.maxHp<0.3)?0xff5050:0x5ad06a;
+      if(c.card.shFill){ c.card.shFill.width=sw; c.card.shFill.x=9+hw; c.card.shFill.setVisible(sh>0); }
+      if(c.card.hpText) c.card.hpText.setText('HP '+Math.round(hp)+'/'+c.maxHp);
+    }
   }
 ,
   shake(dur,intensity){ this.cameras.main.shake(dur, intensity); }

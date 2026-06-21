@@ -20,6 +20,14 @@ function accent(name){
             blue:['#6aa6f0',0x6aa6f0,0x315c93], slate:['#9b93b8',0x9b93b8,0x322c52] };
   const a=m[name]||m.teal; return {hex:a[0], num:a[1], deep:a[2]};
 }
+// v2.2 世界主題：第一世界（暗・紫黑）／第二世界（亮・暖沙與翠林）。給世界地圖等非戰鬥場景套背景。
+function worldTheme(w){
+  return (w===1)
+    ? {top:0x3a5570, bottom:0x6e5a36, glow:0xffd27a, accent:'ember'}   // 第二世界：暖亮天色 → 沙金地平
+    : {top:UI.bg1, bottom:UI.bg2, glow:0xf0a850, accent:'gold'};        // 第一世界：原本的暗色基調
+}
+// 依地城階級取配色名（1-8）：第二世界沿用第二輪配色，世界地圖／收藏牆共用。
+function tierAccentName(tier){ return ['teal','gold','violet','red','ember','green','blue','violet'][((tier||1)-1)] || 'teal'; }
 function _mix(c1,c2,t){ const r=Math.round(((c1>>16)&255)+(((c2>>16)&255)-((c1>>16)&255))*t),
   g=Math.round(((c1>>8)&255)+(((c2>>8)&255)-((c1>>8)&255))*t), b=Math.round((c1&255)+((c2&255)-(c1&255))*t); return (r<<16)|(g<<8)|b; }
 
@@ -254,6 +262,11 @@ function buildTextures(scene){
     {wall:{base:'#1c1814',b1:'#3a3024',b2:'#2e2619',hi:'#5a4a36'}, floor:{base:'#161108',tile:'#2a2114',hi:'#3e3220'}}, // 1 枯骨峽谷：枯黃砂岩
     {wall:{base:'#0b1a1e',b1:'#15323a',b2:'#102a30',hi:'#2f8190'}, floor:{base:'#08161a',tile:'#103038',hi:'#1c6675'}}, // 2 沉沒神城：幽藍水域
     {wall:{base:'#140a1e',b1:'#2a1640',b2:'#1f1030',hi:'#7a47b0'}, floor:{base:'#0e0618',tile:'#20123a',hi:'#48267a'}}, // 3 虛空裂隙：暗紫虛空
+    // v2.2 第二世界（色調偏亮）：沙漠 / 綠洲 / 叢林 / 深雨林
+    {wall:{base:'#c2a061',b1:'#d8bc82',b2:'#b6964f',hi:'#f2dca0'}, floor:{base:'#a8854a',tile:'#c6a566',hi:'#e6c987'}}, // 4 燔流沙漠：烈陽砂岩
+    {wall:{base:'#3f8f88',b1:'#54aaa0',b2:'#347a73',hi:'#86e6d6'}, floor:{base:'#4a8a58',tile:'#6aa86a',hi:'#aede8e'}}, // 5 綠洲水澤：碧水青澤
+    {wall:{base:'#3d7d39',b1:'#56a047',b2:'#326e32',hi:'#aede50'}, floor:{base:'#46682c',tile:'#6c8a3a',hi:'#aece5c'}}, // 6 翠冠叢林：蓊鬱林冠
+    {wall:{base:'#34705a',b1:'#4a9070',b2:'#285a48',hi:'#b24de0'}, floor:{base:'#36563f',tile:'#4f7a5a',hi:'#9ede7e'}}, // 7 蝕心雨林：異變翠影
   ];
   BG_THEMES.forEach((th,di)=>{
     const wk='wall'+di;

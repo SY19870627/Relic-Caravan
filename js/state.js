@@ -306,11 +306,12 @@ function applyLevelChoice(idx, choice, replaceName){
 // Stage 2：戰鬥／精英／寶箱／營火／商人／事件，尾端接遺物守衛者（王）。
 function initExpedition(){
   const t=(RUN&&RUN.destTier)||1;
+  const pace=Math.min(4,t);   // v2.2：探險長度節奏封頂 4（第二世界 tier 5-8 沿用 4 的關卡量，難度交由敵人縮放，不讓路線過長）
   const plan=[]; const add=(type,n)=>{ for(let i=0;i<n;i++) plan.push(type); };
-  add('battle', 4+t); add('elite', Math.max(0,t-1));
-  add('chest', 1+Math.floor(t/2)); add('event', 1+Math.floor(t/2));
-  const _shopN=(CFG.shop&&CFG.shop.perTier&&CFG.shop.perTier[t-1])||1;   // v1.6：各階級商店數（預設 1/2/2/2）
-  add('camp', 1+(t>=3?1:0)); add('shop', _shopN);
+  add('battle', 4+pace); add('elite', Math.max(0,pace-1));
+  add('chest', 1+Math.floor(pace/2)); add('event', 1+Math.floor(pace/2));
+  const _shopN=(CFG.shop&&CFG.shop.perTier&&CFG.shop.perTier[t-1])||1;   // v1.6：各階級商店數（v2.2 擴到 8 階）
+  add('camp', 1+(pace>=3?1:0)); add('shop', _shopN);
   for(let i=plan.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=plan[i]; plan[i]=plan[j]; plan[j]=tmp; }
   if(plan[0]!=='battle'){ const bi=plan.indexOf('battle'); if(bi>0){ const tmp=plan[0]; plan[0]=plan[bi]; plan[bi]=tmp; } }  // 開場保證戰鬥
   RUN.exped={ pct:0, plan, i:0 };

@@ -14,6 +14,11 @@ const PAL = {
   j:'#aab2c4',                // 骨頭陰影灰
   f:'#ff8f6a',                // 珊瑚橘
   l:'#a8f0c0', w:'#46566e', d:'#d2603a',   // v1.4：幽靈綠 / 鋼藍灰 / 蟹殼紅
+  // ===== v2.2 第二世界主題色（沙漠／綠洲／叢林／深雨林，色調偏亮）=====
+  a:'#f0d9a0', D:'#caa05a', m:'#8a6b3c', J:'#5e3f22',   // 亮沙 / 駝沙 / 泥褐 / 深樹皮
+  y:'#a8da4e', L:'#2f7a3c', Q:'#244e22', E:'#37c08a',   // 亮葉綠 / 叢林綠 / 暗甲綠 / 翡翠
+  Z:'#46ccc6', p:'#ff86b4', O:'#e08a2a', N:'#283038',   // 亮水青 / 豔粉 / 琥珀橙 / 暗殼
+  I:'#c8eeff', X:'#b24de0',                              // 晶光 / 異變紫
 };
 const SPRITES = {
   warrior:["...KKKKK....","..KWWWWWK...","..KWnnnWK...","..KSSSSSK...","..KSKSKSK...","..KSSSSSK...","...KSSSK....",".GCCCCCG.M..","WKCCCCCK.M..","WKCCCCCK.M..","WKBBBBBK.M..",".KcccccK....",".KccKccK....",".KnnKnnK....",".KK..KK.....","............"],
@@ -69,6 +74,35 @@ const SPRITES = {
   gnawer:["............","...UUUUUU...","..UUUUUUUU..",".UUUAUUAUUU.","UUUUUUUUUUUU","UMMMMMMMMMMU","UMnMnMnMnMU.","UMMMMMMMMMU.","UMnMnMnMnMU.","UMMMMMMMMMU.",".UUUUUUUUUu.","..UUUUUUUu..","...UUUUUu...","....x..x....","............","............"],
   riftWyrm:["............","....MMMM....","...MnnnnM...","..MnUUUUnM..","..MUUUUUUM..","...xUUUUx...","....UUUU....","....xUUx....","....UUUU....","...xUUUUx...","....UUUU....","....xUUx....","....UUUU....","....x..x....","............","............"],
   nullStar:["....z.z.z...","...zxxxxxz..","..zxUUUUxz..",".zxUUUUUUxz.","zxUUAUUAUUxz","xUUUUUUUUUUx","zxUUAUUAUUxz",".zxUUUUUUxz.","..zxUUUUxz..","...zxxxxxz..","....z.z.z...","...x.z.z.x..","..x..z.z..x.",".x...z.z...x","............","............"],
+  // ===================== v2.2 第二世界・異種動物敵人 =====================
+  // region 4 燔流沙漠：沙蝎蟲群（sandScorpion/hornViper/antlionLord）＋沙漠掠獸（jackal/vulture/sandWyrm）
+  sandScorpion:["...........A","..........A.",".DD......DAD","D..D....D.D.",".DD..DDDDD..","...DDDDDDD..","DD.DDDDDDD..","D..DDDDDDD..",".DDD.DD.DDD.","..D.D..D.D..","............","............","............","............","............","............"],
+  hornViper:["............","....aa......","...aDDa.....","..aDADa.....","...aDDaa....","....aaDDa...","......aDDa..",".......aDDa.","......aDDa..",".....aDDa...","....aDDa....","...aDDa.....","..aDDa......","..aaa.......","............","............"],
+  antlionLord:[".N........N.","..N......N..","..ND.DD.DN..","...NDDDDN...","..DDXDDXDD..","..DDDDDDDD..",".DDDDDDDDDD.","DD.DDDDDD.DD",".DDDDDDDDDD.",".D.DDDDDD.D.",".DDDDDDDDDD.","..DD.DD.DD..","...N....N...","............","............","............"],
+  jackal:["............","............","..D......D..","..DD....DD..","..DDDDDDDD..","..DOADDAOD..","..DDDDDDDD..","..OOOOOOOO..","..OmOOOOmO..","..mOOOOOOm..","..OOOOOOOO..",".OOOOOOOOOO.",".OO.OO.OO.O.",".m..m.m..m..","............","............"],
+  vulture:["............",".....OO.....","....ODDO....","....DAAD....",".....DD.....","....NNNN....","...NNNNNN...","..NN.NN.NN..",".NNN.NN.NNN.","..N.NNNN.N..","....NNNN....",".....NN.....",".....DD.....","....D..D....","............","............"],
+  sandWyrm:["....MMMM....","...MDDDDM...","..MD.XX.DM..","..MDXXXXDM..","..MD.XX.DM..","...MDDDDM...","....DDDD....","...DDDDDD...","...DmDDmD...","...DDDDDD...","....DDDD....","...DDDDDD...","....DDDD....","....DmmD....",".....DD.....","............"],
+  // region 5 綠洲水澤：澤畔爬蟲（crocodile/cobra/swampHydra）＋澤蟲走獸（dragonfly/marshHippo/bogBehemoth）
+  crocodile:["............","............","yy..........","yyyyyy......","LMLMLMy.....","LLLLLLLLLy..","LyAyLLLLLLy.","LLLLLLLLLLLy","LLLLLLLLLLy.",".LyLyLyLyL..","LL.LL.LL.L..",".m..m..m....","............","............","............","............"],
+  cobra:["............","....EEE.....","...EEEEE....","..EE.E.EE...","..EEEEEEE...","...EAEAE....","...EEEEE....","....EEE.....",".....EE.....","....EE......","...EE.......","..EEE.......","..EEEm......","...mm.......","............","............"],
+  swampHydra:[".E...E...E..","EEE.EEE.EEE.","EXE.EXE.EXE.",".E...E...E..",".E...E...E..","..E.E.E.E...","...EEEEE....","..EEEEEEE...","..ELLLLLE...","..ELLLLLE...","..EEEEEEE...","...EEEEE....","..mm...mm...",".m.......m..","............","............"],
+  dragonfly:["............","...I....I...","..II.EE.II..",".III.EE.III.","..II.EE.II..","...IEEEEI...","....EAE.....","....EEE.....",".....E......",".....E......",".....E......",".....y......",".....y......",".....y......",".....E......","............"],
+  marshHippo:["............","............","...wwwwww...","..wwwwwwww..","..wAwwwwAw..","wwwwwwwwwwww","wwwMwwwwMww.","wwwwwwwwwww.","wwwwwwwwww..",".wwwwwwww...",".ww.ww.ww...",".w..w..w....","............","............","............","............"],
+  bogBehemoth:["..M......M..","..ML.LL.LM..","..LLLLLLLL..",".LLXLLLLXLL.",".LLLLLLLLLL.","LLLLLLLLLLLL","LLLmLLLLmLLL","LLLLLLLLLLLL",".LLLLLLLLLL.",".LLLLLLLLLL.",".LL.LL.LL.L.",".m..mm.mm.m.","............","............","............","............"],
+  // region 6 翠冠叢林：林冠猛獸（jaguar/jungleApe/canopyTyrant）＋毒林群蟲（dartFrog/mantis/bloomColossus）
+  jaguar:["............",".O......O...",".OO....OO...",".OOOOOOOO...",".OKOYYOKO...",".OOOOOOOO...","..OOOOOO....",".OOOFOOOOO..",".OKOOOOKOOF.",".OOOOKOOOOO.",".OOOOOOOFOO.","OOOOOOOOOOOO","O.OO.OO.OO.O",".m.m..m..m..","............","............"],
+  jungleApe:["...mmmm.....","..mmmmmm....","..mSSSSm....","..mSAASm....","..mSMMSm....","..mmmmmm....",".mmmmmmmm...","mmJmmmmJmm..","mJ.mmmm.Jm..","m..mmmm..m..","...mmmm.....","..mmmmmm....","..mm..mm....",".mm....mm...","............","............"],
+  canopyTyrant:["....OO.OO...","...OOOOOOO..","..OOXOOXOO..","..OOMMMMOO..","..OOOOOOOO..",".OOOOOOOOOO.","OOLOOOOOOLO.","OOOOOOOOOOOO","OOLOOOOOOLOO",".OOOOOOOOOO.",".OO.OOOO.OO.",".O...OO...O.","..m..mm..m..","............","............","............"],
+  dartFrog:["............","............","...y...y....","..yYy.yYy...","..yyyyyyy...",".ypyyyyypy..",".yyyppyyyy..",".pyyyyyyyp..",".yyyyyyyyy..","..yy...yy...",".yy.....yy..","y..y...y..y.","............","............","............","............"],
+  mantis:["....y.......",".....y.y....","....yLLy....","....LAAL....",".....LL.....","y...LLLL....","yy.LLLLLL...",".yyLLLLLL...","...yLLLLy...","....LLLL....","....LLLL....","...y.LL.y...","..y..LL..y..",".y...yy...y.","............","............"],
+  bloomColossus:["...p.p.p....","..pXpXpXp...","...pLLLp....","....LLL.....","...LLLLL....","..LLLLLLL...",".LLLyLLyLL..",".LLLLLLLLL..",".LLyLLLLyL..",".LLLLLLLLL..","..LL.LL.LL..",".LL..LL..LL.",".m...mm...m.","............","............","............"],
+  // region 7 蝕心雨林（異變）：異變巨獸（chimeraBeast/crystalStalker/heartOfRot）＋蝕林群孽（sporeHound/leechWyrm/worldEater）
+  chimeraBeast:["...X....X...","..XL....LX..","..LLLLLLLL..",".LXLAAALXL..",".LLLMMMLLLL.",".LLLLLLLLLL.","XLLLLLLLLLLX","XLLLyLLyLLLX",".LLLLLLLLLL.",".LLLLLLLLLL.",".LL.LLLL.LL.",".LL.LLLL.LL.",".m...mm...m.","..X......X..","............","............"],
+  crystalStalker:[".....I......","....III.....","...IIXII....","..IIXXXII...","..IIXAXII...","..IIXXXII...","...IIXII....","...XIIIX....","..X.III.X...",".X..III..X..","....III.....","...XI.IX....","..X.....X...",".X.......X..","............","............"],
+  sporeHound:["............","..L......X..","..LL...XLX..","..LLLLLLLL..","..LXALLAXL..","..LLLLLLLL..","...LLLLLL...","..QLLLLLLQ..","..LXLLLLXL..","..QLLLLLLQ..","..LLLLLLLL..",".LLLLLLLLLL.",".LL.LL.LL.L.",".m..m.m..m..","............","............"],
+  leechWyrm:["....cccc....","...cXXXXc...","..cX.XX.Xc..","..cXXXXXXc..","..cX.XX.Xc..","...cXXXXc...","....cccc....","...cccccc...","...cXccXc...","...cccccc...","....cccc....","...cccccc...","....cccc....","....cXXc....",".....cc.....","............"],
+  heartOfRot:["....X.X.X...","...XLXLXLX..","..XLLLLLLLX.",".XLLLcccLLLX","XLLcccXcccLL","XLLcXAAAXcLL","XLLcccXcccLL",".XLLLcccLLLX","..XLLLLLLLX.","...XLLLLLX..","....XLLLX...","...X.LLL.X..","..X..LLL..X.",".X...X.X...X","............","............"],
+  worldEater:[".N........N.",".NX......XN.",".NXLLLLLLXN.",".NLLXLLXLLN.",".NLLLLLLLLN.",".NLLMMMMLLN.","NLLLLLLLLLLN","NLcLLLLLLcLN",".NLLLLLLLLN.",".NLLLLLLLLN.",".NLL.LL.LLN.",".N.L.LL.L.N.","..N..NN..N..",".X........X.","............","............"],
 };
 const GLYPH = {
   '0':["111","101","101","101","111"],'1':["010","110","010","010","111"],'2':["111","001","111","100","111"],'3':["111","001","111","001","111"],'4':["101","101","111","001","001"],'5':["111","100","111","001","111"],'6':["111","100","111","101","111"],'7':["111","001","010","010","010"],'8':["111","101","111","101","111"],'9':["111","101","111","001","111"],'-':["000","000","111","000","000"],'+':["000","010","111","010","000"],
@@ -108,11 +142,25 @@ const ARMORS = [
   {name:'疾風革鎧', def:8, hp:28, lvReq:4, trait:{thorns:0.18}, traitDesc:'反甲：反彈 18% 受到的傷害'},
 ];
 // 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
+// world：每 4 關為一個世界（0=遺跡地城・偏暗，1=沙漠雨林・偏亮）。地城索引 0-3＝第一世界、4-7＝第二世界。
 const DESTINATIONS = [
-  {name:'近郊遺跡', tier:1, repReq:0, desc:'最近的失落神殿，新手起點。'},
-  {name:'枯骨峽谷', tier:2, repReq:2, desc:'更深的古文明遺跡，怪物更兇、寶物更好。'},
-  {name:'沉沒神城', tier:3, repReq:5, desc:'水下失落都城，遺物階級高，路途遙遠。'},
-  {name:'虛空裂隙', tier:4, repReq:9, desc:'舊神沉眠之地，極兇極富，唯強者可歸。'},
+  // ===== 第一世界：遺跡與地城（tier 1-4）=====
+  {name:'近郊遺跡', tier:1, repReq:0, world:0, desc:'最近的失落神殿，新手起點。'},
+  {name:'枯骨峽谷', tier:2, repReq:2, world:0, desc:'更深的古文明遺跡，怪物更兇、寶物更好。'},
+  {name:'沉沒神城', tier:3, repReq:5, world:0, desc:'水下失落都城，遺物階級高，路途遙遠。'},
+  {name:'虛空裂隙', tier:4, repReq:9, world:0, desc:'舊神沉眠之地，極兇極富，唯強者可歸。'},
+  // ===== 第二世界：沙漠與雨林（tier 5-8，異種野獸橫行）=====
+  {name:'燔流沙漠', tier:5, repReq:14, world:1, desc:'烈陽炙烤的無垠沙海，巨蠍與掠獸潛伏沙丘。'},
+  {name:'綠洲水澤', tier:6, repReq:19, world:1, desc:'沙海中央的生機綠洲，澤畔巨鱷與蟲群成患。'},
+  {name:'翠冠叢林', tier:7, repReq:25, world:1, desc:'藤蔓糾纏的蓊鬱密林，猛獸與毒蟲盤踞林冠。'},
+  {name:'蝕心雨林', tier:8, repReq:32, world:1, desc:'深處被異變侵蝕的雨林心臟，異獸滋生、極兇極富。'},
+];
+const WORLD_COUNT = Math.ceil(DESTINATIONS.length/4);
+function worldOfDest(di){ return Math.floor((di||0)/4); }              // 地城 → 世界索引
+function destsOfWorld(w){ return DESTINATIONS.map((d,i)=>i).filter(i=>worldOfDest(i)===w); }  // 世界 → 該世界的地城索引
+const WORLD_META = [
+  {name:'第一世界', sub:'遺跡與地城', accent:'gold'},
+  {name:'第二世界', sub:'沙漠與雨林', accent:'ember'},
 ];
 // ===== 遺物目錄（每關固定清單、收齊為止、已得不再掉）=====
 // v0.8 去數據化：每件遺物 = 一條「規則」。原本的純數值一律改成改變戰鬥/探索規則的功能。
@@ -141,9 +189,29 @@ const RELIC_CATALOG = [
   {id:'page',  name:'創世殘頁', icon:'📜', dest:3, desc:'創世之書的殘頁。遺物掉落率 +10%、每場額外掉落 1 件。', effect:{drop:0.10, extraLoot:1}},
   {id:'heart', name:'虛空之心', icon:'💜', dest:3, desc:'跳動的虛空之心。成員造成傷害時，回復其中 25% 為自身生命。', effect:{lifesteal:0.25}},
   {id:'wheel', name:'永恆之輪', icon:'♾', dest:3, desc:'生生不息。每場戰鬥勝利後「全隊完全回復」。', effect:{fullHealAfterBattle:true}},
+  // ===== 第二世界 · 燔流沙漠（dest 4）=====
+  {id:'sunseal',  name:'烈陽封印', icon:'🌞', dest:4, desc:'烈日凝成的封印。每場戰鬥開始，全隊獲得可吸收 30 點傷害的護盾。', effect:{startShield:30}},
+  {id:'mirage',   name:'蜃景之紗', icon:'🏜', dest:4, desc:'沙海蜃樓編成的薄紗。每位成員本場第一次受到的攻擊無效（格擋），且 DEF +3。', effect:{firstHitBlock:true, def:3}},
+  {id:'scarab',   name:'聖甲蟲符', icon:'🪲', dest:4, desc:'聖甲蟲護佑生機。非治療成員每次行動回復 5% 最大生命。', effect:{regen:0.05}},
+  {id:'venomfang',name:'毒牙圖騰', icon:'🦂', dest:4, desc:'沙蠍毒牙串成的圖騰。成員造成傷害時，回復其中 15% 為自身生命。', effect:{lifesteal:0.15}},
+  // ===== 第二世界 · 綠洲水澤（dest 5）=====
+  {id:'lotus',     name:'蓮神聖像', icon:'🪷', dest:5, desc:'綠洲蓮神的聖像。治療溢出上限的部分轉為護盾，且治療量 +6。', effect:{healToShield:true, heal:6}},
+  {id:'tidestone', name:'澤潮之石', icon:'💧', dest:5, desc:'澤畔潮汐凝結之石。每場戰鬥首位成員陣亡時，全隊立即回復 30% 生命。', effect:{firstDeathHeal:0.30}},
+  {id:'swarmtotem',name:'蟲群圖騰', icon:'🐝', dest:5, desc:'召喚蟲群亂舞。每位成員每第 3 次攻擊，對全部敵人造成濺射傷害。', effect:{splash:true}},
+  {id:'croccrown', name:'鱷王之冠', icon:'🐊', dest:5, desc:'澤畔霸主的王冠。成員生命低於 25% 時，DEF 翻倍且免疫暈眩。', effect:{lastStand:true}},
+  // ===== 第二世界 · 翠冠叢林（dest 6）=====
+  {id:'jadeheart', name:'翠玉之心', icon:'💚', dest:6, desc:'叢林深處的翠玉。成員造成傷害時，回復其中 20% 為自身生命。', effect:{lifesteal:0.20}},
+  {id:'apexfang',  name:'王獸獠牙', icon:'🐆', dest:6, desc:'林冠霸主的獠牙。擊殺敵人後該成員下一擊必定暴擊，且全隊 ATK +3。', effect:{killCrit:true, atk:3}},
+  {id:'bloomseed', name:'繁花之種', icon:'🌺', dest:6, desc:'生生不息的繁花之種。非治療成員每次行動回復 6% 最大生命，全隊 HP +20。', effect:{regen:0.06, hp:20}},
+  {id:'mantisedge',name:'螳刃結晶', icon:'🦗', dest:6, desc:'螳螂利刃的結晶。每位成員本場首次攻擊必定暴擊。', effect:{firstHitCrit:true}},
+  // ===== 第二世界 · 蝕心雨林（dest 7）=====
+  {id:'rotcore',    name:'蝕心之核', icon:'🟢', dest:7, desc:'雨林心臟的蝕核。每場戰鬥勝利後「全隊完全回復」。', effect:{fullHealAfterBattle:true}},
+  {id:'crystaleye', name:'晶蝕之眼', icon:'🔮', dest:7, desc:'晶化異獸的複眼。每位成員本場第一次攻擊，改為打擊全部敵人。', effect:{firstStrikeAoe:true}},
+  {id:'chimeragene',name:'異變基因', icon:'🧬', dest:7, desc:'扭曲生命的異變基因。全隊 ATK +4、DEF +4、HP +30。', effect:{atk:4, def:4, hp:30}},
+  {id:'worldseed',  name:'噬世之種', icon:'🌐', dest:7, desc:'吞噬世界的種子。遺物掉落率 +12%、每場額外掉落 1 件。', effect:{drop:0.12, extraLoot:1}},
 ];
 const RELIC_BY_ID={}; RELIC_CATALOG.forEach(r=>{ RELIC_BY_ID[r.id]=r; });
-const RELICS_BY_DEST=[[],[],[],[]]; RELIC_CATALOG.forEach(r=>{ (RELICS_BY_DEST[r.dest]=RELICS_BY_DEST[r.dest]||[]).push(r); });
+const RELICS_BY_DEST=[]; RELIC_CATALOG.forEach(r=>{ (RELICS_BY_DEST[r.dest]=RELICS_BY_DEST[r.dest]||[]).push(r); });   // 動態：支援任意數量地城
 
 // ===== v2.1 任務 / 懸賞（分階段任務鏈）＋ 稱號（全開）=====
 // 每條任務線有 4 階；同一線共用一個「累計擊殺」計數（跨階保留），達標即可領取下一階。
@@ -157,6 +225,11 @@ const Q_BONE=['skeleton','skeletonArcher','boneBrute','boneKnight','boneHound'];
 const Q_UNDEAD=['necromancer','wraith','banshee','lich'];
 const Q_SEA=['drowned','drownedArcher','coralGolem','tidePriest','drownedBrute','drownedKing','seaSerpent','anglerLurker','reefCrab'];
 const Q_VOID=['voidling','voidArcher','voidColossus','voidSeer','voidApostle','eyeStalker','gnawer','riftWyrm','nullStar'];
+// v2.2 第二世界任務族群（每條線涵蓋該地城的兩個族群）
+const Q_DESERT=['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm'];
+const Q_OASIS=['crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth'];
+const Q_JUNGLE2=['jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus'];
+const Q_ROT=['chimeraBeast','crystalStalker','heartOfRot','sporeHound','leechWyrm','worldEater'];
 const QUEST_LINES = (function(){
   // 三種任務線 builder：每階 = [累計目標, 聲望, 稱號id, 稱號名, 數值]
   const stunLine=(id,name,icon,fac,sprites,arr)=>({id,name,icon,match:{sprites},
@@ -184,6 +257,19 @@ const QUEST_LINES = (function(){
     dmgLine('sea','征討海族','🌊','海族',Q_SEA,[
       [10,1,'tide_breaker','怒海克星',0.25],[50,2,'tide_sovereign','鎮海者',0.40],
       [150,3,'sea_master','馭海者',0.55],[400,4,'abyss_ender','深淵終結者',0.70]]),
+    // ===== 第二世界任務線（沙漠→綠洲→叢林→深雨林）=====
+    dmgLine('w2_desert','沙漠獵殺','🏜','沙漠野獸',Q_DESERT,[
+      [10,2,'dune_hunter','沙漠獵手',0.25],[50,3,'dune_stalker','沙漠追獵者',0.40],
+      [150,4,'dune_reaver','沙漠掠奪者',0.55],[400,5,'dune_warlord','沙漠霸主',0.70]]),
+    stunLine('w2_oasis','澤畔肅清','🐊','澤畔生物',Q_OASIS,[
+      [10,2,'marsh_breaker','澤畔破壞者',2000],[50,3,'marsh_tamer','澤畔馴獸者',3000],
+      [150,4,'marsh_warden','澤畔守望者',4000],[400,5,'marsh_sovereign','澤畔主宰',5000]]),
+    dmgLine('w2_jungle','叢林征伐','🐆','叢林猛獸',Q_JUNGLE2,[
+      [10,2,'jungle_hunter','叢林獵手',0.25],[50,3,'jungle_slayer','叢林屠戮者',0.40],
+      [150,4,'jungle_bane','叢林剋星',0.55],[400,5,'jungle_king','叢林之王',0.70]]),
+    stunLine('w2_rot','蝕林淨化','🧬','異變生物',Q_ROT,[
+      [10,2,'rot_purger','蝕林淨化者',2000],[50,3,'rot_breaker','異變破壞者',3000],
+      [150,4,'rot_warden','蝕林守望者',4000],[400,5,'rot_ender','異變終結者',5000]]),
     statLine('veteran','身經百戰','🎖',{any:true},[
       [100,2,'veteran','百戰老兵','ATK +2、DEF +2',{atk:2,def:2}],[500,3,'warlord','千戰宿將','ATK +4、DEF +4',{atk:4,def:4}],
       [1500,4,'grand_marshal','萬戰統帥','ATK +6、DEF +6',{atk:6,def:6}],[4000,5,'war_god','不朽戰神','ATK +9、DEF +9',{atk:9,def:9}]]),
@@ -244,6 +330,11 @@ const MATERIALS = [
   {id:'iron',    name:'精鐵',   icon:'⛓', dest:1},
   {id:'crystal', name:'海晶',   icon:'🔷', dest:2},
   {id:'voidore', name:'虛空礦', icon:'🟣', dest:3},
+  // 第二世界素材
+  {id:'flint',     name:'燧砂石', icon:'🪨', dest:4},
+  {id:'amber',     name:'琥珀',   icon:'🟡', dest:5},
+  {id:'vine',      name:'翠藤',   icon:'🍃', dest:6},
+  {id:'rotcrystal',name:'蝕晶',   icon:'🟪', dest:7},
 ];
 const MATERIAL_BY_ID={}; MATERIALS.forEach(m=>{ MATERIAL_BY_ID[m.id]=m; });
 const MATERIAL_BY_DEST={}; MATERIALS.forEach(m=>{ MATERIAL_BY_DEST[m.dest]=m; });
@@ -253,6 +344,11 @@ const INGREDIENTS = [
   {id:'meat',  name:'獸肉',   icon:'🍖', dest:1},
   {id:'fish',  name:'深海魚', icon:'🐟', dest:2},
   {id:'spice', name:'異香料', icon:'🌶', dest:3},
+  // 第二世界食材
+  {id:'cactus',    name:'仙人掌果', icon:'🌵', dest:4},
+  {id:'lotusroot', name:'蓮藕',     icon:'🪷', dest:5},
+  {id:'banana',    name:'叢林野果', icon:'🍌', dest:6},
+  {id:'rotfungus', name:'蝕心菇',   icon:'🍄', dest:7},
 ];
 const INGREDIENT_BY_ID={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_ID[m.id]=m; });
 const INGREDIENT_BY_DEST={}; INGREDIENTS.forEach(m=>{ INGREDIENT_BY_DEST[m.dest]=m; });
@@ -271,6 +367,11 @@ const RECIPES = [
   {id:'bbq',   name:'獸肉燒烤',   need:{meat:1},          desc:'下一場戰鬥全隊開場獲得 20 點護盾',         grant:'shield', amt:20},
   {id:'fish',  name:'深海魚料理', need:{fish:1},          desc:'全隊回復 50% HP，並獲得一次「陣亡復活」充能', heal:0.50, grant:'revive'},
   {id:'feast', name:'異香料盛宴', need:{spice:2},          desc:'全隊回復 40% HP，下一場戰鬥全隊首擊必暴',   heal:0.40, grant:'firstCrit'},
+  // 第二世界料理
+  {id:'cactusjuice',name:'仙人掌汁',  need:{cactus:1},      desc:'全隊立即回復 35% HP',                       heal:0.35},
+  {id:'lotusstew',  name:'蓮藕燉湯',  need:{lotusroot:1},   desc:'下一場戰鬥全隊開場獲得 25 點護盾',          grant:'shield', amt:25},
+  {id:'junglefeast',name:'叢林野果盤',need:{banana:1},      desc:'全隊回復 55% HP，並獲得一次「陣亡復活」充能', heal:0.55, grant:'revive'},
+  {id:'rotbanquet', name:'蝕菇盛宴',  need:{rotfungus:2},   desc:'全隊回復 45% HP，下一場戰鬥全隊首擊必暴',   heal:0.45, grant:'firstCrit'},
 ];
 // ===== 工坊強化（工匠解鎖，一次性，全部屬後勤）：craftReq 工匠階級門檻 =====
 // feature：deck2 清掉精英戰後 +3 貨格｜campstove 每次營火多採集 1 份食材
@@ -290,8 +391,9 @@ const HERO_BASE = [
 ];
 // 寶箱物品池（依風險階級 1-4）
 const LOOT = {
-  valuable:['碎銀錢袋','古青銅幣','寶石原石','黃金聖盃','失落王冠'],
-  consum:['治療藥水','解毒劑','聖水','回復卷軸','復活之種'],
+  // 階級 1-8（第二世界 tier 5-8 沿用後段更高階名稱與價值）
+  valuable:['碎銀錢袋','古青銅幣','寶石原石','黃金聖盃','失落王冠','龍血紅玉','星辰寶石','創世遺金'],
+  consum:['治療藥水','解毒劑','聖水','回復卷軸','復活之種','鳳凰藥劑','神聖甘露','不死靈藥'],
 };
 const SCALE = 4;
 const TH = { bg:'#0e0a14', panel:0x1d1528, panel2:0x2a2038, gold:'#e7c14a', goldN:0xe7c14a, cyan:'#6fd0e0', red:'#ff6b6b', green:'#7dff9a', text:'#d8cdb8', dim:'#8a7f9a' };
@@ -321,6 +423,15 @@ const BIO = {
   seaSerpent:'盤踞神城的海蛇，纏繞突咬、滑不溜手。', anglerLurker:'鮟鱇潛伏者，以誘光引獵物、巨口生噬。', reefCrab:'礁岩巨蟹，硬殼難破、雙螯夾擊。',
   voidApostle:'虛空教團使徒，誦念異言、扭曲戰場。', eyeStalker:'凝視者，懸浮巨眼，射出虛空光束。',
   gnawer:'噬咬者，滿口利齒的虛空血盆大口。', riftWyrm:'裂隙噬蟲，自裂縫鑽出的環節巨蟲。', nullStar:'虛無之星，舊神墜落的眼狀核體，眾目睥睨。',
+  // v2.2 第二世界・異種動物
+  sandScorpion:'盤踞沙丘的巨蠍，毒尾一擊致命、雙螯夾碎獵物。', hornViper:'頭生雙角的沙蝰，疾速突咬、難以捉摸。', antlionLord:'沙海之下的異變蟻獅，巨顎開闔、捲沙吞敵。',
+  jackal:'成群獵食的沙漠胡狼，迅猛而貪婪。', vulture:'盤旋沙空的兀鷲，俯衝撕咬、遠程襲擊。', sandWyrm:'鑽行沙海的異變巨蟲，環口利齒能吞噬整隊。',
+  crocodile:'澤畔潛伏的巨鱷，血盆大口一咬定生死。', cobra:'昂首吐信的眼鏡蛇，遠距噴射毒液。', swampHydra:'澤心異變的多頭巨蛇，斬一首而生兩首。',
+  dragonfly:'掠水疾飛的巨蜻蜓，複眼鎖定、撕咬迅捷。', marshHippo:'澤畔巨河馬，龐然厚實、衝撞如錘。', bogBehemoth:'泥沼孕育的異變巨獸，蠻力踏碎一切。',
+  jaguar:'林冠潛行的斑紋獵手，撲咬致命。', jungleApe:'捶胸怒吼的叢林巨猿，重拳震懾全場。', canopyTyrant:'統御密林的異變霸獸，連擊與重壓交織。',
+  dartFrog:'色彩豔麗的箭毒蛙，遠距噴吐劇毒。', mantis:'揮舞雙刃的巨螳，疾斬連擊。', bloomColossus:'花冠異變的植物巨像，藤蔓纏絞、孢粉惑敵。',
+  chimeraBeast:'拼湊多種血脈的異變獸，狂亂難測。', crystalStalker:'被晶化侵蝕的獸體，射出尖銳晶刺。', sporeHound:'渾身孢囊的異變獵犬，撲咬散毒。',
+  leechWyrm:'吸附血肉的巨蛭，環口緊咬不放。', heartOfRot:'雨林心臟的異變母體，凝視奪魂、孕育群孽。', worldEater:'自裂縫降臨的噬世巨獸，吞噬一切血肉。',
 };
 // 技能：依職業等級解鎖，戰鬥中自動觸發
 // 主動技能：cd（毫秒冷卻）+ uses（每場次數上限）；冷卻好且還有次數時，下一次行動自動觸發
@@ -484,6 +595,106 @@ const MONSTER_GROUPS = (function(){
       G('aberr_boss_nullstar',3,'aberration','boss',2,
         [at(gnaw(),555,262,'front'), at(wyrm(),592,420,'front'), at(eye(),712,330,'mid')],
         [at(E('nullStar','虛無之星',520,[30,36,24],6,1300,1,{boss:true,skills:[combo,power,quake]}),700,330,'front'), at(eye(),550,236,'mid'), at(eye(),562,430,'mid')])
+    );
+  })();
+  // ---------- region 4：燔流沙漠（沙蝎蟲群 / 沙漠掠獸）----------
+  (function(){
+    // 沙蝎蟲群
+    const scorp=()=>E('sandScorpion','沙蠍',96,[16,21],4,1350,0,{skills:[smash]}), scorpBig=()=>E('sandScorpion','巨甲沙蠍',130,[18,23],5,1450,0,{skills:[smash]});
+    const viper=()=>E('hornViper','角蝰',64,[18,22],1,1000,0,{skills:[sneak]}), viperS=()=>E('hornViper','劇毒角蝰',70,[22,26],1,950,0,{skills:[sneak]});
+    // 沙漠掠獸
+    const jackal=()=>E('jackal','胡狼',70,[16,20],2,950,0,{skills:[frenzy]}), jackalA=()=>E('jackal','狂暴胡狼',80,[18,22],2,900,0,{skills:[frenzy]});
+    const vult=()=>E('vulture','兀鷲',60,[20,24],1,1100,1,{skills:[power]}), vultS=()=>E('vulture','嗜血兀鷲',66,[22,26],1,1050,1,{skills:[power]});
+    out.push(
+      // 沙蝎蟲群
+      G('sand_scorp_patrol',4,'sandkin','normal',1, [at(scorp(),560,330,'front'), at(viper(),678,232,'mid')]),
+      G('sand_scorp_nest',4,'sandkin','normal',2, [at(scorpBig(),535,250,'front'), at(viper(),575,422,'front'), at(viperS(),702,182,'mid'), at(viper(),690,360,'mid')]),
+      G('sand_scorp_swarm',4,'sandkin','elite',3, [at(scorpBig(),542,322,'front'), at(scorp(),584,182,'front'), at(viper(),562,472,'front'), at(viperS(),678,152,'mid'), at(viperS(),708,300,'mid')]),
+      G('sand_boss_antlion',4,'sandkin','boss',2,
+        [at(scorp(),555,262,'front'), at(viper(),592,420,'front'), at(viperS(),712,330,'mid')],
+        [at(E('antlionLord','蟻獅領主',420,[28,18,38],6,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(scorpBig(),550,236,'mid'), at(viperS(),562,430,'mid')]),
+      // 沙漠掠獸
+      G('dune_pack',4,'dunebeast','normal',1, [at(jackal(),560,330,'front'), at(vult(),678,232,'mid')]),
+      G('dune_hunt',4,'dunebeast','normal',2, [at(jackal(),545,258,'front'), at(jackalA(),580,422,'front'), at(vult(),700,320,'mid')]),
+      G('dune_frenzy',4,'dunebeast','elite',3, [at(jackalA(),542,322,'front'), at(jackalA(),584,182,'front'), at(jackal(),562,472,'front'), at(vultS(),678,152,'mid'), at(vultS(),708,300,'mid')]),
+      G('dune_boss_wyrm',4,'dunebeast','boss',2,
+        [at(jackal(),555,262,'front'), at(jackalA(),592,420,'front'), at(vult(),712,330,'mid')],
+        [at(E('sandWyrm','沙蟲王',460,[30,20,40],6,1350,0,{boss:true,skills:[quake2,smash]}),700,330,'front'), at(vultS(),550,330,'mid')])
+    );
+  })();
+  // ---------- region 5：綠洲水澤（澤畔爬蟲 / 澤蟲走獸）----------
+  (function(){
+    // 澤畔爬蟲
+    const croc=()=>E('crocodile','澤鱷',150,[18,23],5,1450,0,{skills:[smash]}), crocBig=()=>E('crocodile','巨顎澤鱷',180,[20,26],6,1500,0,{skills:[smash]});
+    const cobra=()=>E('cobra','眼鏡蛇',74,[20,24],2,1100,1,{skills:[power]}), cobraS=()=>E('cobra','劇毒眼鏡蛇',80,[24,28],2,1050,1,{skills:[power]});
+    // 澤蟲走獸
+    const fly=()=>E('dragonfly','巨蜻蜓',76,[22,26],1,1000,1,{skills:[frenzy]}), flyS=()=>E('dragonfly','掠水蜻蜓',84,[24,28],1,950,1,{skills:[frenzy]});
+    const hippo=()=>E('marshHippo','澤馬',160,[18,22],5,1450,0,{skills:[smash]}), hippoA=()=>E('marshHippo','暴怒澤馬',190,[20,26],5,1400,0,{skills:[smash]});
+    out.push(
+      // 澤畔爬蟲
+      G('marsh_croc_bask',5,'reptile','normal',1, [at(croc(),560,330,'front'), at(cobra(),678,232,'mid')]),
+      G('marsh_croc_den',5,'reptile','normal',2, [at(crocBig(),535,250,'front'), at(croc(),575,422,'front'), at(cobra(),702,182,'mid'), at(cobraS(),690,360,'mid')]),
+      G('marsh_croc_ambush',5,'reptile','elite',3, [at(crocBig(),542,322,'front'), at(croc(),584,182,'front'), at(cobraS(),678,152,'mid'), at(cobraS(),708,300,'mid')]),
+      G('marsh_boss_hydra',5,'reptile','boss',2,
+        [at(croc(),555,262,'front'), at(cobra(),592,420,'front'), at(cobraS(),712,330,'mid')],
+        [at(E('swampHydra','沼澤海德拉',520,[26,20,34],7,1350,0,{boss:true,healer:true,heal:16,skills:[gheal,combo]}),700,330,'front'), at(cobraS(),550,236,'mid'), at(croc(),562,430,'mid')]),
+      // 澤蟲走獸
+      G('mire_swarm',5,'mire','normal',1, [at(hippo(),560,330,'front'), at(fly(),678,232,'mid')]),
+      G('mire_drift',5,'mire','normal',2, [at(hippo(),545,258,'front'), at(flyS(),700,200,'mid'), at(fly(),700,360,'mid')]),
+      G('mire_storm',5,'mire','elite',3, [at(hippoA(),542,322,'front'), at(hippo(),584,182,'front'), at(flyS(),678,152,'mid'), at(flyS(),708,300,'mid'), at(fly(),812,330,'back')]),
+      G('mire_boss_behemoth',5,'mire','boss',2,
+        [at(hippo(),555,262,'front'), at(fly(),592,420,'front'), at(flyS(),712,330,'mid')],
+        [at(E('bogBehemoth','沼澤巨獸',560,[32,22,42],8,1400,0,{boss:true,skills:[quake,smash]}),700,330,'front'), at(flyS(),550,330,'mid')])
+    );
+  })();
+  // ---------- region 6：翠冠叢林（林冠猛獸 / 毒林群蟲）----------
+  (function(){
+    // 林冠猛獸
+    const jag=()=>E('jaguar','美洲豹',96,[24,28],3,900,0,{skills:[sneak]}), jagS=()=>E('jaguar','嗜血美洲豹',106,[26,32],3,850,0,{skills:[sneak]});
+    const ape=()=>E('jungleApe','叢林巨猿',170,[22,28],5,1350,0,{skills:[smash]}), apeA=()=>E('jungleApe','銀背巨猿',200,[24,30],6,1300,0,{skills:[frenzy,smash]});
+    // 毒林群蟲
+    const frog=()=>E('dartFrog','箭毒蛙',80,[24,28],2,1050,1,{skills:[power]}), frogS=()=>E('dartFrog','劇毒箭蛙',88,[28,32],2,1000,1,{skills:[power]});
+    const mant=()=>E('mantis','巨螳',92,[24,30],3,900,0,{skills:[frenzy]}), mantS=()=>E('mantis','刃翅巨螳',100,[28,34],3,850,0,{skills:[frenzy]});
+    out.push(
+      // 林冠猛獸
+      G('jungle_prowl',6,'junglebeast','normal',1, [at(ape(),560,330,'front'), at(jag(),678,232,'mid')]),
+      G('jungle_troop',6,'junglebeast','normal',2, [at(ape(),535,250,'front'), at(jag(),575,422,'front'), at(jag(),702,182,'mid'), at(jagS(),690,360,'mid')]),
+      G('jungle_warband',6,'junglebeast','elite',3, [at(apeA(),542,322,'front'), at(jagS(),584,182,'front'), at(jag(),562,472,'front'), at(jagS(),678,152,'mid'), at(jag(),708,300,'mid')]),
+      G('jungle_boss_tyrant',6,'junglebeast','boss',2,
+        [at(ape(),555,262,'front'), at(jag(),592,420,'front'), at(jagS(),712,330,'mid')],
+        [at(E('canopyTyrant','林冠霸主',600,[34,22,44],7,1300,0,{boss:true,skills:[quake,combo]}),700,330,'front'), at(apeA(),550,236,'mid'), at(jagS(),562,430,'mid')]),
+      // 毒林群蟲
+      G('venom_creep',6,'venomkin','normal',1, [at(mant(),560,330,'front'), at(frog(),678,232,'mid')]),
+      G('venom_brood',6,'venomkin','normal',2, [at(mant(),535,250,'front'), at(mantS(),575,422,'front'), at(frog(),702,182,'mid'), at(frogS(),690,360,'mid')]),
+      G('venom_swarm',6,'venomkin','elite',3, [at(mantS(),542,322,'front'), at(mant(),584,182,'front'), at(frogS(),678,152,'mid'), at(frogS(),708,300,'mid'), at(frog(),812,330,'back')]),
+      G('venom_boss_bloom',6,'venomkin','boss',2,
+        [at(mant(),555,262,'front'), at(frog(),592,420,'front'), at(frogS(),712,330,'mid')],
+        [at(E('bloomColossus','繁花巨像',580,[28,20,36],8,1350,0,{boss:true,healer:true,heal:18,skills:[gheal,power]}),700,330,'front'), at(frogS(),550,236,'mid'), at(mantS(),562,430,'mid')])
+    );
+  })();
+  // ---------- region 7：蝕心雨林（異變巨獸 / 蝕林群孽）----------
+  (function(){
+    // 異變巨獸
+    const chim=()=>E('chimeraBeast','異獸',120,[26,32],4,1050,0,{skills:[frenzy]}), chimS=()=>E('chimeraBeast','狂亂異獸',136,[30,36],4,1000,0,{skills:[frenzy,sneak]});
+    const cry=()=>E('crystalStalker','晶蝕者',92,[26,30],2,1050,1,{skills:[power,smash]}), cryS=()=>E('crystalStalker','晶爆者',100,[30,34],2,1000,1,{skills:[power]});
+    // 蝕林群孽
+    const spore=()=>E('sporeHound','孢獸',100,[26,30],2,920,0,{skills:[frenzy]}), sporeS=()=>E('sporeHound','劇毒孢獸',112,[28,34],2,880,0,{skills:[frenzy,sneak]});
+    const leech=()=>E('leechWyrm','蝕蛭',180,[24,28],5,1400,0,{skills:[smash]}), leechS=()=>E('leechWyrm','巨蝕蛭',210,[26,32],6,1380,0,{skills:[smash]});
+    out.push(
+      // 異變巨獸
+      G('aberr2_pair',7,'aberrant','normal',1, [at(chim(),560,330,'front'), at(cry(),678,232,'mid')]),
+      G('aberr2_pack',7,'aberrant','normal',2, [at(chim(),535,250,'front'), at(chimS(),575,422,'front'), at(cry(),702,182,'mid'), at(cryS(),690,360,'mid')]),
+      G('aberr2_horror',7,'aberrant','elite',3, [at(chimS(),506,234,'front'), at(chim(),546,372,'front'), at(cry(),586,492,'front'), at(cryS(),678,152,'mid'), at(cryS(),708,300,'mid')]),
+      G('aberr2_boss_heart',7,'aberrant','boss',2,
+        [at(chim(),555,262,'front'), at(cry(),592,420,'front'), at(cryS(),712,330,'mid')],
+        [at(E('heartOfRot','蝕心母獸',640,[30,20,40],7,1300,1,{boss:true,healer:true,heal:20,skills:[gheal,combo,power]}),700,330,'front'), at(chimS(),550,236,'mid'), at(cryS(),562,430,'mid')]),
+      // 蝕林群孽
+      G('rot_crawl',7,'rotkin','normal',1, [at(leech(),560,330,'front'), at(spore(),678,232,'mid')]),
+      G('rot_brood',7,'rotkin','normal',2, [at(leech(),545,258,'front'), at(spore(),580,422,'front'), at(sporeS(),700,320,'mid')]),
+      G('rot_blight',7,'rotkin','elite',3, [at(leechS(),542,322,'front'), at(spore(),584,182,'front'), at(spore(),562,472,'front'), at(sporeS(),678,152,'mid'), at(sporeS(),708,300,'mid')]),
+      G('rot_boss_eater',7,'rotkin','boss',2,
+        [at(leech(),555,262,'front'), at(spore(),592,420,'front'), at(sporeS(),712,330,'mid')],
+        [at(E('worldEater','噬世者',720,[36,24,48],8,1350,0,{boss:true,skills:[quake,combo,smash]}),700,330,'front'), at(leechS(),550,330,'mid')])
     );
   })();
   return out;

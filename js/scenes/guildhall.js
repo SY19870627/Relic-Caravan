@@ -43,12 +43,23 @@ class GuildHall extends Phaser.Scene {
 
     // ====== 遺物收藏（寬版圖鑑）======
     const P=add(panel(this, W/2, 213, 868, 246, {accent:'violet', title:'遺物收藏', icon:'relic', titleSize:16}));
-    add(txt(this, P.left+22, P.bodyTop+6, '已收集 '+GUILD.relics.length+' / '+relicTotalCount()+' 件　·　收進收藏後每趟探險永久生效；點亮＝已尋得，? ＝尚未尋得', 11.5, UI.dim, 0, 0.5));
-    const n=RELIC_CATALOG.length, sz=44, pitch=52, x0=W/2-((n-1)*pitch)/2, slotY=P.bodyTop+74;
-    // 區域標籤（每 4 個一組）
-    for(let g=0;g<4;g++){ const gc=x0+(g*4+1.5)*pitch; const d=DESTINATIONS[g];
-      add(txt(this, gc, P.bodyTop+38, (d?d.name:'')+' '+'★'.repeat(g+1), 11, accent(['teal','gold','violet','red'][g]).hex, 0.5)); }
-    RELIC_CATALOG.forEach((r,i)=> this.relicSlot(x0+i*pitch, slotY, sz, r));
+    // v2.2：分世界翻頁（每世界 16 件，避免多世界一排塞不下）
+    if(this.galleryWorld===undefined) this.galleryWorld=0;
+    const gw=Phaser.Math.Clamp(this.galleryWorld,0,WORLD_COUNT-1); this.galleryWorld=gw;
+    const gMeta=WORLD_META[gw]||{name:'世界 '+(gw+1)};
+    const worldRelics=RELIC_CATALOG.filter(r=>worldOfDest(r.dest)===gw);
+    const gwBanked=worldRelics.filter(r=>relicCollected(r.id)).length;
+    add(txt(this, P.left+22, P.bodyTop+6, gMeta.name+' 遺物 '+gwBanked+'/'+worldRelics.length+'　·　總計 '+GUILD.relics.length+'/'+relicTotalCount()+'　·　點亮＝已尋得，? ＝尚未尋得', 11.5, UI.dim, 0, 0.5));
+    const n=worldRelics.length, sz=44, pitch=52, x0=W/2-((n-1)*pitch)/2, slotY=P.bodyTop+74;
+    // 區域標籤（每 4 個一組＝該世界的一個地城）
+    destsOfWorld(gw).forEach((di,g)=>{ const gc=x0+(g*4+1.5)*pitch; const d=DESTINATIONS[di];
+      add(txt(this, gc, P.bodyTop+38, (d?d.name:''), 11, accent(tierAccentName(d?d.tier:1)).hex, 0.5)); });
+    worldRelics.forEach((r,i)=> this.relicSlot(x0+i*pitch, slotY, sz, r));
+    // 世界切換（◀ ▶）
+    if(WORLD_COUNT>1){
+      add(button(this, W/2+352, P.bodyTop+9, 26, 22, '◀', ()=>{ this.galleryWorld=(gw-1+WORLD_COUNT)%WORLD_COUNT; this.render(); }, {size:13, fill:UI.raisedN, stroke:accent('violet').num, color:UI.text, radius:7}));
+      add(button(this, W/2+384, P.bodyTop+9, 26, 22, '▶', ()=>{ this.galleryWorld=(gw+1)%WORLD_COUNT; this.render(); }, {size:13, fill:UI.raisedN, stroke:accent('violet').num, color:UI.text, radius:7}));
+    }
     // 詳細列（預設顯示生效效果，滑過遺物顯示該遺物）
     this.rdetY=P.bodyTop+108; this._rdet=[];
     this.showRelicDetail(null);
