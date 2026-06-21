@@ -438,13 +438,14 @@ const SKILL_ICON = {
   '堅守':'reflect','鐵骨':'fortify','護體罩':'ward','奧術精通':'sparkle',
 };
 function skillVisual(s){ const name=(typeof s==='string')?s:(s&&s.name), type=(s&&s.type)||'';
-  const icon = SKILL_ICON[name] || ({stun:'stun',crit:'smash',doubleHit:'arrows',groupHeal:'heal'}[type]) || 'sparkle';
+  const icon = (s&&s.icon) || SKILL_ICON[name] || ({stun:'stun',crit:'smash',doubleHit:'arrows',groupHeal:'heal'}[type]) || 'sparkle';   // 技能自帶 icon 優先
   let acc='violet';
-  if(type==='stun') acc='gold';
-  else if(type==='crit'||type==='critVsFull'||type==='critVsStunned') acc='red';
+  if(type==='stun'||type==='stunAll') acc='gold';
+  else if(type==='crit'||type==='critVsFull'||type==='critVsStunned'||type==='nuke') acc='red';
   else if(type==='doubleHit') acc='blue';
-  else if(type==='groupHeal'||type==='critHealLow'||type==='shieldOnHeal'||type==='cleanseOnHeal') acc='green';
-  else if(type==='reflect'||type==='lowHpDef'||type==='deathSave') acc='blue';
+  else if(type==='transform'||type==='taunt'||type==='atkBuff') acc='ember';
+  else if(type==='groupHeal'||type==='critHealLow'||type==='shieldOnHeal'||type==='cleanseOnHeal'||type==='lifesteal') acc='green';
+  else if(type==='reflect'||type==='lowHpDef'||type==='deathSave'||type==='pierce'||type==='atkBonus') acc='blue';
   return {icon, accent:acc};
 }
 function itemVisual(name){ const v=ITEM_ICON[name]; return v? {icon:v[0], accent:v[1]} : {icon:'box', accent:'slate'}; }

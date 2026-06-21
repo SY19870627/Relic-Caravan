@@ -55,9 +55,9 @@ class SkillTreeHall extends Phaser.Scene {
     ['ultimate','active','passive'].forEach(role=>{
       const ac=accent(this.ROLE_ACC[role]);
       const capTxt = role==='ultimate'?'裝 1':(role==='active'?'裝 3':'不限');
-      add(txt(this, 26, y, this.ROLE_LABEL[role]+'　('+capTxt+')', 12, ac.hex, 0, 0.5)); y+=18;
-      this.pool().filter(s=>s.role===role).forEach(s=>{ this.poolRow(add, y, s); y+=17; });
-      y+=4;
+      add(txt(this, 26, y, this.ROLE_LABEL[role]+'　('+capTxt+')', 14, ac.hex, 0, 0.5)); y+=23;
+      this.pool().filter(s=>s.role===role).forEach(s=>{ this.poolRow(add, y, s); y+=23; });
+      y+=6;
     });
 
     // ===== 右：出戰配置 =====
@@ -84,13 +84,14 @@ class SkillTreeHall extends Phaser.Scene {
   }
   poolRow(add, y, s){
     const learned=this.learnedNames().indexOf(s.name)>=0, rank=this.rankOf(s.name), ac=accent(this.ROLE_ACC[s.role]);
-    const rect=this.add.rectangle(238, y, 436, 16, learned?ac.deep:UI.panelHiN, learned?0.6:0.95).setStrokeStyle(1.2, ac.num, learned?1:0.55).setInteractive({useHandCursor:true});
+    const rect=this.add.rectangle(238, y, 436, 21, learned?ac.deep:UI.panelHiN, learned?0.6:0.95).setStrokeStyle(1.2, ac.num, learned?1:0.55).setInteractive({useHandCursor:true});
     add(rect);
-    add(txt(this, 28, y, s.name, 11.5, learned?ac.hex:UI.white, 0, 0.5));
-    let d=s.desc||''; if(d.length>17) d=d.slice(0,16)+'…';
-    add(txt(this, 120, y, d, 9.5, UI.dim, 0, 0.5));
+    add(icon(this, 26, y, skillVisual(s).icon, 16, ac.num));
+    add(txt(this, 42, y, s.name, 14, learned?ac.hex:UI.white, 0, 0.5));
+    let d=s.desc||''; if(d.length>15) d=d.slice(0,14)+'…';
+    add(txt(this, 134, y, d, 11, UI.dim, 0, 0.5));
     const right = learned ? ('Lv'+rank+' ▲升級') : ('費 '+(s.tier||1));
-    add(txt(this, 454, y, right, 10, learned?UI.green:UI.dim, 1, 0.5));
+    add(txt(this, 452, y, right, 11.5, learned?UI.green:UI.dim, 1, 0.5));
     rect.on('pointerdown',()=>{ if(learned) this.addUpgrade(s.name); else this.addLearn(s.name); });
   }
   flash(msg, col){ if(this._f) this._f.destroy();

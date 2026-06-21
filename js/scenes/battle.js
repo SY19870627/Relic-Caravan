@@ -447,6 +447,13 @@ class Battle extends Phaser.Scene {
       const t=txt(this,W/2,y+14,m,16,'#ffe08a').setDepth(141).setStroke('#000',5).setAlpha(0);
       this.tweens.add({targets:t,alpha:1,y:y,duration:260,ease:'Back.out'});
       this.tweens.add({targets:t,alpha:0,y:y-24,delay:2000+i*250,duration:650,onComplete:()=>t.destroy()}); }); }
+  // 統一戰後獲得提示：右下角同一欄、同樣式、由上到下依序（戰利品 → 技能），右側滑入、停留後左滑淡出
+  showGains(list){ if(!list||!list.length) return;
+    const W=this.scale.width, H=this.scale.height, x=W-18, lineH=24, baseY=H-22-(list.length-1)*lineH;
+    list.forEach((it,i)=>{ const y=baseY+i*lineH;
+      const t=txt(this, x+22, y, it.t, 14, it.c||'#ffe08a', 1, 0.5).setDepth(120).setStroke('#000',4).setAlpha(0);
+      this.tweens.add({targets:t, x:x, alpha:1, duration:240, delay:i*90, ease:'Quad.out'});
+      this.tweens.add({targets:t, alpha:0, x:x-18, delay:1900+i*120, duration:600, ease:'Quad.in', onComplete:()=>t.destroy()}); }); }
   // 本場清空：結算經驗/掉落，推進探險%，王→通關，否則行軍到下一場
   clearStep(){
     if(this.over) return; this.over=true;
@@ -455,7 +462,7 @@ class Battle extends Phaser.Scene {
     this.time.delayedCall(700,()=>{
       const xp = wasBoss?CFG.battleXp.boss:(CFG.battleXp.base+(node?node.risk:1)*CFG.battleXp.perRisk);
       const _ups=gainXP(xp); saveGuild();
-      this._showPerkGains((_ups||[]).filter(u=>typeof u==='string' && u.indexOf('✨')>=0));
+      const skillMsgs=(_ups||[]).filter(u=>typeof u==='string' && (u.indexOf('✨')>=0 || u.indexOf('🎓')>=0));   // ✨能力 ＋ 🎓技能（稍後與戰利品一起在右下角顯示）
       const re=relicEffects();
       RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;
         if(re.fullHealAfterBattle){ h.hp=mx; }
@@ -467,27 +474,26 @@ class Battle extends Phaser.Scene {
         RUN.exped.pct=100; this.updatePctBar();
         this.scene.start('Result',{outcome:'clear'}); return;
       }
+      const gains=[];   // 統一戰後獲得：右下角同一欄、由上到下（戰利品 → 技能）
       if(node&&node.type==='elite'){
         if(hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; }
         const count = 2 + (re.extraLoot||0);
         for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
-          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }
+          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); gains.push({t:(it.icon||'')+' '+it.name, c:'#9fd0ff'}); } }
       } else {
         const gc=CFG.gold||{}, g=Math.max(1, Math.round(((gc.battleBase||16)+(node?node.risk:1)*(gc.battlePerRisk||12))*(1+(((RUN.destTier||1)-1)*0.25))));
-        addGold(g); this.updateGold();
+        addGold(g); this.updateGold(); gains.push({t:'💰 +'+g, c:'#ffe08a'});
         if(hasLeader()) forageIngredient(RUN.destIndex||0);   // 領隊沿途採集（入持久食材庫存）
-        const gf=txt(this,this.scale.width-60,66,'💰 +'+g,15,'#ffe08a').setDepth(101).setStroke('#000',4);
-        this.tweens.add({targets:gf,y:50,alpha:0,duration:1150,ease:'Quad.out',onComplete:()=>gf.destroy()});
         // v1.6：一般戰鬥也有機率掉裝備（偏武器），避免整趟拿不到武器
         const _lc=CFG.loot||{};
         if(Math.random()<(_lc.battleGearChance!=null?_lc.battleGearChance:0.30) && RUN.cargo.length<RUN.slots){
           const wantW=Math.random()<(_lc.battleGearWeaponBias!=null?_lc.battleGearWeaponBias:0.60);
           const git=rollItem(node?node.risk:1, wantW?'武器':'防具');
-          if(git){ RUN.cargo.push(git); discover(git.name); if(git.gear) ownGear(git.name);
-            const lf=txt(this,this.scale.width-60,86,(git.icon||'')+' '+git.name,13,'#9fd0ff').setDepth(101).setStroke('#000',4);
-            this.tweens.add({targets:lf,y:70,alpha:0,duration:1350,ease:'Quad.out',onComplete:()=>lf.destroy()}); }
+          if(git){ RUN.cargo.push(git); discover(git.name); if(git.gear) ownGear(git.name); gains.push({t:(git.icon||'')+' '+git.name, c:'#9fd0ff'}); }
         }
       }
+      skillMsgs.forEach(m=>gains.push({t:m, c:'#ffe08a'}));
+      this.showGains(gains);
       this.showLevelups();
     });
   }
