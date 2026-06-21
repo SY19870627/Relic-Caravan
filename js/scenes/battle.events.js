@@ -39,7 +39,7 @@ Object.assign(Battle.prototype, {
     }
   }
 ,
-  openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='shop') this.evShop(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
+  openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
 ,
   mkOverlay(o){ o=o||{}; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());
@@ -56,7 +56,7 @@ Object.assign(Battle.prototype, {
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,TH.text));
     this.time.delayedCall(1250,()=>this.advanceStep()); }
 ,
-  evCamp(){ let n=0;
+  evCamp(){ let n=0; this._campShops={};   // 進新營火 → 重置商店快取（本營火內貨色固定，跨營火才換）
     RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; const b=h.hp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.5)); if(h.hp>b)n++; } });
     this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
     this._campHealed=n;
@@ -64,16 +64,22 @@ Object.assign(Battle.prototype, {
     this._renderCamp(); }
 ,
   _renderCamp(){ const W=this.scale.width,H=this.scale.height;
-    const o=this.mkOverlay({accent:'ember',w:480,h:300});
-    o.add(txt(this,W/2,H/2-116,'🔥 營火休息',20,'#f0975a'));
-    o.add(txt(this,W/2,H/2-86,'回復 50% HP（'+(this._campHealed||0)+' 人）　·　採集到 '+(this._campForaged||0)+' 份食材',12,TH.text));
+    const o=this.mkOverlay({accent:'ember',w:540,h:392});
+    o.add(txt(this,W/2,H/2-168,'🔥 營火休息',20,'#f0975a'));
+    o.add(txt(this,W/2,H/2-140,'回復 50% HP（'+(this._campHealed||0)+' 人）　·　採集到 '+(this._campForaged||0)+' 份食材',12,TH.text));
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
     const nIng=ingTotal();
-    o.add(button(this,W/2,H/2-44,330,38, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:14}));
-    o.add(button(this,W/2-86,H/2+4,160,40,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:13}));
-    o.add(button(this,W/2+86,H/2+4,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
-    o.add(button(this,W/2-86,H/2+56,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
-    o.add(button(this,W/2+86,H/2+56,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
+    o.add(button(this,W/2,H/2-104,330,38, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:14}));
+    o.add(txt(this,W/2,H/2-62,'🛒 商店　·　💰 持有 '+(RUN.gold||0),12,TH.cyan));
+    const sw=120, st=128, sx=W/2-192;   // 四間商店一排
+    o.add(button(this, sx,      H/2-34, sw, 36, '🧪 藥水商',  ()=>this.openShop('potion'),  {variant:'gold',size:12}));
+    o.add(button(this, sx+st,   H/2-34, sw, 36, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:12}));
+    o.add(button(this, sx+2*st, H/2-34, sw, 36, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:12}));
+    o.add(button(this, sx+3*st, H/2-34, sw, 36, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:12}));
+    o.add(button(this,W/2-86,H/2+20,160,40,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:13}));
+    o.add(button(this,W/2+86,H/2+20,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
+    o.add(button(this,W/2-86,H/2+72,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
+    o.add(button(this,W/2+86,H/2+72,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
 ,
   evCook(){ this._cookMsg=null; this._renderCook(); }
 ,
@@ -196,24 +202,17 @@ Object.assign(Battle.prototype, {
   //  裝備定價：30 + lvReq×15；購買後標記為已擁有 → 不再出現、也不能再買第二次（避免買重複虧錢）
   _hasGear(name){ return gearGotThisRun(name); }   // v1.8：商店是否已有此裝備，改看「本趟冒險」而非永久收藏 → 後期商店照樣賣裝
 ,
-  evShop(){ const price=g=>30+((g.lvReq||1)*15);
-    // v1.9：商店（含綜合商人）只賣「隊伍內職業」可用的裝備
+  openShop(type){
+    if(this._campShops && this._campShops[type]){ const s=this._campShops[type]; this._shopTitle=s.title; this._shopHint=s.hint; this._shopGoods=s.goods; this._shopMsg=''; this._shopMsgC='#9fe8a0'; this._renderShop(); return; }   // 同一營火內貨色固定，不重抽
+    const price=g=>30+((g.lvReq||1)*15);   // 商店改由營火選單開啟，指定類型
+    // v1.9：商店只賣「隊伍內職業」可用的裝備
     const _sprites=activeRoster().map(i=>HERO_BASE[i].sprite);
     const wOK=w=>_sprites.some(sp=>weaponClassOK(sp,w)), aOK=a=>_sprites.some(sp=>armorClassOK(sp,a));
     const wPool=WEAPONS.filter(x=>!x.starter && !this._hasGear(x.name) && wOK(x));
     const aPool=ARMORS.filter(x=>!x.starter && !this._hasGear(x.name) && aOK(x));
-    // v1.6：每趟「第一間」商店保證裝備商（優先武器）；之後類型偏向裝備（藥水機率較低）
-    if(RUN.exped) RUN.exped.nShop=(RUN.exped.nShop||0)+1;
-    const firstShop=(!RUN.exped || RUN.exped.nShop===1) && (CFG.shop?CFG.shop.guaranteeGearFirst!==false:true);
-    const potW=(CFG.shop&&CFG.shop.potionWeight!=null)?CFG.shop.potionWeight:0.22;
-    const merW=(CFG.shop&&CFG.shop.merchantWeight!=null)?CFG.shop.merchantWeight:0.26;   // v1.7 流浪商人（綜合商）機率
-    let type;
-    if(firstShop){ type = wPool.length?'weapon':(aPool.length?'armor':'potion'); }
-    else { const r=Math.random(); const gr=Math.max(0,1-potW-merW)/2;   // 其餘平分給武器/防具商
-      type = r<potW ? 'potion' : (r<potW+merW ? 'merchant' : (r<potW+merW+gr ? 'weapon' : 'armor')); }
-    if(type==='weapon' && !wPool.length) type = aPool.length?'armor':'potion';   // 該類已無可賣 → 改賣別類
+    if(type==='weapon' && !wPool.length) type = aPool.length?'armor':'potion';   // 該類無貨 → 退別類
     else if(type==='armor' && !aPool.length) type = wPool.length?'weapon':'potion';
-    else if(type==='merchant' && !wPool.length && !aPool.length) type='potion';   // 綜合商無裝備可賣 → 退為藥水商
+    else if(type==='merchant' && !wPool.length && !aPool.length) type='potion';
     if(type==='potion'){
       this._shopTitle='🧪 藥水商'; this._shopHint='販售補給藥水（可重複購買）';
       this._shopGoods=[
@@ -246,6 +245,8 @@ Object.assign(Battle.prototype, {
         req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
         lines:['DEF '+a.def+'　HP +'+a.hp, a.traitDesc||'']}));
     }
+    if(!this._campShops) this._campShops={};
+    this._campShops[type]={title:this._shopTitle, hint:this._shopHint, goods:this._shopGoods};   // 快取：本營火此商店貨色固定
     this._shopMsg=''; this._shopMsgC='#9fe8a0'; this._renderShop();
   }
 ,
@@ -261,7 +262,7 @@ Object.assign(Battle.prototype, {
       goods.forEach((it,i)=>{ this.shopCard(o, x0+i*(cw+gap), cy, cw, 268, it); });
     }
     if(this._shopMsg) o.add(txt(this,W/2,H/2+150,this._shopMsg,13,this._shopMsgC||'#9fe8a0'));
-    o.add(button(this,W/2,H/2+196,170,40,'離開商人',()=>this.advanceStep(),{variant:'info',size:14}));
+    o.add(button(this,W/2,H/2+196,170,40,'返回營火',()=>this._renderCamp(),{variant:'info',size:14}));
   }
 ,
   // 商店卡片（與升級選技能同款）；裝備若已擁有則灰階顯示「已擁有」且不可購買
@@ -305,16 +306,33 @@ Object.assign(Battle.prototype, {
 ,
   evEvent(){ const W=this.scale.width,H=this.scale.height;
     const pool=[
-      {t:'⛲ 治療之泉',d:'飲下清泉，全隊回復 40% 體力',b:'飲用',auto:true,act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
-      {t:'🏛 古老祭壇',d:'供奉 💰100，換得一件精良裝備（遺物僅首領掉落）',b:'供奉 💰100',cond:()=>(RUN.gold||0)>=100&&RUN.cargo.length<RUN.slots,act:()=>{ spendGold(100); const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }},
+      {t:'⛲ 治療之泉',d:'飲下清泉，療癒疲憊',auto:true,r:'全隊回復 40% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.4)); } }); }},
+      {t:'🌿 靜謐林地',d:'在林間空地稍作歇息',auto:true,r:'全隊回復 25% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.25)); } }); }},
+      {t:'🏺 廢墟寶箱',d:'撬開塵封已久的寶箱',auto:true,r:'拾得 💰80',act:()=>{ addGold(80); }},
+      {t:'💎 礦工錢袋',d:'礦工遺落的鼓鼓錢袋',auto:true,r:'拾得 💰130',act:()=>{ addGold(130); }},
+      {t:'🛡 古老戰旗',d:'殘破的戰旗仍有餘威',auto:true,r:'下場戰鬥全隊開場護盾 +20',act:()=>{ RUN.cookShield=(RUN.cookShield||0)+20; }},
+      {t:'⚡ 戰意湧現',d:'一股戰意湧上心頭',auto:true,r:'下場戰鬥全隊首擊必暴',act:()=>{ RUN.cookFirstCrit=true; }},
+      {t:'🌱 復活之種',d:'撿到一顆散發生機的種子',auto:true,r:'獲得一次陣亡復活充能',act:()=>{ RUN.reviveCharge=(RUN.reviveCharge||0)+1; }},
+      {t:'⛏ 裸露礦脈',d:'岩壁上閃著礦物光澤',auto:true,r:'採得一份素材',act:()=>{ gainMaterial(RUN.destIndex||0); }},
+      {t:'🍖 獵人營地',d:'廢棄營地還留著食材',auto:true,r:'採集到一份食材',act:()=>{ forageIngredient(RUN.destIndex||0); }},
+      {t:'🔮 神秘符文',d:'符文閃過微光，賜下祝福',auto:true,r:'回復 15% 體力並拾得 💰50',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.15)); } }); addGold(50); }},
+      {t:'🗡 廢棄武器架',d:'架上還掛著堪用的裝備',auto:true,cond:()=>RUN.cargo.length<RUN.slots,r:'拾得一件裝備',act:()=>{ const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }},
+      // —— 負面事件（自動結算、紅框；扣血保底 1 HP，不會在事件中打死人）——
+      {t:'🕳 隱藏陷阱',d:'踩中暗藏的陷阱',auto:true,bad:true,r:'全隊損失 15% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.15)); } }); }},
+      {t:'☠ 毒瘴瀰漫',d:'吸入瀰漫的毒瘴',auto:true,bad:true,r:'全隊損失 20% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.20)); } }); }},
+      {t:'🪨 落石坍方',d:'通道突然坍方落石',auto:true,bad:true,r:'一名隊員受到重創',act:()=>{ const al=RUN.heroes.filter(h=>h.hp>0); if(al.length){ const h=al[Math.floor(Math.random()*al.length)]; h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.30)); } }},
+      {t:'💰 強盜路霸',d:'被攔路強盜訛詐',auto:true,bad:true,r:'被搶走 💰80',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-80); }},
+      {t:'🐀 貪婪鼠群',d:'鼠群竄入貨車翻找',auto:true,bad:true,cond:()=>RUN.cargo.length>0,r:'一件貨物被啃壞',act:()=>{ RUN.cargo.splice(Math.floor(Math.random()*RUN.cargo.length),1); }},
+      {t:'🌀 詛咒石碑',d:'觸動了古老的詛咒',auto:true,bad:true,r:'失去 💰50、全隊損失 10% 體力',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-50); RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.10)); } }); }},
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];
     if(ev.auto){   // 治療之泉等：不跳選擇，直接生效後自動前進
       ev.act(); this.refreshHud();
-      const oa=this.mkOverlay({accent:'green',w:460,h:184});
-      oa.add(txt(this,W/2,H/2-34,ev.t,19,'#9fe8a0'));
+      const _acc=ev.bad?'red':'green', _col=ev.bad?'#ff8a8a':'#9fe8a0';
+      const oa=this.mkOverlay({accent:_acc,w:460,h:184});
+      oa.add(txt(this,W/2,H/2-34,ev.t,19,_col));
       oa.add(txt(this,W/2,H/2+2,ev.d,13,TH.text).setWordWrapWidth(400));
-      oa.add(txt(this,W/2,H/2+38,'清泉已飲用，全隊回復',12,'#9fe8a0'));
+      oa.add(txt(this,W/2,H/2+38,ev.r||'',12,_col));
       this.time.delayedCall(1200,()=>this.advanceStep()); return;
     }
     const o=this.mkOverlay({accent:'green',w:460,h:220});

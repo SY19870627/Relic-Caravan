@@ -357,10 +357,12 @@ function initExpedition(){
   const plan=[]; const add=(type,n)=>{ for(let i=0;i<n;i++) plan.push(type); };
   add('battle', 4+pace); add('elite', Math.max(0,pace-1));
   add('chest', 1+Math.floor(pace/2)); add('event', 1+Math.floor(pace/2));
-  const _shopN=(CFG.shop&&CFG.shop.perTier&&CFG.shop.perTier[t-1])||1;   // v1.6：各階級商店數（v2.2 擴到 8 階）
-  add('camp', 1+(pace>=3?1:0)); add('shop', _shopN);
+  // 洗牌（不含營火/商店；商店已併入營火）
   for(let i=plan.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=plan[i]; plan[i]=plan[j]; plan[j]=tmp; }
   if(plan[0]!=='battle'){ const bi=plan.indexOf('battle'); if(bi>0){ const tmp=plan[0]; plan[0]=plan[bi]; plan[bi]=tmp; } }  // 開場保證戰鬥
+  // 營火固定：50% 處一個、王戰前一個（王在 plan 之後觸發；商店改在營火內用選的）
+  plan.splice(Math.floor(plan.length/2)+1, 0, 'camp');   // 插入後再 push 王前營火 → 此營火恰在總長一半(≈50%)
+  plan.push('camp');
   RUN.exped={ pct:0, plan, i:0 };
 }
 function initRun(){
