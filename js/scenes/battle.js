@@ -225,7 +225,10 @@ class Battle extends Phaser.Scene {
       card.add(this.add.rectangle(9,27,hbW,7,0x000000,0.6).setOrigin(0,0.5));
       const hpFill=this.add.rectangle(9,27,hbW,5,0x5ad06a).setOrigin(0,0.5); card.add(hpFill);
       const shFill=this.add.rectangle(9,27,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false); card.add(shFill);
-      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, hpFill, hpBarW:hbW, shFill, hpText, pipY:42};
+      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:50};
+      // DPS（每秒平均傷害）：技能格左側挪出一塊，caption + 數字
+      card.add(txt(this,11,37,'DPS',8,'#8a7f9a',0,0.5));
+      const dpsText=txt(this,11,47,'0',12,'#ffd27a',0,0.5); card.add(dpsText); c.card.dpsText=dpsText;
       this.buildSkillPips(c);
       this.bar(c);
     });
@@ -235,7 +238,8 @@ class Battle extends Phaser.Scene {
     const sk=(c.skills||[]).filter(s=>s.cd!==undefined); c.skillPips=null; if(!c.card || !sk.length) return;   // 角色卡技能格只顯示主動技能（有 CD），被動不顯示
     c.skillPips={};
     const ps=16, gap=4, total=sk.length*ps+(sk.length-1)*gap;
-    const cont=this.add.container(c.card.w/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont);
+    const dz=c.card.dpsZone||50;   // 左側 DPS 區，技能格置中於剩餘空間
+    const cont=this.add.container(dz + (c.card.w-dz)/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont);
     let cx=0;
     sk.forEach(s=>{ const sv=skillVisual(s), ac=accent(sv.accent), active=s.cd!==undefined;
       const pc=this.add.container(cx,0); const g=this.add.graphics();
@@ -265,6 +269,9 @@ class Battle extends Phaser.Scene {
   // 每幀更新技能格亮暗（冷卻/用盡）
   updateSkillPips(){
     if(!this.heroes) return; const now=this.time.now;
+    // DPS（每秒平均傷害）每 ~250ms 刷新：該員累計輸出 ÷ 全趟交戰秒數
+    if(now-(this._dpsTick||0) > 250){ this._dpsTick=now; const sec=((RUN&&RUN.combatMs)||0)/1000;
+      this.heroes.forEach(c=>{ if(c.card&&c.card.dpsText){ const d=(c.ref&&c.ref.dmgDealt)||0; c.card.dpsText.setText(sec>0.2 ? ''+Math.round(d/sec) : '0'); } }); }
     this.heroes.forEach(c=>{
       if(c.card&&c.card.cont) c.card.cont.setAlpha(c.alive?1:0.5);   // v2.3：陣亡淡化整張卡片
       if(!c.skillPips) return;
@@ -307,12 +314,14 @@ class Battle extends Phaser.Scene {
       if(c.container) c.stunLabel.setPosition(c.container.x, c.baseY-80);
     }
   }
-  update(time){
+  update(time, delta){
     this.updateSkillPips();
     this.updateStunLabels();
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
+    // DPS 分母：累計「實際交戰中」的遊戲秒數（×speed → 與戰鬥倍率無關）。只在尚有敵人存活時計時
+    if(RUN && this.enemies && this.aliveOf('enemy').length){ RUN.combatMs=(RUN.combatMs||0)+(delta||16)*this.speed; }
     this.autoSip();
     for(const c of this.all){ if(!c.alive) continue; if(this.time.now < (c.stunUntil||0)) continue;
       if(time>c.lastAttack+c.interval/this.speed){ c.lastAttack=time; this.act(c); } }
@@ -422,6 +431,7 @@ class Battle extends Phaser.Scene {
     const sx=c.baseX+38, sy=c.baseY-18, plus=sk.plus||0, scl=3+plus*0.7;   // 精靈隨升級變大（+0.7/級）
     const atk=(sk.atkSeq||[16,20]).map(a=>a+plus*5);   // 精靈隨升級增傷（+5/級）
     const sp=this.makeCombatant({sprite:sk.form, name:sk.name, maxHp:30, hp:30, atkSeq:atk, def:0, heal:0, interval:(sk.interval||1100), ranged:true, healer:false, aoe:!!sk.aoe, isSummon:true}, 'hero', sx, sy, scl);
+    sp.ownerRef=c.ref;   // 召喚精靈的傷害計入召喚者的 DPS
     sp.container.setAlpha(0).setScale(0.4);
     this.tweens.add({targets:sp.container, alpha:1, scaleX:1, scaleY:1, duration:240, ease:'Back.out'});
     this.summons.push(sp); this.all.push(sp);

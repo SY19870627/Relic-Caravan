@@ -382,6 +382,7 @@ function initRun(){
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
     cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
     deckExpanded:false,
+    combatMs:0,   // DPS 分母：本趟累計交戰遊戲毫秒（每員 dmgDealt 隨新 heroes 物件自動歸零）
   };
 }
 // 起始裝：免洗隊每趟出發的基礎武防（P4 將依該職業 tier 升級）

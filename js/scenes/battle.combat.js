@@ -134,7 +134,9 @@ Object.assign(Battle.prototype, {
     // 免死（被動・護體罩）：每場第一次受致命傷殘留 1 HP
     if(target.side==='hero' && dmg>=target.hp && this.hasSkillType(target,'deathSave') && !target.deathSaveUsed){
       target.deathSaveUsed=true; dmg=Math.max(0,target.hp-1); const _s=this.getSkill(target,'deathSave'); if(_s)this.skillProc(target,_s.name); this.floatLabel(target.baseX,target.baseY-60,'免死!','#ffd24a'); this.screenFlash(0xffd24a,0.2,200); }
+    const _hpBefore=target.hp;
     target.hp=Math.max(0,target.hp-dmg); this.bar(target);
+    if(c.side==='hero' && target.side==='enemy' && dmg>0){ const cr=c.ref||c.ownerRef; if(cr) cr.dmgDealt=(cr.dmgDealt||0)+Math.min(dmg,_hpBefore); }   // DPS：累計有效輸出（不灌水溢殺）；召喚精靈的傷害計入召喚者
     if(c.side==='hero') c._aimUntil=0;   // 防溢殺：這一擊已落地，解除預定
     const heavy = !!c.boss || dmg>=20;
     const base = target.baseScale || (target.boss?6:SCALE);
