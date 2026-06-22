@@ -21,6 +21,9 @@ const PAL = {
   I:'#c8eeff', X:'#b24de0',                              // 晶光 / 異變紫
 };
 const SPRITES = {
+  // 遊俠召喚精靈（大改版）：fireSpirit 單體火／windSpirit 範圍風
+  fireSpirit:["............",".....KK.....","....KFFK....","....KFFK....","...KFYYFK...","..KFYAAYFK..","..KFAAAAFK..","..KFYAAYFK..","..KFYYYYFK..","...KFYYFK...","...KFFFFK...","....KFFK....",".....KK.....","............","............","............"],
+  windSpirit:["............","...KK..KK...","..KqqKKqqK..",".KqqqWWqqqK.",".KqWqqqqWqK.",".KqqqllqqqK.",".KqWqllqWqK.",".KqqqllqqqK.",".KqqqWWqqqK.","..KqqWWqqK..","...KqqqqK...","....KqqK....",".....KK.....","............","............","............"],
   // 戰士變身型態（大改版・職業規劃器）：bearman 防禦／minotaur 攻擊
   bearman:["....KKKK....","..KKbbbbKK..","..KBBBBBBK..",".KBBBBBBBBK.",".KBSSKKSSBK.",".KBBSSSSBBK.","..KBBSSBBK..",".KBBBBBBBBK.","KBBBBBBBBBBK","KBBoBBBBoBBK","KBBBBBBBBBBK",".KBBBWWBBBK.",".KBBK..KBBK.",".KbbK..KbbK.",".KK......KK.","............"],
   minotaur:[".M......M...",".MM....MM...","..MKCCCCKM..","..KCCCCCCK..",".KCCCCCCCCK.",".KCSSKKSSCK.",".KCCSSSSCCK.","..KCMSSMCK..",".KCCCCCCCCK.","KCCCCCCCCCCK","KCcCCCCCCcCK","KCCCCCCCCCCK",".KCCKBBKCCK.",".KBBK..KBBK.",".KK......KK.","............"],
@@ -454,8 +457,8 @@ const SKILLS = {
     {name:'嗜血', role:'passive', type:'lifesteal', frac:0.20, tier:2, icon:'heart', desc:'造成傷害回復 20% 為自身 HP'},
     {name:'蠻力', role:'passive', type:'atkBonus', amt:6, tier:1, icon:'sword', desc:'ATK +6'} ],
   ranger:[
-    {name:'火精靈', role:'ultimate', type:'nuke', cd:11000, uses:3, mult:2.6, tier:3, icon:'fireball', desc:'召喚火精靈，單體爆發 ×2.6'},
-    {name:'風精靈', role:'ultimate', type:'stunAll', cd:11000, uses:2, dur:1000, tier:3, icon:'arrows', desc:'召喚風精靈，狂風暈眩全體 1s'},
+    {name:'火精靈', role:'ultimate', type:'summon', form:'fireSpirit', atkSeq:[18,24], interval:1000, aoe:false, cd:11000, uses:3, dur:8000, tier:3, icon:'fireball', desc:'召喚火精靈助戰 8 秒，單體連續攻擊'},
+    {name:'風精靈', role:'ultimate', type:'summon', form:'windSpirit', atkSeq:[11,14], interval:1200, aoe:true,  cd:11000, uses:2, dur:8000, tier:3, icon:'arrows', desc:'召喚風精靈助戰 8 秒，範圍攻擊全體'},
     {name:'連射', role:'active', type:'doubleHit', cd:4000, uses:3, tier:2, icon:'arrows', desc:'攻擊時追加一擊'},
     {name:'震懾箭', role:'active', type:'stun', cd:6000, uses:2, dur:1000, tier:2, icon:'stun', desc:'擊暈敵人 1s'},
     {name:'弱點射擊', role:'active', type:'crit', cd:6000, uses:2, mult:2, tier:2, icon:'target', desc:'暴擊 ×2'},
@@ -467,8 +470,8 @@ const SKILLS = {
     {name:'銳利', role:'passive', type:'atkBonus', amt:5, tier:1, icon:'sword', desc:'ATK +5'},
     {name:'吸血箭', role:'passive', type:'lifesteal', frac:0.15, tier:2, icon:'heart', desc:'造成傷害回復 15% HP'} ],
   priest:[
-    {name:'阿加托斯·戴蒙', role:'ultimate', type:'groupHeal', cd:9000, uses:3, tier:3, icon:'heal', desc:'善靈降臨，改為全隊強力治療'},
-    {name:'卡科斯·戴蒙', role:'ultimate', type:'stunAll', cd:10000, uses:2, dur:1200, tier:3, icon:'skull', desc:'惡靈降臨，鎮壓全體敵人 1.2s'},
+    {name:'阿加托斯·戴蒙', role:'ultimate', type:'teamBuff', cd:11000, uses:3, dur:6000, amt:6, tier:3, icon:'heal', desc:'善靈聖光照耀全隊，ATK/DEF +6（6 秒，隨升級增強）'},
+    {name:'卡科斯·戴蒙', role:'ultimate', type:'debuffAll', cd:11000, uses:3, dur:6000, amt:6, tier:3, icon:'skull', desc:'惡靈暗光籠罩全敵，ATK/DEF −6（6 秒，隨升級增強）'},
     {name:'群體治療', role:'active', type:'groupHeal', cd:8000, uses:2, tier:2, icon:'heal', desc:'改為全隊治療'},
     {name:'震懾禱言', role:'active', type:'stun', cd:7000, uses:2, dur:1000, tier:2, icon:'stun', desc:'擊暈敵人 1s'},
     {name:'聖裁', role:'active', type:'crit', cd:6000, uses:2, mult:1.9, tier:2, icon:'sparkle', desc:'神聖暴擊 ×1.9'},
@@ -494,7 +497,7 @@ const SKILLS = {
     {name:'法力強化', role:'passive', type:'atkBonus', amt:6, tier:1, icon:'staff', desc:'ATK +6'} ],
   rogue:[
     {name:'暗殺', role:'ultimate', type:'nuke', cd:9000, uses:3, mult:3, tier:3, icon:'dagger', desc:'致命暗殺，重擊 ×3'},
-    {name:'詭雷', role:'ultimate', type:'stunAll', cd:11000, uses:2, dur:900, tier:3, icon:'bug', desc:'佈設詭雷，範圍暈眩全體'},
+    {name:'狂暴化', role:'ultimate', type:'berserk', cd:12000, uses:2, dur:6000, tier:3, icon:'skull', desc:'狂暴化 6 秒：身染赤紅，每次攻擊連擊 2 段'},
     {name:'偷襲', role:'active', type:'crit', cd:4500, uses:3, mult:1.9, tier:2, icon:'dagger', desc:'偷襲暴擊 ×1.9'},
     {name:'連刺', role:'active', type:'doubleHit', cd:4000, uses:3, tier:2, icon:'arrows', desc:'攻擊時追加一擊'},
     {name:'割喉', role:'active', type:'stun', cd:6000, uses:2, dur:1200, tier:2, icon:'skull', desc:'割喉暈眩 1.2s'},

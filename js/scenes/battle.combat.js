@@ -6,7 +6,7 @@ Object.assign(Battle.prototype, {
     const cx=foes.reduce((a,b)=>a+b.container.x,0)/foes.length, cy=foes.reduce((a,b)=>a+b.container.y,0)/foes.length;
     const orb=this.add.circle(c.container.x+c.facing*18, c.container.y-4, 7, 0x9a7fd0).setDepth(50).setStrokeStyle(2,0xffffff,0.7);
     const cs=this.trySkill(c,'crit'); let opt = cs? {crit:true, mult:cs.mult} : {crit:false};
-    if(!cs){ const nk=this.trySkill(c,'nuke'); if(nk){ opt={crit:true, mult:nk.mult||2.5}; this.floatLabel(c.baseX,c.baseY-58,'魔力轟擊!','#ff8a3a'); } }   // 範圍職(法師)的 nuke 大招也能觸發
+    if(!cs){ const nk=this.trySkill(c,'nuke'); if(nk){ opt={crit:true, mult:nk.mult||2.5}; this.floatLabel(c.baseX,c.baseY-58,(nk.name||'魔力轟擊')+'!','#c46bff'); this.castBurst(c,0xc46bff); } }   // 範圍職(法師)的 nuke 大招＋奧術爆發特效
     this.tweens.add({targets:orb,x:cx,y:cy,duration:240,ease:'Quad.in',onComplete:()=>{ orb.destroy();
       const ring=this.add.circle(cx,cy,12,0xc9a0ff,0.5).setDepth(45); this.tweens.add({targets:ring,radius:95,alpha:0,duration:320,onComplete:()=>ring.destroy()});
       this.shake(120,0.008);
@@ -86,10 +86,11 @@ Object.assign(Battle.prototype, {
     const _now=this.time.now;
     if(c.atkBuffUntil && _now<c.atkBuffUntil) atk+=(c.atkBuffAmt||0);              // 大改版・戰吼：限時加攻
     if(c.formUntil && _now<c.formUntil && c.formAtk) atk+=c.formAtk;               // 大改版・牛頭人變身：加攻
+    if(c.buffUntil && _now<c.buffUntil) atk=Math.max(1, atk+(c.buffAtk||0));        // 牧師強化(我方+ATK)/弱化(敵-ATK)
     let crit=false, mult=2;
     if(opt.crit!==undefined){ crit=opt.crit; mult=opt.mult||2; }            // 範圍攻擊：暴擊一次套全體
     else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; }
-      else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; this.floatLabel(c.baseX,c.baseY-58,'蠻牛衝鋒!','#ff8a3a'); } } }   // 大改版・蠻牛衝鋒：重擊
+      else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; this.floatLabel(c.baseX,c.baseY-58,(nk.name||'重擊')+'!','#ff8a3a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); } } }   // 大改版・重擊類大招
     // 條件型暴擊（我方）
     if(!crit && c.side==='hero'){
       if(c.killCrit){ crit=true; mult=2; c.killCrit=false; }                                       // 遺物・低語石板（殺意）
@@ -114,6 +115,7 @@ Object.assign(Battle.prototype, {
       if(target.formUntil&&_now<target.formUntil&&target.formDef) tdef+=target.formDef;   // 大改版・熊人變身：加防
       if(_lowHp){ const _s=this.getSkill(target,'lowHpDef'); if(_s)this.skillProc(target,_s.name,{throttle:2600}); }
     }
+    if(target.buffUntil && _now<target.buffUntil) tdef=Math.max(0, tdef+(target.buffDef||0));   // 牧師強化(我方+DEF)/弱化(敵-DEF)
     let raw=Math.max(1, atk - tdef);
     if(target.side==='hero'){ let red=0; const ha=this.getSkill(target,'hyperarmor'); if(ha) red+=(ha.frac||0.15); if(target.formUntil&&_now<target.formUntil&&target.formReduce) red+=target.formReduce; if(red>0){ raw=Math.max(1,Math.round(raw*(1-Math.min(0.85,red)))); if(ha)this.skillProc(target,ha.name,{throttle:2600}); } }   // 大改版・霸體/熊人變身：受傷減免
     // 羈絆・以信護盾：無敵時間內完全格擋
@@ -135,14 +137,14 @@ Object.assign(Battle.prototype, {
     target.hp=Math.max(0,target.hp-dmg); this.bar(target);
     if(c.side==='hero') c._aimUntil=0;   // 防溢殺：這一擊已落地，解除預定
     const heavy = !!c.boss || dmg>=20;
-    const base = target.boss?6:SCALE;
+    const base = target.baseScale || (target.boss?6:SCALE);
     if(absorbed>0 && dmg<=0){   // 完全被護盾擋下
       pixelNum(this,target.container.x,target.container.y-34,'🛡'+absorbed,0x9fd0ff); this.spark(target.container.x,target.container.y,0x9fd0ff);
     } else {
       if(absorbed>0) pixelNum(this,target.container.x,target.container.y-52,'🛡'+absorbed,0x9fd0ff);
       pixelNum(this,target.container.x,target.container.y-34,'-'+dmg, crit?0xffd24a:(heavy?0xff8a3a:0xff6b6b), crit||heavy);
       this.spark(target.container.x,target.container.y, crit?0xffd24a:0xffe08a);
-      target.spr.setTintFill(crit?0xffe08a:0xffffff); this.time.delayedCall(crit?120:80,()=>{ if(target.alive&&!target.stunned) target.spr.clearTint(); });
+      target.spr.setTintFill(crit?0xffe08a:0xffffff); this.time.delayedCall(crit?120:80,()=>{ if(target.alive&&!target.stunned){ if(target.berserkUntil&&this.time.now<target.berserkUntil) target.spr.setTint(0xff5050); else target.spr.clearTint(); } });
       const kb=Math.min(14, 4+dmg*0.4);
       target.spr.setScale(base*1.18, base*0.84);
       this.tweens.add({targets:target.spr,scaleX:base,scaleY:base,duration:170,ease:'Back.out'});

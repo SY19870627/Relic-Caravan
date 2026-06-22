@@ -37,7 +37,9 @@ class SkillTreeHall extends Phaser.Scene {
     this.actions().push({act:'learn',skill:name}); saveGuild(); this.render(); }
   addUpgrade(name){ if(this.learnedNames().indexOf(name)<0){ this.flash('先習得才能升級'); return; }
     if(this.actions().length>=20){ this.flash('已達 Lv20 上限'); return; }
-    if(this.spent()+upgradeStepCost(this.rankOf(name))>this.cap()){ this.flash('點數不足'); return; }
+    if(this.rankOf(name)>=3){ this.flash('技能等級上限 3'); return; }
+    const role=(this.skillObj(name)||{}).role;
+    if(this.spent()+upgradeStepCost(this.rankOf(name), role)>this.cap()){ this.flash('點數不足'); return; }
     this.actions().push({act:'upgrade',skill:name}); saveGuild(); this.render(); }
   removeAt(i){ const a=this.actions(), act=a[i]; if(!act) return;
     if(act.act==='learn'){ GUILD.classPlans[this.sprite].slots=a.filter(x=>x.skill!==act.skill); }   // 移除習得＝連同其升級一起拿掉

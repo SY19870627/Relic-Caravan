@@ -89,7 +89,7 @@ class Battle extends Phaser.Scene {
     autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
     activeRoster().forEach(idx=>syncPlannedSkills(idx));   // 大改版：依最新配置表＋目前等級重建技能（修正：配置常在 initRun 之後才改）
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
-    this.enemies=[]; this.all=[...this.heroes];
+    this.enemies=[]; this.summons=[]; this.all=[...this.heroes];
     this.updatePctBar(); this.updateGold(); this.updatePotions();
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
     else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
@@ -116,7 +116,7 @@ class Battle extends Phaser.Scene {
       const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
-      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.atkBuffUntil=0; c.tauntUntil=0; if(c.spr) c.spr.setTexture(c.sprite);   // 大改版：每場重置變身/buff/吸引
+      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.atkBuffUntil=0; c.tauntUntil=0; c.berserkUntil=0; c.buffUntil=0; c.buffAtk=0; c.buffDef=0; c.baseScale=SCALE; if(c.spr){ c.spr.setTexture(c.sprite); c.spr.setScale(SCALE); }   // 大改版：每場重置變身/buff/吸引/狂暴/體型
       c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
@@ -194,7 +194,7 @@ class Battle extends Phaser.Scene {
     const shieldFill=this.add.rectangle(-25,-42,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false);   // 護盾段（青色）：與 HP 同一條，緊接在 HP 之後
     cont.add([shadow,spr,nameText,barBg,barFill,shieldFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
-    const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0,maxShield:0};
+    const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0,maxShield:0,baseScale:(scl||SCALE)};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
     // v2.3：技能格不再畫在頭頂；由 buildPartyHud() 統一畫進上方隊員卡片
@@ -337,7 +337,7 @@ class Battle extends Phaser.Scene {
     this.updatePotions();
     target._sipUntil=this.time.now+cd/this.speed;   // v2.2：依倍率縮放
   }
-  aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side); }
+  aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side&&!c.isSummon); }   // 召喚精靈不算「存活成員」：不被鎖定、不影響勝負判定
   // 防溢殺：估算「即將落在某敵人身上、尚未結算」的我方傷害（排除自己）
   _incoming(f, exclude){ let s=0; const now=this.time.now;
     for(const h of (this.heroes||[])){ if(!h.alive||h===exclude) continue;
@@ -387,7 +387,52 @@ class Battle extends Phaser.Scene {
     const tf=this.trySkill(c,'transform'); if(tf) this.doTransform(c,tf);
     const ab=this.trySkill(c,'atkBuff'); if(ab){ c.atkBuffUntil=now+(ab.dur||4000)/this.speed; c.atkBuffAmt=(ab.amt||8); this.floatLabel(c.baseX,c.baseY-58,'戰吼!','#ffd24a'); }
     const tt=this.trySkill(c,'taunt'); if(tt){ c.tauntUntil=now+(tt.dur||2500)/this.speed; this.floatLabel(c.baseX,c.baseY-58,'挑釁!','#ffb347'); }
-    const sa=this.trySkill(c,'stunAll'); if(sa){ this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,sa,c); }); this.floatLabel(c.baseX,c.baseY-58,'大吼!','#ffd24a'); }
+    const sa=this.trySkill(c,'stunAll'); if(sa){ this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,sa,c); }); this.floatLabel(c.baseX,c.baseY-58,(sa.name||'大吼')+'!','#ffd24a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); }
+    const sm=this.trySkill(c,'summon'); if(sm) this.doSummon(c,sm);   // 召喚實體精靈（場上單位）
+    const tb=this.trySkill(c,'teamBuff'); if(tb){ const amt=(tb.amt||6)+(tb.plus||0)*3, until=now+(tb.dur||6000)/this.speed;   // 阿加托斯：全隊強化
+      this.aliveOf('hero').forEach(h=>{ h.buffAtk=amt; h.buffDef=amt; h.buffUntil=until; this.holyLight(h,0xffe27a); });
+      this.floatLabel(c.baseX,c.baseY-58,'聖光庇佑!','#ffe27a'); this.screenFlash(0xffe27a,0.18,300); }
+    const db=this.trySkill(c,'debuffAll'); if(db){ const amt=(db.amt||6)+(db.plus||0)*3, until=now+(db.dur||6000)/this.speed;   // 卡科斯：全敵弱化
+      this.aliveOf('enemy').forEach(e=>{ e.buffAtk=-amt; e.buffDef=-amt; e.buffUntil=until; this.holyLight(e,0x9a5fd0); });
+      this.floatLabel(c.baseX,c.baseY-58,'惡靈詛咒!','#c46bff'); this.screenFlash(0x9a5fd0,0.18,300); }
+    const bz=this.trySkill(c,'berserk'); if(bz){ const d=(bz.dur||6000)+(bz.plus||0)*1500; c.berserkUntil=now+d/this.speed;   // 盜賊狂暴化：每擊連擊2段＋染紅，升級延長
+      if(c.spr) c.spr.setTint(0xff5050); this.floatLabel(c.baseX,c.baseY-58,'狂暴化!','#ff5a4a'); this.screenFlash(0xff5050,0.2,300);
+      this.time.delayedCall(d, ()=>{ c.berserkUntil=0; if(c.alive&&c.spr&&!c.stunned) c.spr.clearTint(); }); }
+  }
+  // 聖光/暗光特效：升起光柱＋光圈＋上飄粒子
+  holyLight(t,colNum){
+    const x=t.container?t.container.x:t.baseX, y=t.baseY;
+    const ring=this.add.circle(x,y+8,10,colNum,0.5).setDepth(70); this.tweens.add({targets:ring,radius:34,alpha:0,duration:520,onComplete:()=>ring.destroy()});
+    const pillar=this.add.rectangle(x,y-6,24,72,colNum,0.30).setDepth(69); this.tweens.add({targets:pillar,alpha:0,scaleY:1.4,duration:540,ease:'Quad.out',onComplete:()=>pillar.destroy()});
+    for(let i=0;i<5;i++){ const px=x+(Math.random()-0.5)*28; const p=this.add.rectangle(px,y+12,3,3,colNum).setDepth(71);
+      this.tweens.add({targets:p,y:y-40-Math.random()*22,alpha:0,duration:520+Math.random()*200,ease:'Quad.out',onComplete:()=>p.destroy()}); }
+  }
+  // 大招施放爆發特效：擴張環＋閃光＋粒子（法師等用）
+  castBurst(c,colNum){
+    const x=c.container?c.container.x:c.baseX, y=c.baseY;
+    const ring=this.add.circle(x,y,16,colNum,0.45).setDepth(72); this.tweens.add({targets:ring,radius:120,alpha:0,duration:420,ease:'Quad.out',onComplete:()=>ring.destroy()});
+    const ring2=this.add.circle(x,y,10,0xffffff,0.6).setDepth(72); this.tweens.add({targets:ring2,radius:70,alpha:0,duration:360,ease:'Quad.out',onComplete:()=>ring2.destroy()});
+    this.screenFlash(colNum,0.22,260); this.shake(180,0.01);
+    for(let i=0;i<8;i++){ const a=Math.random()*Math.PI*2,d=30+Math.random()*40; const p=this.add.rectangle(x,y,4,4,colNum).setDepth(73);
+      this.tweens.add({targets:p,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d,alpha:0,duration:380+Math.random()*200,ease:'Quad.out',onComplete:()=>p.destroy()}); }
+  }
+  // 召喚精靈：用 makeCombatant 生一個我方單位，加入 this.all（自動進攻擊迴圈）＋ this.summons，計時消失
+  doSummon(c,sk){
+    if(!this.summons) this.summons=[];
+    const sx=c.baseX+38, sy=c.baseY-18, plus=sk.plus||0, scl=3+plus*0.7;   // 精靈隨升級變大（+0.7/級）
+    const atk=(sk.atkSeq||[16,20]).map(a=>a+plus*5);   // 精靈隨升級增傷（+5/級）
+    const sp=this.makeCombatant({sprite:sk.form, name:sk.name, maxHp:30, hp:30, atkSeq:atk, def:0, heal:0, interval:(sk.interval||1100), ranged:true, healer:false, aoe:!!sk.aoe, isSummon:true}, 'hero', sx, sy, scl);
+    sp.container.setAlpha(0).setScale(0.4);
+    this.tweens.add({targets:sp.container, alpha:1, scaleX:1, scaleY:1, duration:240, ease:'Back.out'});
+    this.summons.push(sp); this.all.push(sp);
+    this.screenFlash(0xffd24a,0.14,200);
+    const dur=sk.dur||8000;
+    sp._dieTimer=this.time.delayedCall(dur, ()=>this.removeSummon(sp));
+  }
+  removeSummon(sp){ if(!sp || sp._removed) return; sp._removed=true; sp.alive=false;
+    const i=this.all?this.all.indexOf(sp):-1; if(i>=0) this.all.splice(i,1);
+    const j=this.summons?this.summons.indexOf(sp):-1; if(j>=0) this.summons.splice(j,1);
+    if(sp.container){ this.tweens.add({targets:sp.container, alpha:0, scaleX:0.4, scaleY:0.4, duration:280, ease:'Quad.in', onComplete:()=>{ if(sp.container) sp.container.destroy(); }}); }
   }
   // 變身（大招）：換 sprite＋型態增益，計時還原
   doTransform(c,sk){
@@ -395,11 +440,12 @@ class Battle extends Phaser.Scene {
     c.formToken=(c.formToken||0)+1; const tok=c.formToken;   // 每次變身一個 token：還原計時器只還原自己這次
     if(sk.form==='minotaur'){ c.formAtk=(sk.amt||12); c.formPierce=(sk.frac||0.5); c.formDef=0; c.formReduce=0; }
     else { c.formDef=(sk.amt||8); c.formReduce=(sk.frac||0.25); c.formAtk=0; c.formPierce=0; c.tauntUntil=c.formUntil; }   // 熊人：防禦＋嘲諷
-    if(c.spr && this.textures.exists(sk.form)) c.spr.setTexture(sk.form);
-    this.screenFlash(0xffb347,0.2,260); this.shake(160,0.01);   // 變身提示改用通用技能徽章(skillProc)，formBadge 保留但停用
+    const big=(SCALE*1.3)+(sk.plus||0)*0.8; c._preScale=c.baseScale; c.baseScale=big;   // 變身放大，隨升級更大（+0.8/級）
+    if(c.spr && this.textures.exists(sk.form)){ c.spr.setTexture(sk.form); c.spr.setScale(big); }
+    this.screenFlash(0xffb347,0.2,260); this.shake(160,0.01);
     this.time.delayedCall(sk.dur||6000,()=>{ if(!c.form || c.formToken!==tok) return;   // 只還原自己這次的變身（避免上一場殘留計時器提前還原）
-      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0;
-      if(c.alive && c.spr){ c.spr.setTexture(c.sprite); this.skillProc(c, '變回戰士'); } });
+      c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.baseScale=c._preScale||SCALE;
+      if(c.alive && c.spr){ c.spr.setTexture(c.sprite); c.spr.setScale(c.baseScale); this.skillProc(c, '變回戰士'); } });
   }
   // 變身瞬間的狀態徽章：頭頂彈出（放大→定住→停留→上浮淡出），比一般浮字更醒目
   formBadge(c,label,colNum){
@@ -414,6 +460,8 @@ class Battle extends Phaser.Scene {
     this.tweens.add({targets:cont, y:cont.y-26, alpha:0, duration:560, delay:1000, ease:'Quad.in', onComplete:()=>cont.destroy()});
   }
   act(c){
+    if(c.isSummon){ const foes=this.aliveOf('enemy'); if(!foes.length) return;   // 召喚精靈：只攻擊，不做英雄專屬行為
+      if(c.aoe){ this.aoeCast(c); } else { this.ranged(c, this.pickTarget(c,foes), false); } return; }
     // 遺物・殘缺護符（生機）：非治療成員每次行動回復少量 HP
     if(c.side==='hero' && this._regen>0 && !c.healer && c.alive && c.hp>0 && c.hp<c.maxHp){ const h=Math.max(1,Math.round(c.maxHp*this._regen)); c.hp=Math.min(c.maxHp,c.hp+h); this.bar(c); pixelNum(this,c.container.x,c.container.y-34,'+'+h,0x7dff9a); }
     if(c.side==='hero') this.tryActiveBuffs(c);   // 大改版：主動大招/buff（變身/戰吼/挑釁/大吼）自動觸發
@@ -433,6 +481,9 @@ class Battle extends Phaser.Scene {
     // 連射／連環施法：追加一擊（CD＋次數）
     if(this.trySkill(c,'doubleHit')){
       this.time.delayedCall(300,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
+        if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
+    if(c.berserkUntil && this.time.now<c.berserkUntil){   // 狂暴化：每次攻擊都追加一擊
+      this.time.delayedCall(200,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
         if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
   }
   // 全滅 → 結算（撤退/全滅都走 Result）
@@ -506,6 +557,7 @@ class Battle extends Phaser.Scene {
     this.tweens.add({targets:this.banner,alpha:0,delay:600,duration:320,onComplete:()=>this.banner.setText('')});
     this.time.delayedCall(760,()=>{
       (this.enemies||[]).forEach(c=>{ if(c&&c.container) c.container.destroy(); });
+      (this.summons||[]).forEach(s=>{ if(s){ s._removed=true; s.alive=false; if(s.container) s.container.destroy(); } }); this.summons=[];   // 換場：清掉殘留召喚精靈
       if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
       if(this._envText){ this._envText.destroy(); this._envText=null; }
       this.enemies=[]; this.all=[...(this.heroes||[])];

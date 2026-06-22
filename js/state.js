@@ -275,13 +275,13 @@ function gainXP(amount){
 // ---- 大改版・職業規劃器：點數成本 / 驗證 / 升級自動發放 ----
 function skillByName(sprite, name){ return (SKILLS[sprite]||[]).find(s=>s.name===name)||null; }
 function skillLearnCost(sprite, name){ const s=skillByName(sprite,name); return s? (s.tier||1) : 0; }   // 習得：T1/2/3 = 1/2/3 點
-function upgradeStepCost(nth){ return nth; }   // 升級：第 n 次升級花 n 點（遞增）
+function upgradeStepCost(nth, role){ return role==='ultimate' ? 10 : nth; }   // 大招升級固定 10 點；主動/被動第 n 次花 n 點
 // 累計某職業配置表已花的點數（習得＋各次升級遞增）
 function planSpent(sprite){ const plan=GUILD.classPlans&&GUILD.classPlans[sprite]; if(!plan||!plan.slots) return 0;
   let total=0; const ups={};
   plan.slots.forEach(s=>{ if(!s||!s.skill) return;
     if(s.act==='learn'){ total+=skillLearnCost(sprite,s.skill); }
-    else if(s.act==='upgrade'){ ups[s.skill]=(ups[s.skill]||0)+1; total+=upgradeStepCost(ups[s.skill]); } });
+    else if(s.act==='upgrade'){ ups[s.skill]=(ups[s.skill]||0)+1; total+=upgradeStepCost(ups[s.skill], (skillByName(sprite,s.skill)||{}).role); } });
   return total; }
 const CLASS_POINT_BASE = 3;   // 起始基底點數（讓新玩家就能配最小 build）；其餘靠活著回來累加
 function classPointCap(sprite){ return CLASS_POINT_BASE + ((GUILD.classPoints&&GUILD.classPoints[sprite])||0); }
