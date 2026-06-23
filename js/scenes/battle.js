@@ -579,7 +579,7 @@ class Battle extends Phaser.Scene {
         RUN.exped.pct=100; this.updatePctBar();
         this.scene.start('Result',{outcome:'clear'}); return;
       }
-      const gains=[];   // 統一戰後獲得：右下角同一欄、由上到下（戰利品 → 技能）
+      const gains=[]; if(RUN) RUN._pendingResourceGains=gains;   // 統一戰後獲得：右下角同一欄、由上到下（戰利品 → 技能）
       if(node&&node.type==='elite'){
         if(hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; }
         const count = 2 + (re.extraLoot||0);
@@ -588,7 +588,7 @@ class Battle extends Phaser.Scene {
       } else {
         const gc=CFG.gold||{}, g=Math.max(1, Math.round(((gc.battleBase||16)+(node?node.risk:1)*(gc.battlePerRisk||12))*(1+(((RUN.destTier||1)-1)*0.25))));
         addGold(g); this.updateGold(); gains.push({t:'💰 +'+g, c:'#ffe08a'});
-        if(hasLeader()) forageIngredient(RUN.destIndex||0);   // 領隊沿途採集（入持久食材庫存）
+        if(hasLeader()){ const ing=forageIngredient(RUN.destIndex||0); const nt=resourceGainNotice(ing,1); if(nt) gains.push(nt); }   // 領隊沿途採集（入持久食材庫存）
         // v1.6：一般戰鬥也有機率掉裝備（偏武器），避免整趟拿不到武器
         const _lc=CFG.loot||{};
         if(Math.random()<(_lc.battleGearChance!=null?_lc.battleGearChance:0.30) && RUN.cargo.length<RUN.slots){
@@ -599,6 +599,7 @@ class Battle extends Phaser.Scene {
       }
       skillMsgs.forEach(m=>gains.push({t:m, c:'#ffe08a'}));
       this.showGains(gains);
+      if(RUN) RUN._pendingResourceGains=null;
       this.showLevelups();
     });
   }

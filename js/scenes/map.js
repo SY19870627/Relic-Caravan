@@ -9,12 +9,18 @@ function useConsumable(item){
   discover(item.name); const i=RUN.cargo.indexOf(item); if(i>=0) RUN.cargo.splice(i,1);
   return `使用 ${item.name}：`+(revived?`復活 ${revived} 人、`:'')+`回復 ${healed} 人`;
 }
+function resourceGainNotice(res,n){ return res ? {t:(res.icon||'')+' '+res.name+' ×'+(n||1), c:'#9fd0ff'} : null; }
+function queueResourceGain(res,n){
+  const notice=resourceGainNotice(res,n);
+  if(notice && RUN && RUN._pendingResourceGains) RUN._pendingResourceGains.push(notice);
+  return notice;
+}
 function rollItem(risk, kind){
   const tier=Math.min(LOOT.consum.length, Math.max(1,risk) + ((RUN.destTier||1)-1));  // 目的地階級越高，掉落階級越高（v2.2 上限隨 LOOT 表擴到 8 階）
   const L=CFG.loot;
   // v2.3：遺物改為「只有擊敗首領才取得」，一般/菁英戰利品與寶箱不再隨機出遺物
   if(!kind || kind==='道具' || kind==='貴重物品'){
-    if(Math.random()<0.14) gainMaterial(RUN.destIndex||0);   // 素材立即入庫（不佔貨格、全滅也不失），再正常給一件戰利品
+    if(Math.random()<0.14) queueResourceGain(gainMaterial(RUN.destIndex||0),1);   // 素材立即入庫（不佔貨格、全滅也不失），再正常給一件戰利品
   }
   const pick = (kind && kind!=='遺物') ? kind : (function(){ const r=Math.random();
     const pv=(L.pickValuable!=null?L.pickValuable:0.32), pa=(L.pickArmor!=null?L.pickArmor:0.28), pw=(L.pickWeapon!=null?L.pickWeapon:0.28);
