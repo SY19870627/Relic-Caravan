@@ -3,7 +3,7 @@ class RecruitHall extends Phaser.Scene {
   constructor(){ super('RecruitHall'); }
   create(){
     const W=this.scale.width,H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
+    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(1.35,1.35).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.42).setOrigin(0);
     txt(this,W/2,26,'招 募 所',24,TH.gold);
     txt(this,W/2,48,'解鎖出戰隊員（最多 5 人）／ 聘僱後勤（工匠・領隊）',12,TH.dim);

@@ -3,7 +3,7 @@ class WagonHall extends Phaser.Scene {
   constructor(){ super('WagonHall'); }
   create(){
     const W=this.scale.width,H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
+    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(1.35,1.35).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
     txt(this,W/2,24,'馬 車 工 坊',22,TH.gold);
     txt(this,W/2,46,'選馬車（決定貨格容量）＋ 工匠強化（需素材與聲望）',12,TH.dim);

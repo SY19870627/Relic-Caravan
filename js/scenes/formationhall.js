@@ -4,7 +4,7 @@ class FormationHall extends Phaser.Scene {
   create(data){
     this.from=(data&&data.from)||'GuildHall';
     const W=this.scale.width,H=this.scale.height;
-    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.5);
+    this.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(1.35,1.35).setAlpha(0.5);
     this.add.rectangle(0,0,W,H,0x0e0a14,0.4).setOrigin(0);
     txt(this,W/2,26,'隊 形',24,TH.gold);
     txt(this,W/2,48,'選擇陣形：站位固定，各位置有加減成；前排易被集火、後排被保護',12,TH.dim);

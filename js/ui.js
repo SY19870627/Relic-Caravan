@@ -36,7 +36,7 @@ function sceneBg(scene, opt){
   const g=scene.add.graphics().setDepth(-100);
   const top=opt.top??UI.bg1, bot=opt.bottom??UI.bg2, steps=30;
   for(let i=0;i<steps;i++){ g.fillStyle(_mix(top,bot,i/(steps-1)),1); g.fillRect(0, Math.floor(H*i/steps), W, Math.ceil(H/steps)+1); }
-  if(scene.textures.exists('wall')) scene.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(2,2).setAlpha(0.06).setDepth(-99);
+  if(scene.textures.exists('wall')) scene.add.tileSprite(0,0,W,H,'wall').setOrigin(0).setTileScale(1.25,1.25).setAlpha(0.08).setDepth(-99);
   const glow=scene.add.graphics().setDepth(-98); const gx=opt.glowX??W/2, gy=opt.glowY??-30, gc=opt.glow??0xf0a850;
   for(let r=340;r>0;r-=34){ glow.fillStyle(gc, 0.035); glow.fillCircle(gx,gy,r); }
   const v=scene.add.graphics().setDepth(-97); const vg=64;
@@ -153,10 +153,18 @@ function divider(scene,x,y,w,col,a){ const g=scene.add.graphics(); g.lineStyle(1
 
 function icon(scene,x,y,name,size,col){
   const c=scene.add.container(x,y); const g=scene.add.graphics(); c.add(g);
+  _iconBadge(g,0,0,size,(typeof col==='number')?col:0xece6d6);
   const fn=ICONS[name];
-  if(fn){ fn(g,0,0,size,(typeof col==='number')?col:0xece6d6); }
-  else { g.fillStyle((typeof col==='number')?col:0xece6d6,1); g.fillCircle(0,0,size*0.42); }
+  if(fn){ fn(g,0,0,size*0.78,(typeof col==='number')?col:0xece6d6); }
+  else { g.fillStyle((typeof col==='number')?col:0xece6d6,1); g.fillCircle(0,0,size*0.24); }
   return c;
+}
+function _iconBadge(g,x,y,s,c){
+  const r=s*0.62;
+  g.fillStyle(0x06050d,0.72); g.fillCircle(x+s*0.06,y+s*0.08,r);
+  g.fillStyle(_mix(c,0x090713,0.76),0.95); g.fillCircle(x,y,r);
+  g.fillStyle(_mix(c,0xffffff,0.10),0.42); g.fillCircle(x-s*0.15,y-s*0.18,r*0.62);
+  g.lineStyle(Math.max(1.5,s*0.085),_mix(c,0xffffff,0.18),0.95); g.strokeCircle(x,y,r);
 }
 const ICONS = {
   coin(g,x,y,s,c){ const r=s*0.46; g.lineStyle(Math.max(2,s*0.1),c,1); g.fillStyle(c,0.18); g.fillCircle(x,y,r); g.strokeCircle(x,y,r); g.strokeCircle(x,y,r*0.62); g.lineBetween(x,y-r*0.5,x,y+r*0.5); },
@@ -316,6 +324,84 @@ function buildTextures(scene){
       t.refresh();
     }
   });
+}
+
+function _actorTexture(scene,key){
+  if(scene.textures.exists(key)) scene.textures.remove(key);
+  const OUTLINE_KEYS = new Set(['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm','crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth','jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus','chimeraBeast','crystalStalker','sporeHound','leechWyrm','heartOfRot','worldEater']);
+  const grid=SPRITES[key], hh=grid.length, ww=Math.max(...grid.map(r=>r.length));
+  const tex=scene.textures.createCanvas(key,ww,hh), ctx=tex.getContext();
+  if(OUTLINE_KEYS.has(key)){
+    const filled=(x,y)=> y>=0&&y<hh&&x>=0&&x<grid[y].length && !!PAL[grid[y][x]];
+    ctx.fillStyle='#120c08';
+    for(let y=0;y<hh;y++){ for(let x=0;x<ww;x++){
+      if(filled(x,y)) continue;
+      let adj=false;
+      for(let dy=-1;dy<=1&&!adj;dy++){ for(let dx=-1;dx<=1;dx++){ if((dx||dy)&&filled(x+dx,y+dy)){ adj=true; break; } } }
+      if(adj) ctx.fillRect(x,y,1,1);
+    }}
+  }
+  for(let y=0;y<hh;y++){ const row=grid[y]; for(let x=0;x<row.length;x++){ const col=PAL[row[x]]; if(!col) continue; ctx.fillStyle=col; ctx.fillRect(x,y,1,1);} }
+  tex.refresh();
+  if(tex.setFilter && typeof Phaser!=='undefined') tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
+}
+function _battleBgTexture(scene,key,th,isFloor){
+  if(scene.textures.exists(key)) scene.textures.remove(key);
+  const t=scene.textures.createCanvas(key,32,32), c=t.getContext();
+  if(isFloor){
+    c.fillStyle=th.base; c.fillRect(0,0,32,32);
+    c.fillStyle=th.tile; c.fillRect(1,1,30,14); c.fillRect(1,17,14,14); c.fillRect(17,17,14,14);
+    c.fillStyle=th.hi; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
+  } else {
+    c.fillStyle=th.base; c.fillRect(0,0,32,32);
+    for(let row=0;row<4;row++){ const y=row*8; for(let bx=-1;bx<3;bx++){ const x=bx*16+(row%2?8:0);
+      c.fillStyle=((row+bx)%2)?th.b1:th.b2; c.fillRect(x+1,y+1,14,6); c.fillStyle=th.hi; c.fillRect(x+1,y+1,14,1);} }
+  }
+  t.refresh();
+  if(t.setFilter && typeof Phaser!=='undefined') t.setFilter(Phaser.Textures.FilterMode.NEAREST);
+}
+function _bgTexture(scene,key,wc,fc,isFloor){
+  if(scene.textures.exists(key)) scene.textures.remove(key);
+  const tex=scene.textures.createCanvas(key,192,192), c=tex.getContext();
+  const grad=c.createLinearGradient(0,0,192,192);
+  grad.addColorStop(0,wc.base); grad.addColorStop(0.55,wc.mid||wc.base); grad.addColorStop(1,wc.deep||'#090713');
+  c.fillStyle=grad; c.fillRect(0,0,192,192);
+  for(let i=0;i<34;i++){
+    const x=(i*47)%192, y=(i*83)%192, r=18+(i%5)*9;
+    c.fillStyle=i%2?'rgba(255,255,255,0.035)':'rgba(0,0,0,0.055)';
+    c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.fill();
+  }
+  c.strokeStyle=isFloor?'rgba(255,255,255,0.055)':'rgba(255,255,255,0.04)';
+  c.lineWidth=1;
+  for(let i=0;i<6;i++){ const y=24+i*30; c.beginPath(); c.moveTo(0,y); c.bezierCurveTo(54,y-8,122,y+10,192,y-4); c.stroke(); }
+  tex.refresh();
+}
+function buildTextures(scene){
+  for(const key in SPRITES) _actorTexture(scene,key);
+  const themes=[
+    [{base:'#191823',mid:'#26253a',deep:'#0b0a12'},{base:'#14101b',mid:'#201b2d',deep:'#090711'}],
+    [{base:'#221b1a',mid:'#3a2d25',deep:'#110d0d'},{base:'#18110f',mid:'#2d211b',deep:'#0b0807'}],
+    [{base:'#0b2228',mid:'#174351',deep:'#061015'},{base:'#071b20',mid:'#10343d',deep:'#041014'}],
+    [{base:'#191026',mid:'#37215a',deep:'#080511'},{base:'#100a1b',mid:'#23123d',deep:'#07040d'}],
+    [{base:'#7a5730',mid:'#b68c4f',deep:'#3a2413'},{base:'#5f4427',mid:'#94703f',deep:'#26170c'}],
+    [{base:'#195b58',mid:'#348b81',deep:'#0b2628'},{base:'#254e33',mid:'#4d7a4d',deep:'#112018'}],
+    [{base:'#214d27',mid:'#4d8138',deep:'#0f2414'},{base:'#2c3f20',mid:'#586b2f',deep:'#141d0e'}],
+    [{base:'#1c4f42',mid:'#417f66',deep:'#10221d'},{base:'#233c2b',mid:'#4a6648',deep:'#111d16'}],
+  ];
+  _bgTexture(scene,'wall',themes[0][0],themes[0][1],false);
+  _bgTexture(scene,'floor',themes[0][1],themes[0][0],true);
+  themes.forEach((t,i)=>{ _bgTexture(scene,'wall'+i,t[0],t[1],false); _bgTexture(scene,'floor'+i,t[1],t[0],true); });
+  const battleThemes=[
+    {wall:{base:'#1a1712',b1:'#2f2a20',b2:'#262017',hi:'#3f4a2a'}, floor:{base:'#141009',tile:'#221c12',hi:'#2f3a1e'}},
+    {wall:{base:'#1c1814',b1:'#3a3024',b2:'#2e2619',hi:'#5a4a36'}, floor:{base:'#161108',tile:'#2a2114',hi:'#3e3220'}},
+    {wall:{base:'#0b1a1e',b1:'#15323a',b2:'#102a30',hi:'#2f8190'}, floor:{base:'#08161a',tile:'#103038',hi:'#1c6675'}},
+    {wall:{base:'#140a1e',b1:'#2a1640',b2:'#1f1030',hi:'#7a47b0'}, floor:{base:'#0e0618',tile:'#20123a',hi:'#48267a'}},
+    {wall:{base:'#c2a061',b1:'#d8bc82',b2:'#b6964f',hi:'#f2dca0'}, floor:{base:'#a8854a',tile:'#c6a566',hi:'#e6c987'}},
+    {wall:{base:'#3f8f88',b1:'#54aaa0',b2:'#347a73',hi:'#86e6d6'}, floor:{base:'#4a8a58',tile:'#6aa86a',hi:'#aede8e'}},
+    {wall:{base:'#3d7d39',b1:'#56a047',b2:'#326e32',hi:'#aede50'}, floor:{base:'#46682c',tile:'#6c8a3a',hi:'#aece5c'}},
+    {wall:{base:'#34705a',b1:'#4a9070',b2:'#285a48',hi:'#b24de0'}, floor:{base:'#36563f',tile:'#4f7a5a',hi:'#9ede7e'}},
+  ];
+  battleThemes.forEach((th,i)=>{ _battleBgTexture(scene,'battleWall'+i,th.wall,false); _battleBgTexture(scene,'battleFloor'+i,th.floor,true); });
 }
 
 function pixelNum(scene,x,y,str,color,big){

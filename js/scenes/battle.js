@@ -10,8 +10,8 @@ class Battle extends Phaser.Scene {
     const W=this.scale.width, H=this.scale.height;
     // v1.1：依目的地切換戰鬥背景主題（牆／地板／火把色），各區視覺區隔
     const di=(RUN&&RUN.destIndex)||0;
-    const wallKey=this.textures.exists('wall'+di)?('wall'+di):'wall';
-    const floorKey=this.textures.exists('floor'+di)?('floor'+di):'floor';
+    const wallKey=this.textures.exists('battleWall'+di)?('battleWall'+di):(this.textures.exists('wall'+di)?('wall'+di):'wall');
+    const floorKey=this.textures.exists('battleFloor'+di)?('battleFloor'+di):(this.textures.exists('floor'+di)?('floor'+di):'floor');
     this.bgWall=this.add.tileSprite(0,0,W,360,wallKey).setOrigin(0).setTileScale(2,2);
     this.bgFloor=this.add.tileSprite(0,360,W,H-360,floorKey).setOrigin(0).setTileScale(2,2);
     this.add.rectangle(0,360,W,3,0x0a0710).setOrigin(0);
