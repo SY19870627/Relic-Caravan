@@ -143,7 +143,7 @@ Object.assign(Battle.prototype, {
       pixelNum(this,target.container.x,target.container.y-34,'🛡'+absorbed,0x9fd0ff); this.spark(target.container.x,target.container.y,0x9fd0ff);
     } else {
       if(absorbed>0) pixelNum(this,target.container.x,target.container.y-52,'🛡'+absorbed,0x9fd0ff);
-      pixelNum(this,target.container.x,target.container.y-34,'-'+dmg, crit?0xffd24a:(heavy?0xff8a3a:0xff6b6b), crit||heavy);
+      pixelNum(this,target.container.x,target.container.y-34,'-'+dmg, crit?0xffd24a:(heavy?0xff8a3a:0xff6b6b), crit);
       this.spark(target.container.x,target.container.y, crit?0xffd24a:0xffe08a);
       target.spr.setTintFill(crit?0xffe08a:0xffffff); this.time.delayedCall(crit?120:80,()=>{ if(target.alive&&!target.stunned){ if(target.berserkUntil&&this.time.now<target.berserkUntil) target.spr.setTint(0xff5050); else target.spr.clearTint(); } });
       const kb=Math.min(14, 4+dmg*0.4);

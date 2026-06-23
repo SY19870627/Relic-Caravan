@@ -88,13 +88,16 @@ class Battle extends Phaser.Scene {
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
     const _gb=(RUN&&RUN.heroes)?RUN.heroes.map(h=>({w:(h.weapon&&h.weapon.name)||'',a:(h.armor&&h.armor.name)||''})):[];   // 換裝偵測：autoEquip 前快照
     autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
-    { const _eg=[]; ((RUN&&RUN.heroes)||[]).forEach((h,i)=>{ if(!_gb[i]) return; const nm=(h.name||'').split(' ')[0];
+    this._pendingGearGains=[];
+    { ((RUN&&RUN.heroes)||[]).forEach((h,i)=>{ if(!_gb[i]) return; const gains=[];
         const wn=(h.weapon&&h.weapon.name)||'', an=(h.armor&&h.armor.name)||'';
-        if(_gb[i].w && wn && wn!==_gb[i].w) _eg.push({t:'⚔ '+nm+' 換上 '+wn, c:'#bfe0ff'});
-        if(_gb[i].a && an && an!==_gb[i].a) _eg.push({t:'🛡 '+nm+' 換上 '+an, c:'#bfe0ff'}); });
-      if(_eg.length) this.showGains(_eg); }   // 換裝訊息推到右下角獲得欄
+        if(_gb[i].w && wn && wn!==_gb[i].w) gains.push('裝備'+wn);
+        if(_gb[i].a && an && an!==_gb[i].a) gains.push('裝備'+an);
+        if(gains.length) this._pendingGearGains.push({idx:h.idx, gains}); }); }   // 換裝訊息改推到角色卡下方
     activeRoster().forEach(idx=>syncPlannedSkills(idx));   // 大改版：依最新配置表＋目前等級重建技能（修正：配置常在 initRun 之後才改）
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
+    if(this._pendingGearGains&&this._pendingGearGains.length) this.showCardGearGains(this._pendingGearGains);
+    this._pendingGearGains=null;
     this.enemies=[]; this.summons=[]; this.all=[...this.heroes];
     this.updatePctBar(); this.updateGold(); this.updatePotions();
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
@@ -231,13 +234,29 @@ class Battle extends Phaser.Scene {
       card.add(this.add.rectangle(9,27,hbW,7,0x000000,0.6).setOrigin(0,0.5));
       const hpFill=this.add.rectangle(9,27,hbW,5,0x5ad06a).setOrigin(0,0.5); card.add(hpFill);
       const shFill=this.add.rectangle(9,27,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false); card.add(shFill);
-      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:50};
+      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, h:cardH, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:50};
       this.setCardGear(c);   // 名稱與 HP 中間：當前裝備武器/防具的像素圖示（換裝會即時重畫）
       // DPS（每秒平均傷害）：技能格左側挪出一塊，caption + 數字
       card.add(txt(this,11,37,'DPS',8,'#8a7f9a',0,0.5));
       const dpsText=txt(this,11,47,'0',12,'#ffd27a',0,0.5); card.add(dpsText); c.card.dpsText=dpsText;
       this.buildSkillPips(c);
       this.bar(c);
+    });
+  }
+  showCardGearGains(list){ if(!list||!list.length||!this.heroes) return;
+    const byIdx={}; list.forEach(it=>{ if(it&&it.gains&&it.gains.length) byIdx[it.idx]=it.gains; });
+    this.heroes.forEach((c)=>{
+      const gains=byIdx[c.ref&&c.ref.idx]; if(!gains||!c.card||!c.card.cont) return;
+      if(c.card.gearGain){ c.card.gearGain.destroy(); c.card.gearGain=null; }
+      const label=gains.slice(0,2).join('\n');
+      const cont=this.add.container(c.card.w/2,c.card.h+2).setAlpha(0);
+      const t=txt(this,0,0,label,13,UI.text,0.5,0.5).setStroke('#000',3);
+      t.setAlign('center'); if(t.setLineSpacing) t.setLineSpacing(2);
+      const fit=Math.min(1,(c.card.w-22)/Math.max(1,t.width)); t.setScale(fit);
+      cont.add(t); c.card.cont.add(cont); c.card.gearGain=cont;
+      this.tweens.add({targets:cont, y:c.card.h+15, alpha:1, duration:240, ease:'Back.out'});
+      this.tweens.add({targets:cont, y:c.card.h+2, alpha:0, delay:2200, duration:520, ease:'Quad.in',
+        onComplete:()=>{ if(c.card&&c.card.gearGain===cont) c.card.gearGain=null; cont.destroy(); }});
     });
   }
   // 卡片中段：武器/防具像素圖示。讀 c.ref（RUN.heroes）的當前裝備，換裝即時重畫

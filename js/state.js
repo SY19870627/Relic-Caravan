@@ -487,27 +487,35 @@ function rollGear(kind){
 // ---- 自動裝備：依職業＋等級，從『起始裝＋本趟撿到的』選最佳（v1.8 改為只看本趟）；開關 GUILD.settings.autoEquip（預設開）----
 function autoEquipOn(){ const s=GUILD.settings||{}; return s.autoEquip!==false; }
 function toggleAutoEquip(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoEquip=!autoEquipOn(); saveGuild(); return GUILD.settings.autoEquip; }
-function bestGear(sprite, kind, level){
-  const pool=(kind==='武器')?WEAPONS:ARMORS;
-  const score=g=> kind==='武器' ? (g.atkSeq.reduce((a,b)=>a+b,0)+(g.heal||0)) : ((g.def||0)*3+(g.shield||0));
+function gearScore(kind,g){ return kind==='武器' ? (g.atkSeq.reduce((a,b)=>a+b,0)+(g.heal||0)) : ((g.def||0)*3+(g.shield||0)); }
+function bestGear(sprite, kind, level, extras, fallback){
+  const pool=(fallback?[fallback]:[]).concat(extras||[]), seen={};
   let best=null;
-  pool.forEach(g=>{ if(g.lvReq>level) return;
+  pool.forEach(g=>{ if(!g || seen[g.name]) return; seen[g.name]=true;
+    if(g.lvReq>level) return;
     if(!(kind==='武器'?weaponClassOK(sprite,g):armorClassOK(sprite,g))) return;
-    if(!g.starter && !gearGotThisRun(g.name)) return;   // v1.8：起始裝永遠可用＋本趟撿到的（不再自動穿舊收藏的非起始裝）
-    if(!best || g.lvReq>best.lvReq || (g.lvReq===best.lvReq && score(g)>score(best))) best=g;   // 等級最高優先，同級比數值
+    if(!best || g.lvReq>best.lvReq || (g.lvReq===best.lvReq && gearScore(kind,g)>gearScore(kind,best))) best=g;   // 等級最高優先，同級比數值
   });
   return best;
 }
 function autoEquipRun(){ if(!autoEquipOn() || typeof RUN==='undefined' || !RUN || !RUN.heroes) return;
-  // 換上某槽的最佳裝備，並維持「貨車不留正在穿的那件」（修正自動裝備造成的重複顯示）
+  if(!RUN.cargo) RUN.cargo=[];
+  const takeCargo=(kind,name)=>{ const i=RUN.cargo.findIndex(it=>it&&it.kind===kind&&it.name===name); if(i>=0){ RUN.cargo.splice(i,1); return true; } return false; };
+  const cargoGears=(kind)=>RUN.cargo.filter(it=>it&&it.kind===kind&&it.gear).map(it=>it.gear);
+  const used={武器:{}, 防具:{}};
   const swap=(h,kind,slot,icon)=>{
-    const best=bestGear(h.sprite,kind,(ROSTER[h.idx]&&ROSTER[h.idx].level)||1);
-    if(best && (!h[slot] || best.name!==h[slot].name)){
-      const old=h[slot]; h[slot]=best;
-      if(old && !old.starter && RUN.cargo) RUN.cargo.push({kind, name:old.name, icon, value:25, gear:old});   // 換下的非起始裝放回貨車（避免遺失）
+    const cur=h[slot], level=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
+    const curUsable=!!(cur && (cur.starter || !used[kind][cur.name]));
+    const extras=cargoGears(kind).concat(curUsable&&cur&&!cur.starter ? [cur] : []);
+    const fallback=kind==='武器' ? startKitWeapon(h.idx) : startKitArmor(h.idx);
+    const best=bestGear(h.sprite,kind,level,extras,fallback);
+    if(best && (!cur || best.name!==cur.name || !curUsable)){
+      if(best.starter || takeCargo(kind,best.name)){
+        const old=cur; h[slot]=best;
+        if(old && !old.starter && curUsable) RUN.cargo.push({kind, name:old.name, icon, value:25, gear:old});   // 只把自己真正持有的舊裝放回貨車
+      }
     }
-    // 正在穿的這件不可同時留在貨車（剛裝上的取出；亦自癒既有重複）；起始裝本來就不在貨車
-    if(h[slot] && RUN.cargo){ const ci=RUN.cargo.findIndex(it=>it && it.kind===kind && it.name===h[slot].name); if(ci>=0) RUN.cargo.splice(ci,1); }
+    if(h[slot] && !h[slot].starter) used[kind][h[slot].name]=true;
   };
   RUN.heroes.forEach(h=>{ const oldMax=heroStat(h).maxHp;
     swap(h,'武器','weapon','⚔'); swap(h,'防具','armor','🛡');
