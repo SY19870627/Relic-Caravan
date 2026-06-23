@@ -41,7 +41,8 @@ Object.assign(Battle.prototype, {
 ,
   openEncounter(t){ if(t==='chest') this.evChest(); else if(t==='camp') this.evCamp(); else if(t==='event') this.evEvent(); else this.advanceStep(); }
 ,
-  mkOverlay(o){ o=o||{}; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
+  mkOverlay(o){ o=o||{}; this._campIdleOn=false; this._campBar=null;   // 任何浮窗開啟都先關閉營火閒置倒數（_renderCamp 會重新開啟）
+    if(this.overlay){ this.overlay.destroy(); this.overlay=null; } const W=this.scale.width,H=this.scale.height; const c=this.add.container(0,0).setDepth(96);
     c.add(this.add.rectangle(0,0,W,H,0x000000,0.55).setOrigin(0).setInteractive());
     c.add(panel(this,W/2,H/2,o.w||440,o.h||220,{accent:o.accent||'gold'})); this.overlay=c; return c; }
 ,
@@ -79,7 +80,25 @@ Object.assign(Battle.prototype, {
     o.add(button(this,W/2-86,H/2+20,160,40,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:13}));
     o.add(button(this,W/2+86,H/2+20,160,40,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:13}));
     o.add(button(this,W/2-86,H/2+72,160,40,'繼續前進',()=>this.advanceStep(),{variant:'go',size:14}));
-    o.add(button(this,W/2+86,H/2+72,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14})); }
+    o.add(button(this,W/2+86,H/2+72,160,40,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:14}));
+    // 閒置 5 秒自動前進：進度條（滑鼠一動就歸零）
+    const by=H/2+132, bw=380;
+    o.add(txt(this,W/2,by-15,'🖱 滑鼠靜止 5 秒自動前進',11,TH.dim));
+    o.add(this.add.rectangle(W/2,by,bw,9,0x000000,0.55).setStrokeStyle(1,0x5a4a3a,0.8));
+    const cbf=this.add.rectangle(W/2-bw/2+1,by,0,7,0xf0975a).setOrigin(0,0.5); o.add(cbf);
+    this._campBar={fill:cbf, w:bw-2}; this._campIdle=0; this._campIdleOn=true; this._campPtr=null; }
+,
+  // 營火閒置倒數：滑鼠 5 秒沒動 → 自動「繼續前進」。用真實 delta（與戰鬥倍率無關）；逐幀比對指標位置判斷有無移動
+  tickCampIdle(delta){
+    if(!this._campIdleOn || this.paused) return;
+    const bar=this._campBar; if(!bar || !bar.fill || !bar.fill.active){ this._campIdleOn=false; return; }
+    const p=this.input.activePointer;
+    if(this._campPtr && (Math.abs(p.x-this._campPtr.x)>1 || Math.abs(p.y-this._campPtr.y)>1 || p.isDown)) this._campIdle=0;   // 滑鼠移動/按下 → 歸零
+    this._campPtr={x:p.x, y:p.y};
+    this._campIdle=(this._campIdle||0)+(delta||16);
+    const frac=Math.min(1, this._campIdle/5000); bar.fill.width=bar.w*frac;
+    if(frac>=1){ this._campIdleOn=false; this._campBar=null; this.advanceStep(); }
+  }
 ,
   evCook(){ this._cookMsg=null; this._renderCook(); }
 ,
@@ -123,8 +142,8 @@ Object.assign(Battle.prototype, {
     add(this.add.image(LP.left+44,ly+22,h.sprite).setScale(3));
     add(txt(this,LP.left+82,ly+6,h.name,16,TH.gold,0)); add(txt(this,LP.left+82,ly+28,'Lv '+s.level,12,'#9fd0ff',0));
     add(txt(this,LP.left+82,ly+47,'EXP',9,TH.dim,0)); add(statBar(this,LP.left+112,ly+50,184,7,(ROSTER[h.idx]&&ROSTER[h.idx].xp)||0,xpNeed(s.level),{accent:'violet'}));
-    ly+=72; const c2=lx+205, armorHp=h.armor.hp||0;
-    add(icon(this,lx+6,ly,'heart',13,UI.greenN)); add(txt(this,lx+20,ly,'HP '+s.maxHp+(armorHp?'（盾'+armorHp+'）':''),12,TH.text,0));
+    ly+=72; const c2=lx+205, armorSh=h.armor.shield||0;
+    add(icon(this,lx+6,ly,'heart',13,UI.greenN)); add(txt(this,lx+20,ly,'HP '+s.maxHp+(armorSh?'（盾'+armorSh+'）':''),12,TH.text,0));
     add(icon(this,c2+6,ly,'sword',13,UI.goldN)); add(txt(this,c2+20,ly,'ATK '+s.atkSeq.join('/'),12,TH.text,0));
     ly+=22; add(icon(this,lx+6,ly,'shield',13,UI.blueN)); add(txt(this,lx+20,ly,'DEF '+s.def,12,TH.text,0));
     if(s.heal){ add(icon(this,c2+6,ly,'heal',13,0x6ee29a)); add(txt(this,c2+20,ly,'治療 '+s.heal,12,TH.text,0)); }
@@ -170,8 +189,7 @@ Object.assign(Battle.prototype, {
       g.fillStyle(iac.deep,0.5); g.fillRoundedRect(rl+28,y+9,38,38,8); add(icon(this,rl+47,y+28,v.icon,22,iac.num));
       const tx=rl+80;
       add(txt(this,tx,y+9,(e.cur?'★ ':'')+e.name,12.5,iac.hex,0));
-      add(txt(this,tx,y+27,isW?('傷害 '+((gear&&gear.atkSeq)?gear.atkSeq.join(' / '):'?')+(gear&&gear.heal?'　治療 '+gear.heal:'')):('防禦 '+((gear&&gear.def)||0)+(gear&&gear.hp?'　護盾 +'+gear.hp:'')),10.5,TH.text,0));
-      if(gear&&gear.traitDesc) add(txt(this,tx,y+42,'✦ '+gear.traitDesc,9.5,'#c9a0ff',0).setWordWrapWidth(205));
+      add(txt(this,tx,y+27,isW?('傷害 '+((gear&&gear.atkSeq)?gear.atkSeq.join(' / '):'?')+(gear&&gear.heal?'　治療 '+gear.heal:'')):('防禦 '+((gear&&gear.def)||0)+(gear&&gear.shield?'　護盾 +'+gear.shield:'')),10.5,TH.text,0));
       if(e.cur) add(txt(this,rl+392,y+12,'使用中',10,'#9fd0ff',1));
       else if(!clsOK) add(txt(this,rl+392,y+12,'職業不符',10,'#ff8a8a',1));
       else if(s.level<lvReq) add(txt(this,rl+392,y+12,'需 Lv'+lvReq,10,'#ff8a8a',1));
@@ -224,7 +242,7 @@ Object.assign(Battle.prototype, {
       Phaser.Utils.Array.Shuffle(wPool);
       this._shopGoods=wPool.slice(0,3).map(w=>({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
         req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
-        lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), w.traitDesc||'']}));
+        lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), '']}));
     } else if(type==='merchant'){
       // v1.7 流浪商人（綜合商）：道具＋武器＋防具 各一件，同一畫面選購
       this._shopTitle='🧙 流浪商人'; this._shopHint='綜合商 — 道具・武器・防具 各一件';
@@ -232,18 +250,18 @@ Object.assign(Battle.prototype, {
       if(wPool.length){ Phaser.Utils.Array.Shuffle(wPool); const w=wPool[0];
         gd.push({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
           req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
-          lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), w.traitDesc||'']}); }
+          lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), '']}); }
       if(aPool.length){ Phaser.Utils.Array.Shuffle(aPool); const a=aPool[0];
         gd.push({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
           req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
-          lines:['DEF '+a.def+'　HP +'+a.hp, a.traitDesc||'']}); }
+          lines:['DEF '+a.def+'　護盾 +'+(a.shield||0), '']}); }
       this._shopGoods=gd;
     } else {
       this._shopTitle='🛡 防具商'; this._shopHint='堅實防具（排除基礎與已擁有）';
       Phaser.Utils.Array.Shuffle(aPool);
       this._shopGoods=aPool.slice(0,3).map(a=>({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
         req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
-        lines:['DEF '+a.def+'　HP +'+a.hp, a.traitDesc||'']}));
+        lines:['DEF '+a.def+'　護盾 +'+(a.shield||0), '']}));
     }
     if(!this._campShops) this._campShops={};
     this._campShops[type]={title:this._shopTitle, hint:this._shopHint, goods:this._shopGoods};   // 快取：本營火此商店貨色固定

@@ -104,9 +104,8 @@ Object.assign(Battle.prototype, {
     // v2.1 稱號・對族群增傷（取所有生效稱號中最高的比例）
     if(c.side==='hero' && this._title){ const _p=titleDmgVsFor(target.sprite,this._title); if(_p>0) atk=Math.round(atk*(1+_p)); }
     if(c.side==='hero'){ const ex=this.getSkill(c,'execute'); if(ex && target.maxHp>0 && target.hp/target.maxHp<0.30){ atk=Math.round(atk*(1+(ex.frac||0.5))); this.skillProc(c,ex.name,{throttle:1500}); } }   // 大改版・處決：低血增傷
-    // 有效防禦：破甲（武器特性／技能）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
+    // 有效防禦：破甲（技能）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
     let tdef=target.def;
-    if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
     { let sp=0; const psk=this.getSkill(c,'pierce'); if(psk) sp+=(psk.frac||0.4); if(c.formUntil&&_now<c.formUntil&&c.formPierce) sp+=c.formPierce; if(sp>0) tdef=Math.round(tdef*(1-Math.min(0.9,sp))); }   // 大改版・破甲/牛頭人變身
     if(target.side==='hero'){
       const _lowHp=this.hasSkillType(target,'lowHpDef') && target.hp/target.maxHp<0.30;
@@ -155,16 +154,13 @@ Object.assign(Battle.prototype, {
     if(crit){ this.floatLabel(c.baseX,c.baseY-58,'暴擊!','#ffd24a'); this.shake(180,0.012); this.screenFlash(0xffe08a,0.22,200); this.hitstop(70); }
     else if(heavy){ this.shake(120,0.007); this.hitstop(45); }
     else { this.shake(55,0.003); }
-    // 吸血（遺物・虛空之心 ＋ 武器吸血特性）
-    if(c.side==='hero' && dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(this._lifesteal||0)+((c.weaponTrait&&c.weaponTrait.lifesteal)||0)+(lsk?(lsk.frac||0.2):0);
+    // 吸血（遺物・虛空之心 ＋ 技能・嗜血）
+    if(c.side==='hero' && dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(this._lifesteal||0)+(lsk?(lsk.frac||0.2):0);
       if(ls>0 && c.hp<c.maxHp){ const hp=Math.max(1,Math.round(dmg*ls)); c.hp=Math.min(c.maxHp,c.hp+hp); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'+'+hp,0x7dff9a); } }
-    // 反傷（被動・堅守 ＋ 防具反甲）：我方被敵攻擊時反彈
+    // 反傷（被動・堅守）：我方被敵攻擊時反彈
     if(target.side==='hero' && c.side==='enemy' && c.alive && dmg>0){
       let refl=0; const rs=(target.skills||[]).find(s=>s.type==='reflect'); if(rs) refl+=(rs.frac||0.25);
-      if(target.armorTrait&&target.armorTrait.thorns) refl+=target.armorTrait.thorns;
       if(refl>0){ const rd=Math.max(1,Math.round(dmg*refl)); c.hp=Math.max(0,c.hp-rd); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'-'+rd,0xff9a3a); if(rs)this.skillProc(target,rs.name,{throttle:1500}); if(c.hp<=0) this.die(c); } }
-    // 武器・週期暈（戰弓）
-    if(c.alive && c.weaponTrait&&c.weaponTrait.stunCycle && target.hp>0 && c.atkI % c.weaponTrait.stunCycle===0){ this.stun(target,{name:'眩',dur:800},c); }
     // 濺射（遺物・破碎神像）：我方每第 3 擊對其他敵人造成 50% 濺射
     if(c.side==='hero' && this._splash && !opt.aoeHit && c.alive && c.atkI%3===0){
       const others=this.aliveOf('enemy').filter(f=>f!==target);

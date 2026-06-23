@@ -406,12 +406,13 @@ function heroStat(h){
   // 攻防來源：武器/防具 ＋ 被動技能 ＋ 遺物 ＋ 寡兵；角色本身無基礎攻防，純等級只給 HP
   return {
     level:  lv,
-    maxHp:  baseHp + h.growthHp*(lv-1) + h.armor.hp + bl.hp + bo.hp + phpB + soloH + tl.hp,
+    maxHp:  baseHp + h.growthHp*(lv-1) + bl.hp + bo.hp + phpB + soloH + tl.hp,   // 防具不再加血量（改給護盾）
     atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA+tl.atk+(h.growthAtk||0)*(lv-1)),
     def:    h.armor.def + pdef + bl.def + bo.def + soloD + tl.def,
     heal:   (h.weapon.heal? h.weapon.heal + healB + bo.heal + bl.heal : 0),
     skills: sk,
-    weaponTrait: h.weapon.trait||null, armorTrait: h.armor.trait||null,   // v0.8 裝備特性（戰鬥讀取）
+    armorShield: h.armor.shield||0,   // 回歸基本：防具＝防禦＋護盾
+    weaponTrait: null, armorTrait: null,   // 裝備特殊效果已移除
   };
 }
 
@@ -488,7 +489,7 @@ function autoEquipOn(){ const s=GUILD.settings||{}; return s.autoEquip!==false; 
 function toggleAutoEquip(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.autoEquip=!autoEquipOn(); saveGuild(); return GUILD.settings.autoEquip; }
 function bestGear(sprite, kind, level){
   const pool=(kind==='武器')?WEAPONS:ARMORS;
-  const score=g=> kind==='武器' ? (g.atkSeq.reduce((a,b)=>a+b,0)+(g.heal||0)) : ((g.def||0)*3+(g.hp||0));
+  const score=g=> kind==='武器' ? (g.atkSeq.reduce((a,b)=>a+b,0)+(g.heal||0)) : ((g.def||0)*3+(g.shield||0));
   let best=null;
   pool.forEach(g=>{ if(g.lvReq>level) return;
     if(!(kind==='武器'?weaponClassOK(sprite,g):armorClassOK(sprite,g))) return;

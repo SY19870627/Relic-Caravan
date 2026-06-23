@@ -125,27 +125,26 @@ const WEAPONS = [
   {name:'聖光杖', atkSeq:[14,16], heal:14, lvReq:3, starter:true},
   {name:'火花杖', atkSeq:[9,11], heal:0, lvReq:1, starter:true, magic:true},   // 法師起手（範圍魔法）
   {name:'短刃', atkSeq:[10,12,14], heal:0, lvReq:1, starter:true},   // 盜賊起手（快速三段）
-  // 掉落專屬（靠探險取得，整備目錄看不到）；v0.8：給「特性」trait 而非只是更大的數字，換裝＝換打法
-  {name:'匕首', atkSeq:[12,13,14,16], heal:0, lvReq:2, trait:{lifesteal:0.15}, traitDesc:'吸血 15%'},
-  {name:'雙刃劍', atkSeq:[18,22,26], heal:0, lvReq:3, trait:{pierce:0.4}, traitDesc:'破甲：無視 40% 防禦'},
-  {name:'巨劍', atkSeq:[26,34], heal:0, lvReq:4, trait:{pierce:0.5}, traitDesc:'破甲：無視 50% 防禦'},
-  {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4, trait:{stunCycle:4}, traitDesc:'每第 4 擊暈眩 0.8 秒'},
-  {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4, trait:{lifesteal:0.10}, traitDesc:'吸血 10%'},
-  {name:'烈焰法杖', atkSeq:[14,18], heal:0, lvReq:3, magic:true, trait:{pierce:0.3}, traitDesc:'破甲：無視 30% 防禦'},
+  // 掉落專屬（靠探險取得，整備目錄看不到）；回歸基本：只有傷害數值，無特殊效果
+  {name:'匕首', atkSeq:[12,13,14,16], heal:0, lvReq:2},
+  {name:'雙刃劍', atkSeq:[18,22,26], heal:0, lvReq:3},
+  {name:'巨劍', atkSeq:[26,34], heal:0, lvReq:4},
+  {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4},
+  {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4},
+  {name:'烈焰法杖', atkSeq:[14,18], heal:0, lvReq:3, magic:true},
 ];
-// 防具：固定 DEF
+// 防具：回歸基本＝防禦 + 護盾（每場開場補滿的護盾值；不再加最大血量、無特殊效果）
 const ARMORS = [
-  {name:'布衣', def:1, hp:8, lvReq:1, starter:true}, {name:'皮甲', def:3, hp:12, lvReq:1, starter:true},
-  {name:'鎖子甲', def:6, hp:22, lvReq:3, starter:true}, {name:'法袍', def:2, hp:16, lvReq:2, starter:true},
-  // 掉落專屬；v0.8：給「特性」trait
-  {name:'精鋼板甲', def:9, hp:30, lvReq:4, trait:{startShield:20}, traitDesc:'每場開場護盾 +20'},
-  {name:'守護重盔', def:7, hp:26, lvReq:3, trait:{thorns:0.15}, traitDesc:'反甲：反彈 15% 受到的傷害'},
-  {name:'法師長袍', def:3, hp:20, lvReq:2, trait:{startShield:12}, traitDesc:'每場開場護盾 +12'},
-  {name:'龍鱗甲', def:11, hp:36, lvReq:5, trait:{thorns:0.25}, traitDesc:'反甲：反彈 25% 受到的傷害'},
-  // v1.9 遊俠/盜賊專屬輕甲（補足這兩職的非起始防具，用既有特性 startShield/thorns）
-  {name:'遊獵皮衣', def:4, hp:16, lvReq:2, trait:{startShield:14}, traitDesc:'每場開場護盾 +14'},
-  {name:'影襲夜衣', def:6, hp:22, lvReq:3, trait:{startShield:18}, traitDesc:'每場開場護盾 +18'},
-  {name:'疾風革鎧', def:8, hp:28, lvReq:4, trait:{thorns:0.18}, traitDesc:'反甲：反彈 18% 受到的傷害'},
+  {name:'布衣', def:1, shield:8, lvReq:1, starter:true}, {name:'皮甲', def:3, shield:12, lvReq:1, starter:true},
+  {name:'鎖子甲', def:6, shield:22, lvReq:3, starter:true}, {name:'法袍', def:2, shield:16, lvReq:2, starter:true},
+  // 掉落專屬：更高防禦＋更高護盾
+  {name:'精鋼板甲', def:9, shield:30, lvReq:4},
+  {name:'守護重盔', def:7, shield:26, lvReq:3},
+  {name:'法師長袍', def:3, shield:20, lvReq:2},
+  {name:'龍鱗甲', def:11, shield:36, lvReq:5},
+  {name:'遊獵皮衣', def:4, shield:16, lvReq:2},
+  {name:'影襲夜衣', def:6, shield:22, lvReq:3},
+  {name:'疾風革鎧', def:8, shield:28, lvReq:4},
 ];
 // 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
 // world：每 4 關為一個世界（0=遺跡地城・偏暗，1=沙漠雨林・偏亮）。地城索引 0-3＝第一世界、4-7＝第二世界。

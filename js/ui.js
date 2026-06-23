@@ -228,6 +228,24 @@ const ICONS = {
   ward(g,x,y,s,c){ ICONS.shield(g,x,y,s,c); g.fillStyle(c,1); g.fillRect(x-s*0.05,y-s*0.16,s*0.1,s*0.3); g.fillRect(x-s*0.15,y-s*0.06,s*0.3,s*0.1); },
 };
 function _starPath(g,cx,cy,outer,inner,points){ g.beginPath(); for(let i=0;i<points*2;i++){ const rad=i%2?inner:outer, a=-Math.PI/2+i*Math.PI/points, px=cx+Math.cos(a)*rad, py=cy+Math.sin(a)*rad; if(i===0)g.moveTo(px,py); else g.lineTo(px,py);} g.closePath(); }
+// 依裝備名稱關鍵字挑像素圖示（無 icon 欄位也能用，新掉落自動適配）
+function weaponIconKey(name){ name=name||'';
+  if(name.indexOf('斧')>=0) return 'axe';
+  if(name.indexOf('弓')>=0) return 'bow';
+  if(name.indexOf('杖')>=0) return 'staff';
+  if(name.indexOf('匕')>=0) return 'dagger';
+  if(name.indexOf('雙刃')>=0) return 'dualblade';
+  if(name.indexOf('刃')>=0) return 'dagger';
+  if(name.indexOf('巨')>=0) return 'greatsword';
+  return 'sword'; }
+function armorIconKey(name){ name=name||'';
+  if(name.indexOf('袍')>=0) return 'robe';
+  if(name.indexOf('衣')>=0) return 'robe';
+  if(name.indexOf('盔')>=0) return 'helmet';
+  return 'armor'; }
+// 裝備稀有度配色（依 lvReq）：同類型升級也能用顏色看出換裝（弓→弓、杖→杖）
+function gearTierColor(item){ const t=Math.max(1,Math.min(5,(item&&item.lvReq)||1));
+  return [0,0x9aa6b2,0x6ad07a,0x5aa6f0,0xc46bff,0xffb347][t]; }   // 1灰 2綠 3藍 4紫 5金
 
 function pips(scene,x,y,n,col){ const c=scene.add.container(x,y); const g=scene.add.graphics(); c.add(g); const gap=15;
   for(let i=0;i<n;i++){ g.fillStyle(col,1); _starPath(g, i*gap, 0, 6, 2.6, 5); g.fillPath(); } c.w=(n-1)*gap; return c; }

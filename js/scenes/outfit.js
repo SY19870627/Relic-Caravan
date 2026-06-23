@@ -39,9 +39,9 @@ class Outfit extends Phaser.Scene {
     g.fillStyle(UI.inkN,0.55); g.fillCircle(x, top+34, 25); g.lineStyle(2, UI.tealN,0.4); g.strokeCircle(x, top+34, 25);
     this.add.image(x, top+36, h.sprite).setScale(2.8);
     txt(this, x, top+68, h.name+'　Lv'+s.level, 14, UI.gold);
-    const armorHp=h.armor.hp||0, rowL=L+15;
+    const armorSh=h.armor.shield||0, rowL=L+15;
     let ry=top+90;
-    icon(this,rowL+6,ry,'heart',13,UI.greenN); txt(this,rowL+18,ry,'HP '+(s.maxHp-armorHp)+(armorHp?'  盾'+armorHp:''),11,UI.text,0);
+    icon(this,rowL+6,ry,'heart',13,UI.greenN); txt(this,rowL+18,ry,'HP '+s.maxHp+(armorSh?'　盾'+armorSh:''),11,UI.text,0);
     ry+=19; icon(this,rowL+6,ry,'sword',13,UI.goldN); txt(this,rowL+18,ry,'ATK '+s.atkSeq.join('/'),11,UI.text,0);
     ry+=19; icon(this,rowL+6,ry,'shield',13,UI.blueN); txt(this,rowL+18,ry,'DEF '+s.def+(s.heal?'　治療 '+s.heal:''),11,UI.text,0);
     ry+=20; txt(this,rowL,ry,h.weapon.name+'　·　'+h.armor.name,10.5,UI.teal,0);

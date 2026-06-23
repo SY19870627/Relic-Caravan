@@ -61,7 +61,7 @@ class Battle extends Phaser.Scene {
   updatePotions(){ if(this.potText) this.potText.setText('🧪 藥水 ×'+this.healPotCount()); }
   refreshHud(){ (this.heroes||[]).forEach(c=>{ if(c&&c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updateGold(); this.updatePotions(); }
   // 換裝後即時把新裝備數值套到場上戰鬥單位（不重置冷卻/站位）
-  restatHeroes(){ (this.heroes||[]).forEach(c=>{ if(!c||!c.ref) return; const s=heroStat(c.ref); c.maxHp=s.maxHp; c.atkSeq=s.atkSeq.map(a=>Math.max(1,a+(this._heroAtkMod||0))); c.def=s.def+(this._heroDefMod||0); c.heal=s.heal; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.hp=Math.max(0,Math.min(c.maxHp,c.ref.hp)); this.bar(c); }); }
+  restatHeroes(){ (this.heroes||[]).forEach(c=>{ if(!c||!c.ref) return; const s=heroStat(c.ref); c.maxHp=s.maxHp; c.atkSeq=s.atkSeq.map(a=>Math.max(1,a+(this._heroAtkMod||0))); c.def=s.def+(this._heroDefMod||0); c.heal=s.heal; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.hp=Math.max(0,Math.min(c.maxHp,c.ref.hp)); this.bar(c); this.setCardGear(c); }); }   // 換裝後即時重畫卡片裝備圖示
   // 開始一場遭遇：戰鬥→生成敵人；非戰鬥→秀互動浮窗。英雄每場由 RUN.heroes 重建（HP 延續）。
   beginStep(){
     this.over=false; this.entering=false; this.waveClearing=false; this.waveIndex=0; this.hitstopUntil=0; this._advancing=false;
@@ -86,7 +86,13 @@ class Battle extends Phaser.Scene {
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0); this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
     if(this._envText){ this._envText.destroy(); this._envText=null; }
     if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
+    const _gb=(RUN&&RUN.heroes)?RUN.heroes.map(h=>({w:(h.weapon&&h.weapon.name)||'',a:(h.armor&&h.armor.name)||''})):[];   // 換裝偵測：autoEquip 前快照
     autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
+    { const _eg=[]; ((RUN&&RUN.heroes)||[]).forEach((h,i)=>{ if(!_gb[i]) return; const nm=(h.name||'').split(' ')[0];
+        const wn=(h.weapon&&h.weapon.name)||'', an=(h.armor&&h.armor.name)||'';
+        if(_gb[i].w && wn && wn!==_gb[i].w) _eg.push({t:'⚔ '+nm+' 換上 '+wn, c:'#bfe0ff'});
+        if(_gb[i].a && an && an!==_gb[i].a) _eg.push({t:'🛡 '+nm+' 換上 '+an, c:'#bfe0ff'}); });
+      if(_eg.length) this.showGains(_eg); }   // 換裝訊息推到右下角獲得欄
     activeRoster().forEach(idx=>syncPlannedSkills(idx));   // 大改版：依最新配置表＋目前等級重建技能（修正：配置常在 initRun 之後才改）
     if(!this.heroes || !this.heroes.length) this.buildHeroes(); else this.refreshHeroes();
     this.enemies=[]; this.summons=[]; this.all=[...this.heroes];
@@ -100,7 +106,7 @@ class Battle extends Phaser.Scene {
       const pk=heroPerks(h.idx);
       const interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1)));
       const useBonus=(pk.useBonus||0);
-      const startShield=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
+      const startShield=(this._startShield||0)+(pk.startShield||0)+(s.armorShield||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
       const c=this.makeCombatant({sprite:h.sprite,name:`${h.name} Lv${s.level}`,maxHp:s.maxHp,hp:Math.max(0,h.hp),atkSeq,def,heal:s.heal,interval,ranged:h.ranged,healer:h.healer,aoe:h.aoe,skills:s.skills,row:fs.row,ref:h, weaponTrait:s.weaponTrait, armorTrait:s.armorTrait, useBonus}, 'hero', fs.x, fs.y);
       c.maxShield=startShield; c.shield=startShield; this.bar(c); return c;   // 每場開場：護盾補滿（與 HP 分開）
     });
@@ -113,7 +119,7 @@ class Battle extends Phaser.Scene {
       c.interval=Math.max(350, Math.round(h.interval*(pk.intervalMul||1))); c.useBonus=(pk.useBonus||0);
       c.skills=s.skills; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.aoe=h.aoe; c.ranged=h.ranged; c.healer=h.healer;
       c.hp=Math.max(0,h.hp); c.alive=c.hp>0;
-      const _ss=(this._startShield||0)+(pk.startShield||0)+((s.armorTrait&&s.armorTrait.startShield)||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
+      const _ss=(this._startShield||0)+(pk.startShield||0)+(s.armorShield||0)+((RUN&&RUN.cookShield)||0)+(s.skills||[]).reduce((a,sk)=>a+(sk.type==='startShield'?(sk.amt||0):0),0);   // 大改版・熊皮護盾
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
       c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.atkBuffUntil=0; c.tauntUntil=0; c.berserkUntil=0; c.buffUntil=0; c.buffAtk=0; c.buffDef=0; c.baseScale=SCALE; if(c.spr){ c.spr.setTexture(c.sprite); c.spr.setScale(SCALE); }   // 大改版：每場重置變身/buff/吸引/狂暴/體型
@@ -226,6 +232,7 @@ class Battle extends Phaser.Scene {
       const hpFill=this.add.rectangle(9,27,hbW,5,0x5ad06a).setOrigin(0,0.5); card.add(hpFill);
       const shFill=this.add.rectangle(9,27,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false); card.add(shFill);
       c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:50};
+      this.setCardGear(c);   // 名稱與 HP 中間：當前裝備武器/防具的像素圖示（換裝會即時重畫）
       // DPS（每秒平均傷害）：技能格左側挪出一塊，caption + 數字
       card.add(txt(this,11,37,'DPS',8,'#8a7f9a',0,0.5));
       const dpsText=txt(this,11,47,'0',12,'#ffd27a',0,0.5); card.add(dpsText); c.card.dpsText=dpsText;
@@ -233,6 +240,19 @@ class Battle extends Phaser.Scene {
       this.bar(c);
     });
   }
+  // 卡片中段：武器/防具像素圖示。讀 c.ref（RUN.heroes）的當前裝備，換裝即時重畫
+  setCardGear(c){ if(!c.card||!c.card.cont) return;
+    if(c.card.wIcon){ c.card.wIcon.destroy(); c.card.wIcon=null; }
+    if(c.card.aIcon){ c.card.aIcon.destroy(); c.card.aIcon=null; }
+    const wo=(c.ref&&c.ref.weapon)||null, ao=(c.ref&&c.ref.armor)||null;
+    const wn=(wo&&wo.name)||'', an=(ao&&ao.name)||'';
+    // 與「上次畫的裝備」比對（存在持久的 c.ref，跨場有效）→ 換裝就閃一下
+    const changed=(c.ref && c.ref._cardW!==undefined && (c.ref._cardW!==wn || c.ref._cardA!==an));
+    if(c.ref){ c.ref._cardW=wn; c.ref._cardA=an; }
+    c.card.wName=wn; c.card.aName=an;   // 供 updateSkillPips 偵測換裝
+    c.card.wIcon=icon(this,76,14,weaponIconKey(wn),13,gearTierColor(wo)); c.card.cont.add(c.card.wIcon);   // 顏色＝稀有度，同類型升級也看得出
+    c.card.aIcon=icon(this,92,14,armorIconKey(an),13,gearTierColor(ao)); c.card.cont.add(c.card.aIcon);
+    if(changed){ this.tweens.add({targets:[c.card.wIcon,c.card.aIcon], scaleX:1.7, scaleY:1.7, yoyo:true, duration:200, ease:'Quad.out'}); } }   // 換裝瞬間放大脈動，醒目
   // 技能格：畫進該員的上方卡片（亮=可用、暗=冷卻/用盡）。資料結構同舊版，只是位置改到卡片。
   buildSkillPips(c){
     const sk=(c.skills||[]).filter(s=>s.cd!==undefined); c.skillPips=null; if(!c.card || !sk.length) return;   // 角色卡技能格只顯示主動技能（有 CD），被動不顯示
@@ -269,9 +289,13 @@ class Battle extends Phaser.Scene {
   // 每幀更新技能格亮暗（冷卻/用盡）
   updateSkillPips(){
     if(!this.heroes) return; const now=this.time.now;
-    // DPS（每秒平均傷害）每 ~250ms 刷新：該員累計輸出 ÷ 全趟交戰秒數
+    // 每 ~250ms：刷新 DPS ＋ 偵測換裝（名稱變了就重畫裝備圖示，免於任何時序漏更新）
     if(now-(this._dpsTick||0) > 250){ this._dpsTick=now; const sec=((RUN&&RUN.combatMs)||0)/1000;
-      this.heroes.forEach(c=>{ if(c.card&&c.card.dpsText){ const d=(c.ref&&c.ref.dmgDealt)||0; c.card.dpsText.setText(sec>0.2 ? ''+Math.round(d/sec) : '0'); } }); }
+      this.heroes.forEach(c=>{ if(!c.card) return;
+        if(c.card.dpsText){ const d=(c.ref&&c.ref.dmgDealt)||0; c.card.dpsText.setText(sec>0.2 ? ''+Math.round(d/sec) : '0'); }
+        const wn=(c.ref&&c.ref.weapon&&c.ref.weapon.name)||'', an=(c.ref&&c.ref.armor&&c.ref.armor.name)||'';
+        if(c.card.wName!==wn || c.card.aName!==an) this.setCardGear(c);
+      }); }
     this.heroes.forEach(c=>{
       if(c.card&&c.card.cont) c.card.cont.setAlpha(c.alive?1:0.5);   // v2.3：陣亡淡化整張卡片
       if(!c.skillPips) return;
@@ -317,6 +341,7 @@ class Battle extends Phaser.Scene {
   update(time, delta){
     this.updateSkillPips();
     this.updateStunLabels();
+    this.tickCampIdle(delta);   // 營火閒置倒數（營火時 over=true，需在提前 return 之前處理）
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
@@ -353,7 +378,7 @@ class Battle extends Phaser.Scene {
       if(h._aimTarget===f && now < (h._aimUntil||0)) s+=(h._estDmg||0); }
     return s; }
   _estDamage(c, f){ const seq=(c.atkSeq&&c.atkSeq.length)?c.atkSeq:[1]; const avg=seq.reduce((a,b)=>a+b,0)/seq.length;
-    let tdef=f.def||0; if(c.weaponTrait&&c.weaponTrait.pierce) tdef=Math.round(tdef*(1-c.weaponTrait.pierce));
+    let tdef=f.def||0;
     return Math.max(1, Math.round(avg - tdef)); }
   // 我方鎖定：依玩家排定的 TARGET_ORDER 做字典序挑目標（由上到下逐條比較，先決定者勝）
   pickTarget(c,foes){ if(!foes||!foes.length) return null;
