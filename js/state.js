@@ -309,9 +309,17 @@ function grantPlannedSkill(idx, lv){ if(!ROSTER[idx]) return null; const sprite=
   return `${HERO_BASE[idx].name} 習得 ${slot.skill}`;
 }
 // 活著回來：依各出戰職業當趟最終等級，累加職業點數上限（規劃器預算成長；於 result 結算呼叫）
-function awardClassPoints(){ if(typeof RUN==='undefined'||!RUN||!RUN.heroes) return;
+function classPointAwards(){ if(typeof RUN==='undefined'||!RUN||!RUN.heroes) return [];
+  return RUN.heroes.map(h=>{
+    const lv=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
+    return {sprite:h.sprite, name:h.name, points:lv};
+  });
+}
+function awardClassPoints(){ const awards=classPointAwards();
   if(!GUILD.classPoints) GUILD.classPoints={};
-  RUN.heroes.forEach(h=>{ const lv=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1; GUILD.classPoints[h.sprite]=(GUILD.classPoints[h.sprite]||0)+lv; }); }
+  awards.forEach(a=>{ GUILD.classPoints[a.sprite]=(GUILD.classPoints[a.sprite]||0)+a.points; });
+  return awards;
+}
 // 依「目前配置表＋目前等級」重建該職業本趟技能（idempotent）。修正：配置常在 initRun 之後才改，故每場開戰前重套。
 function syncPlannedSkills(idx){ if(!ROSTER[idx]) return; const lv=ROSTER[idx].level||1;
   ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
@@ -532,13 +540,8 @@ function autoEquipRun(){ if(!autoEquipOn() || typeof RUN==='undefined' || !RUN |
     const it=autoPool[i]; autoPool.splice(i,1);
     const ci=RUN.cargo.indexOf(it); if(ci>=0) RUN.cargo.splice(ci,1);
     return it; };
-  const hasCargo=(kind,name)=>RUN.cargo.some(it=>it&&it.kind===kind&&it.name===name);
-  const putCargo=(kind,gear,icon)=>{ if(gear && !hasCargo(kind,gear.name)) RUN.cargo.push({kind, name:gear.name, icon, value:25, gear}); };
+  const putCargo=(kind,gear,icon,reason)=>{ if(!gear) return null; const it={kind, name:gear.name, icon, value:25, gear}; RUN.cargo.push(it); if(reason) logItem('unequip', it, reason); return it; };
   const cargoGears=(kind)=>autoPool.filter(it=>it&&it.kind===kind&&it.gear).map(it=>it.gear);
-  const equippedElsewhere=(kind,name,hero)=>{
-    const slot=kind==='武器'?'weapon':'armor';
-    return (RUN.heroes||[]).some(other=>other!==hero && other&&other[slot]&&other[slot].name===name);
-  };
   const swap=(h,kind,slot,icon)=>{
     const cur=h[slot], level=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
     const extras=(cur?[cur]:[]).concat(cargoGears(kind));
@@ -548,7 +551,8 @@ function autoEquipRun(){ if(!autoEquipOn() || typeof RUN==='undefined' || !RUN |
       const picked=best.starter ? {gear:best} : takeCargo(kind,best.name);
       if(picked && picked.gear){
         const old=cur; h[slot]=picked.gear;
-        if(old && !equippedElsewhere(kind,old.name,h)) putCargo(kind,old,icon);
+        logItem('equip', {kind, name:picked.gear.name, icon, gear:picked.gear}, '自動裝備：'+h.name);
+        if(old) putCargo(kind,old,icon,'換下：'+h.name);
       }
     }
   };

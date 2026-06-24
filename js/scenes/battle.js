@@ -40,6 +40,7 @@ class Battle extends Phaser.Scene {
     // v2.3：探險%／錢／藥水 同列靠左（接在進度條下方）
     this.goldText = txt(this, 104, 50, '💰 '+((RUN&&RUN.gold)||0), 12, '#ffe08a', 0, 0.5).setDepth(62);
     this.potText = txt(this, 170, 50, '🧪 藥水 ×'+this.healPotCount(), 12, '#9fe8a0', 0, 0.5).setDepth(62);
+    this.cargoText = txt(this, 270, 50, this.cargoStockText(), 12, '#9fd0ff', 0, 0.5).setDepth(62);
     this.waveText = txt(this,W/2,40,'',12,UI.gold).setDepth(60);
     this.banner = txt(this,W/2,H/2,'',34,'#fff').setStroke('#000',6).setDepth(90);   // 90<浮窗96：選單開啟時不會被戰鬥橫幅蓋住
     if(!RUN.exped) initExpedition();
@@ -58,8 +59,10 @@ class Battle extends Phaser.Scene {
   }
   updateGold(){ if(this.goldText) this.goldText.setText('💰 '+((RUN&&RUN.gold)||0)); }
   healPotCount(){ const HP={'治療藥水':1,'聖水':1,'回復卷軸':1}; return (RUN&&RUN.cargo)? RUN.cargo.filter(it=>it.kind==='道具'&&HP[it.name]).length : 0; }
-  updatePotions(){ if(this.potText) this.potText.setText('🧪 藥水 ×'+this.healPotCount()); }
-  refreshHud(){ (this.heroes||[]).forEach(c=>{ if(c&&c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updateGold(); this.updatePotions(); }
+  cargoStockText(){ const n=(RUN&&RUN.cargo)?RUN.cargo.length:0, cap=(RUN&&RUN.slots)||0; return '📦 '+n+'/'+cap; }
+  updateCargo(){ if(this.cargoText) this.cargoText.setText(this.cargoStockText()); }
+  updatePotions(){ if(this.potText) this.potText.setText('🧪 藥水 ×'+this.healPotCount()); this.updateCargo(); }
+  refreshHud(){ (this.heroes||[]).forEach(c=>{ if(c&&c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this.updateGold(); this.updatePotions(); this.updateCargo(); }
   // 換裝後即時把新裝備數值套到場上戰鬥單位（不重置冷卻/站位）
   restatHeroes(){ (this.heroes||[]).forEach(c=>{ if(!c||!c.ref) return; const s=heroStat(c.ref); c.maxHp=s.maxHp; c.atkSeq=s.atkSeq.map(a=>Math.max(1,a+(this._heroAtkMod||0))); c.def=s.def+(this._heroDefMod||0); c.heal=s.heal; c.weaponTrait=s.weaponTrait; c.armorTrait=s.armorTrait; c.hp=Math.max(0,Math.min(c.maxHp,c.ref.hp)); this.bar(c); this.setCardGear(c); }); }   // 換裝後即時重畫卡片裝備圖示
   // 開始一場遭遇：戰鬥→生成敵人；非戰鬥→秀互動浮窗。英雄每場由 RUN.heroes 重建（HP 延續）。
@@ -99,7 +102,7 @@ class Battle extends Phaser.Scene {
     if(this._pendingGearGains&&this._pendingGearGains.length) this.showCardGearGains(this._pendingGearGains);
     this._pendingGearGains=null;
     this.enemies=[]; this.summons=[]; this.all=[...this.heroes];
-    this.updatePctBar(); this.updateGold(); this.updatePotions();
+    this.updatePctBar(); this.updateGold(); this.updatePotions(); this.updateCargo();
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
     else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
   }
@@ -598,6 +601,7 @@ class Battle extends Phaser.Scene {
         }
       }
       skillMsgs.forEach(m=>gains.push({t:m, c:'#ffe08a'}));
+      this.updateCargo();
       this.showGains(gains);
       if(RUN) RUN._pendingResourceGains=null;
       this.showLevelups();

@@ -56,6 +56,7 @@ Object.assign(Battle.prototype, {
     else { const it=rollItem(2, Math.random()<_wBias?'武器':'防具');
       if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '寶箱'); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
       else msg='貨車已滿，放棄 '+it.icon+' '+it.name; }
+    this.refreshHud();
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,TH.text));
     if(gainNotice) this.showGains([gainNotice]);
     this.time.delayedCall(1250,()=>this.advanceStep()); }
@@ -65,27 +66,60 @@ Object.assign(Battle.prototype, {
     this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
     this._campHealed=n;
     const fN=2+(hasCampstove()?1:0), ing=forageIngredient(RUN.destIndex||0, fN); this._campForaged=fN;
+    this._campAutoSold=this.autoSellAtCamp();
     this._renderCamp(); const nt=resourceGainNotice(ing,fN); if(nt) this.showGains([nt]); }
 ,
-  _renderCamp(){ const W=this.scale.width,H=this.scale.height, cy=H/2+98;
-    const o=this.mkOverlay({accent:'ember',w:520,h:316,y:cy,dimTop:160});
+  autoSellAtCamp(){
+    if(!RUN || !Array.isArray(RUN.cargo)) return null;
+    const rate=(CFG.gold&&CFG.gold.sellRate!=null)?CFG.gold.sellRate:0.7;
+    const classLevelForGear=(it)=>{
+      if(!(it&&it.gear&&(it.kind==='武器'||it.kind==='防具'))) return 0;
+      let lv=0;
+      (RUN.heroes||[]).forEach(h=>{
+        if(h&&gearClassOK(h.sprite,it)){
+          const hl=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
+          if(hl>lv) lv=hl;
+        }
+      });
+      return lv;
+    };
+    const sold=[], keep=[];
+    RUN.cargo.forEach(it=>{
+      const gear=it&&it.gear, lvReq=(gear&&gear.lvReq)||1;
+      const sellValuable=it&&it.kind==='貴重物品';
+      const sellLowGear=it&&(it.kind==='武器'||it.kind==='防具')&&gear&&classLevelForGear(it)>lvReq;
+      if(sellValuable||sellLowGear) sold.push(it); else keep.push(it);
+    });
+    if(!sold.length) return null;
+    RUN.cargo=keep;
+    const gold=sold.reduce((sum,it)=>sum+Math.max(1,Math.round((it.value||25)*rate)),0);
+    addGold(gold);
+    sold.forEach(it=>logItem('sell', it, '營火自動售出'));
+    this.refreshHud();
+    return {count:sold.length, gold, valuable:sold.filter(it=>it.kind==='貴重物品').length, gear:sold.filter(it=>it.kind==='武器'||it.kind==='防具').length};
+  }
+,
+  _renderCamp(){ const W=this.scale.width,H=this.scale.height, cy=H/2+78;
+    const o=this.mkOverlay({accent:'ember',w:520,h:331,y:cy+8,dimTop:160});
     o.add(txt(this,W/2,cy-132,'🔥 營火休息',18,'#f0975a'));
+    const sold=this._campAutoSold;
     o.add(txt(this,W/2,cy-106,'回復 50% HP（'+(this._campHealed||0)+' 人）　·　採集到 '+(this._campForaged||0)+' 份食材',11,TH.text));
+    if(sold) o.add(txt(this,W/2,cy-88,'自動售出 '+sold.count+' 件（貴重 '+sold.valuable+' / 裝備 '+sold.gear+'）　+💰 '+sold.gold,11,'#ffe08a'));
     const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
     const nIng=ingTotal();
-    o.add(button(this,W/2,cy-72,300,34, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:13}));
-    o.add(txt(this,W/2,cy-38,'🛒 商店　·　💰 持有 '+(RUN.gold||0),11,TH.cyan));
+    o.add(button(this,W/2,cy-60,300,34, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:13}));
+    o.add(txt(this,W/2,cy-26,'🛒 商店　·　💰 持有 '+(RUN.gold||0),11,TH.cyan));
     const sw=112, st=118, sx=W/2-177;   // 四間商店一排
-    o.add(button(this, sx,      cy-10, sw, 32, '🧪 藥水商',  ()=>this.openShop('potion'),  {variant:'gold',size:11}));
-    o.add(button(this, sx+st,   cy-10, sw, 32, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:11}));
-    o.add(button(this, sx+2*st, cy-10, sw, 32, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:11}));
-    o.add(button(this, sx+3*st, cy-10, sw, 32, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:11}));
-    o.add(button(this,W/2-82,cy+40,152,34,'🎒 整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
-    o.add(button(this,W/2+82,cy+40,152,34,'📦 物品欄（'+RUN.cargo.length+'）',()=>this.evInventory('camp'),{variant:'go',size:12}));
-    o.add(button(this,W/2-82,cy+82,152,34,'繼續前進',()=>this.advanceStep(),{variant:'go',size:13}));
-    o.add(button(this,W/2+82,cy+82,152,34,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:13}));
+    o.add(button(this, sx,      cy+2, sw, 32, '🧪 藥水商',  ()=>this.openShop('potion'),  {variant:'gold',size:11}));
+    o.add(button(this, sx+st,   cy+2, sw, 32, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:11}));
+    o.add(button(this, sx+2*st, cy+2, sw, 32, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:11}));
+    o.add(button(this, sx+3*st, cy+2, sw, 32, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:11}));
+    o.add(button(this,W/2-82,cy+52,152,34,'🎒 整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
+    o.add(button(this,W/2+82,cy+52,152,34,'📦 物品欄（'+RUN.cargo.length+'）',()=>this.evInventory('camp'),{variant:'go',size:12}));
+    o.add(button(this,W/2-82,cy+94,152,34,'繼續前進',()=>this.advanceStep(),{variant:'go',size:13}));
+    o.add(button(this,W/2+82,cy+94,152,34,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:13}));
     // 閒置 5 秒自動前進：進度條（滑鼠一動就歸零）
-    const by=cy+132, bw=360;
+    const by=cy+150, bw=360;
     o.add(txt(this,W/2,by-15,'🖱 滑鼠靜止 5 秒自動前進',11,TH.dim));
     o.add(this.add.rectangle(W/2,by,bw,9,0x000000,0.55).setStrokeStyle(1,0x5a4a3a,0.8));
     const cbf=this.add.rectangle(W/2-bw/2+1,by,0,7,0xf0975a).setOrigin(0,0.5); o.add(cbf);
@@ -168,8 +202,8 @@ Object.assign(Battle.prototype, {
       ly+=44; });
     const RP=panel(this,682,322,416,448,{accent:'gold',title:'裝備清單',icon:'bag',titleSize:13}); add(RP);
     const rl=RP.left;
-    const wList=RUN.cargo.filter(it=>it.kind==='武器'&&gearClassOK(h.sprite,it)).map(it=>({gear:it.gear,name:it.name,item:it}));
-    const aList=RUN.cargo.filter(it=>it.kind==='防具'&&gearClassOK(h.sprite,it)).map(it=>({gear:it.gear,name:it.name,item:it}));
+    const wList=[{gear:h.weapon,name:h.weapon.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='武器'&&gearClassOK(h.sprite,it)&&it.name!==h.weapon.name).map(it=>({gear:it.gear,name:it.name,item:it})));
+    const aList=[{gear:h.armor,name:h.armor.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='防具'&&gearClassOK(h.sprite,it)&&it.name!==h.armor.name).map(it=>({gear:it.gear,name:it.name,item:it})));
     if(this._gearWSel==null||this._gearWSel>=wList.length) this._gearWSel=0;
     if(this._gearASel==null||this._gearASel>=aList.length) this._gearASel=0;
     const slotGrid=(list,selKey,kind,startY)=>{ const isW=kind==='武器', per=8, pitch=50, sz=40, gx=rl+42, gy=startY;
@@ -191,7 +225,7 @@ Object.assign(Battle.prototype, {
       return gy + Math.max(1,Math.ceil(list.length/per))*pitch; };
     const descBox=(e,kind,y)=>{ const isW=kind==='武器', ac=accent(isW?'gold':'blue'), g=this.add.graphics(); add(g);
       g.fillStyle(0x07060f,0.5); g.fillRoundedRect(rl+18,y,384,56,8); g.lineStyle(1.5,ac.num,0.5); g.strokeRoundedRect(rl+18,y,384,56,8);
-      if(!e){ add(txt(this,rl+30,y+20,'物品欄沒有可用'+kind,11,TH.dim,0)); return; }
+      if(!e){ add(txt(this,rl+30,y+20,'沒有可用'+kind,11,TH.dim,0)); return; }
       const gear=e.gear, v=itemVisual(e.name), iac=accent(v.accent), lvReq=(gear&&gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
       g.fillStyle(iac.deep,0.5); g.fillRoundedRect(rl+28,y+9,38,38,8); add(icon(this,rl+47,y+28,v.icon,22,iac.num));
       const tx=rl+80;
@@ -202,10 +236,10 @@ Object.assign(Battle.prototype, {
       else if(s.level<lvReq) add(txt(this,rl+392,y+12,'需 Lv'+lvReq,10,'#ff8a8a',1));
       else add(button(this,rl+360,y+32,76,28,'換上',()=>{ equipSwap(e.item,this._gearHero); this.restatHeroes(); this.refreshHud(); this._gearWSel=0; this._gearASel=0; this._renderGear(); },{variant:'go',size:12})); };
     let y=RP.bodyTop+4;
-    add(txt(this,rl+22,y,'⚔ 物品欄武器',13,'#f2c14e',0)); y+=20;
+    add(txt(this,rl+22,y,'⚔ 武器',13,'#f2c14e',0)); y+=20;
     y=slotGrid(wList,'_gearWSel','武器',y+18)+12;
     descBox(wList[this._gearWSel],'武器',y); y+=68;
-    add(txt(this,rl+22,y,'🛡 物品欄防具',13,'#6aa6f0',0)); y+=20;
+    add(txt(this,rl+22,y,'🛡 防具',13,'#6aa6f0',0)); y+=20;
     y=slotGrid(aList,'_gearASel','防具',y+18)+12;
     descBox(aList[this._gearASel],'防具',y);
   }
@@ -399,7 +433,7 @@ Object.assign(Battle.prototype, {
     add(button(this,W-78,46, this._invFrom==='pause'?96:120,30, this._invFrom==='pause'?'返回':'返回營火',()=>this._closeInventory(),{variant:'info',size:12}));
     // 分頁切換：物品 ／ 異動紀錄
     add(button(this,W/2-92,94,168,30,'🎒 物品（'+n+'）',()=>{ this._invTab='items'; this._invConfirm=null; this._renderInventory(); },{variant:isLog?'info':'gold',size:12}));
-    add(button(this,W/2+92,94,168,30,'📜 異動紀錄（'+logN+'）',()=>{ this._invTab='log'; this._invConfirm=null; this._renderInventory(); },{variant:isLog?'gold':'info',size:12}));
+    add(button(this,W/2+92,94,168,30,'📜 異動紀錄（'+logN+'）',()=>{ this._invTab='log'; this._invConfirm=null; this._invLogScroll=this._invLogScroll||0; this._renderInventory(); },{variant:isLog?'gold':'info',size:12}));
 
     if(isLog){ this._renderInvLog(add, W); return; }
 
@@ -447,17 +481,28 @@ Object.assign(Battle.prototype, {
   _renderInvLog(add, W){
     const log=(RUN.itemLog||[]);
     if(!log.length){ add(txt(this,W/2,300,'📜 本趟還沒有任何物品異動',15,TH.dim)); return; }
-    const META={ gain:['＋','#6ee29a'], use:['－','#6aa6f0'], discard:['－','#f0975a'], lost:['－','#ff6f7a'], bank:['📥','#a98bff'] };
-    const view=log.slice().reverse(), shown=view.slice(0,28);
-    const perCol=Math.max(1,Math.ceil(shown.length/2)), top=128, bottom=510;
-    const rowH=Math.min(30, Math.floor((bottom-top)/perCol)), cellW=400, colX=[W/2-cellW/2-8, W/2+cellW/2+8];
-    shown.forEach((e,i)=>{ const col=Math.floor(i/perCol), row=i%perCol, cx=colX[col], cy=top+row*rowH+rowH/2, L=cx-cellW/2;
+    const META={ gain:['＋','#6ee29a'], equip:['裝','#9fd0ff'], unequip:['卸','#f2c14e'], use:['－','#6aa6f0'], discard:['－','#f0975a'], sell:['💰','#ffe08a'], lost:['－','#ff6f7a'], bank:['📥','#a98bff'] };
+    const view=log.slice().reverse(), top=132, rowH=32, visible=12, maxScroll=Math.max(0,view.length-visible);
+    this._invLogScroll=Math.max(0,Math.min(maxScroll,this._invLogScroll||0));
+    const shown=view.slice(this._invLogScroll,this._invLogScroll+visible), cellW=760, L=W/2-cellW/2;
+    const step=(d)=>{ this._invLogScroll=Math.max(0,Math.min(maxScroll,(this._invLogScroll||0)+d)); this._renderInventory(); };
+    const hit=this.add.rectangle(W/2,318,cellW,visible*rowH+8,0xffffff,0.001).setInteractive(); add(hit);
+    hit.on('wheel',(pointer,dx,dy)=>{ step(dy>0?3:-3); });
+    shown.forEach((e,i)=>{ const cy=top+i*rowH+rowH/2;
       const m=META[e.act]||['·','#9b93b8'];
       add(txt(this,L+6,cy,m[0],14,m[1],0,0.5));
-      add(txt(this,L+24,cy,(e.icon||'')+' '+e.name,11.5,TH.text,0,0.5));
-      add(txt(this,L+cellW-6,cy,e.reason||'',10,TH.dim,1,0.5));
+      add(txt(this,L+34,cy,(e.icon||'')+' '+e.name,12,TH.text,0,0.5));
+      add(txt(this,L+330,cy,e.reason||'',10.5,TH.dim,0,0.5).setWordWrapWidth(300));
+      add(txt(this,L+cellW-12,cy,'#'+(e.n||''),9,TH.dim,1,0.5));
     });
-    if(view.length>28) add(txt(this,W/2,524,'（僅顯示最近 28 筆，本趟共 '+view.length+' 筆）',10,TH.dim));
+    const barX=L+cellW+12, barY=top, barH=visible*rowH;
+    add(this.add.rectangle(barX,barY+barH/2,6,barH,0x000000,0.45).setStrokeStyle(1,0x5a5470,0.8));
+    const thumbH=Math.max(30,barH*(visible/Math.max(visible,view.length)));
+    const thumbY=barY+thumbH/2+(barH-thumbH)*(maxScroll?this._invLogScroll/maxScroll:0);
+    add(this.add.rectangle(barX,thumbY,6,thumbH,0xf2c14e,0.85));
+    add(button(this,L+cellW-96,526,76,28,'上',()=>step(-visible),{variant:'info',size:11}));
+    add(button(this,L+cellW-16,526,76,28,'下',()=>step(visible),{variant:'info',size:11}));
+    add(txt(this,L+8,526,'顯示 '+(this._invLogScroll+1)+'-'+(this._invLogScroll+shown.length)+' / '+view.length,10,TH.dim,0,0.5));
   }
 ,
   // 捨棄一件（同名疊加時只移除一件）
@@ -467,7 +512,7 @@ Object.assign(Battle.prototype, {
     if(this.refreshHud) this.refreshHud();
     this._renderInventory(); }
 ,
-  _closeInventory(){ const from=this._invFrom; this._invFrom=null; this._invConfirm=null; this._invMsg=null;
+  _closeInventory(){ const from=this._invFrom; this._invFrom=null; this._invConfirm=null; this._invMsg=null; this._invLogScroll=0;
     if(from==='pause'){ if(this.overlay){ this.overlay.destroy(); this.overlay=null; } this._renderPause(); }
     else { this._renderCamp(); } }
 });

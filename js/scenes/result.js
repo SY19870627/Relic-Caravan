@@ -5,9 +5,9 @@ class Result extends Phaser.Scene {
     const W=this.scale.width,H=this.scale.height;
     const o=data.outcome;
     let title,acc,note,keep;
-    if(o==='clear'){ title='完整通關！'; acc='gold'; note='抵達遺物室並擊敗守護者，滿載而歸'; keep=true; }
-    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，平安帶著沿途戰利品返回'; keep=true; }
-    else { title='全員倒下'; acc='red'; note='傳送卷軸啟動 — 平安歸來，但貨車戰利品全失，僅保留身上裝備'; keep=false; }
+    if(o==='clear'){ title='完整通關！'; acc='gold'; note='擊敗守護者，僅將遺物帶回公會'; keep=true; }
+    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，僅將已取得遺物帶回公會'; keep=true; }
+    else { title='全員倒下'; acc='red'; note='傳送卷軸啟動 — 平安歸來，但本趟收穫全失'; keep=false; }
     const A=accent(acc);
     sceneBg(this,{glow:A.num});
     const t=txt(this,W/2,72,title,38,A.hex).setStroke('#07060f',6).setShadow(0,3,'#000',8,false,true);
@@ -15,9 +15,9 @@ class Result extends Phaser.Scene {
 
     if(!keep){
       const p=panel(this,W/2,300,560,150,{accent:'red',title:'貨車戰利品全失',icon:'skull',titleSize:15});
-      txt(this,W/2,p.bodyTop+18,'貨車上的一切都留在了地城深處…',15,UI.red);
-      txt(this,W/2,p.bodyTop+44,'（損失 '+RUN.cargo.length+' 件戰利品）',12,UI.dim);
-      txt(this,W/2,p.bodyTop+74,'隊員身上的武器與防具得以保留，下次再來。',13,UI.text);
+      txt(this,W/2,p.bodyTop+18,'貨車與身上裝備都留在了地城深處…',15,UI.red);
+      txt(this,W/2,p.bodyTop+44,'本趟不帶回遺物。',12,UI.dim);
+      txt(this,W/2,p.bodyTop+74,'全員倒下不獲得職業點數。',13,UI.text);
       button(this,W/2,470,240,46,'回公會大廳',()=>{ initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
       return;
     }
@@ -58,12 +58,13 @@ class Result extends Phaser.Scene {
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{variant:'go',size:17,icon:'home',iconSize:16});
   }
-  // 完整通關／撤退精簡結算：角色血量 + 獲得遺物（其餘戰利品照常入庫，只是不顯示）
+  // 完整通關／撤退精簡結算：角色血量 + 獲得遺物 + 職業點數（裝備/道具不帶回）
   renderClear(outcome, acc){
     const W=this.scale.width,H=this.scale.height;
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
     const heroes=RUN.heroes||[];
-    const pTitle=(outcome==='retreat'?'撤退收工':'凱旋歸來')+'　·　隊伍狀態與遺物收穫';
+    const awards=(typeof classPointAwards==='function')?classPointAwards():[];
+    const pTitle=(outcome==='retreat'?'撤退收工':'凱旋歸來')+'　·　隊伍狀態、遺物與職業點數';
     const pnl=panel(this,W/2,308,760,316,{accent:acc||'gold',title:pTitle,icon:'star',titleSize:15});
     txt(this,W/2,pnl.bodyTop+6,'隊員血量',12,UI.dim);
     const n=Math.max(1,heroes.length), cw=Math.min(150,Math.floor(700/n)), x0=W/2-(n*cw)/2+cw/2, y=pnl.bodyTop+44;
@@ -73,45 +74,46 @@ class Result extends Phaser.Scene {
       statBar(this,cx-52,y+60,104,8,hp,mx,{accent:alive?'green':'red'});
       txt(this,cx,y+76,alive?(hp+' / '+mx):'倒下',11, alive?UI.green:UI.red);
     });
-    const ry=pnl.bodyTop+182;
+    const ry=pnl.bodyTop+176;
     if(relics.length){
       txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏後每趟永久生效',13,UI.violet);
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
     } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
+    const py=ry+62;
+    if(awards.length){
+      txt(this,W/2,py,'職業點數 +' + awards.reduce((a,b)=>a+b.points,0) + '　' + awards.map(a=>a.name+' +'+a.points).join('　'),12,UI.gold).setWordWrapWidth(700);
+    }
+    txt(this,W/2,478,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim);
     // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
     // v2.2：「繼續深入」僅限同一世界內（第一世界第 4 關不會接到第二世界；跨世界需回地圖用聲望解鎖）
     const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
     if(hasNext){
       const nx=DESTINATIONS[di+1];
-      txt(this, W/2, 500, '繼續深入：遺物送回公會、裝備與道具隨隊保留、全隊回滿，但下一地城更兇險（階級 '+nx.tier+'）', 11, UI.dim);
-      button(this, W/2-150, 530, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
-      button(this, W/2+150, 530, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
+      txt(this, W/2, 492, '繼續深入：遺物先送回公會，貨車物品只在本趟續征中保留；最終回會只帶回遺物（階級 '+nx.tier+'）', 11, UI.dim);
+      button(this, W/2-150, 526, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
+      button(this, W/2+150, 526, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
     } else {
-      button(this,W/2,528,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
+      button(this,W/2,526,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
     }
   }
   bankAndReturn(){
     let newRelics=0;
     RUN.cargo.forEach(it=>{
       if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
-      else if(it.kind==='素材'){ addMaterial(it.matId); }
-      else if(it.kind==='食材'){ /* 隨身消耗，不入庫 */ }
-      else { discover(it.name); }
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
     awardClassPoints();   // 大改版：活著回來 → 依各出戰職業當趟最終等級累加職業點數上限
     saveGuild(); initRun(); this.scene.start('GuildHall');
   }
-  // v1.5 連續遠征：通關後接續下一地城。戰利品先安全入庫（遺物效果立即生效）、清空貨車、全隊回滿，再依新階級重建遠征。
+  // 連續遠征：通關後接續下一地城。遺物先送回公會；其他貨車物品只在本趟續征中暫存，不會於最終回會帶回。
   continueToNext(nextIndex){
     let newRelics=0;
-    // v2.4 續征：只把「遺物」送回公會收藏、「素材」入庫供工坊；裝備・道具・貴重物品全部留在貨車帶往下一地城
+    // 續征：只把「遺物」先送回公會；裝備・道具・貴重物品暫留貨車供下一地城使用
     RUN.cargo.forEach(it=>{
       if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } if(typeof logItem==='function') logItem('bank', it, '送回公會'); }
-      else if(it.kind==='素材'){ addMaterial(it.matId); }
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics);   // 續征：先給新遺物聲望；平安折返獎勵留到最終帶回公會時再給
-    RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='素材' && it.kind!=='食材');   // 遺物已送回公會、素材已入庫 → 移出貨車；其餘（武器・防具・道具・貴重物品）保留帶走
+    RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='素材' && it.kind!=='食材');   // 遺物已送回公會；其他物品只供續征使用
     const nx=DESTINATIONS[nextIndex]||DESTINATIONS[DESTINATIONS.length-1];
     RUN.destIndex=nextIndex; RUN.destTier=nx.tier; RUN.destName=nx.name;   // 推進到更深、更高階的地城
     RUN.wiped=false;
