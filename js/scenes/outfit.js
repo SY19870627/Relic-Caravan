@@ -38,15 +38,13 @@ class Outfit extends Phaser.Scene {
     g.lineStyle(2, UI.tealN, 0.65); g.strokeRoundedRect(L,top,w,hh,12);
     g.fillStyle(UI.inkN,0.55); g.fillCircle(x, top+34, 25); g.lineStyle(2, UI.tealN,0.4); g.strokeCircle(x, top+34, 25);
     this.add.image(x, top+36, h.sprite).setScale(2.8);
-    txt(this, x, top+68, h.name+'　Lv'+s.level, 14, UI.gold);
+    txt(this, x, top+72, h.name+'　Lv'+s.level, 14, UI.gold);
     const armorSh=h.armor.shield||0, rowL=L+15;
-    let ry=top+90;
-    icon(this,rowL+6,ry,'heart',13,UI.greenN); txt(this,rowL+18,ry,'HP '+s.maxHp+(armorSh?'　盾'+armorSh:''),11,UI.text,0);
-    ry+=19; icon(this,rowL+6,ry,'sword',13,UI.goldN); txt(this,rowL+18,ry,'ATK '+s.atkSeq.join('/'),11,UI.text,0);
-    ry+=19; icon(this,rowL+6,ry,'shield',13,UI.blueN); txt(this,rowL+18,ry,'DEF '+s.def+(s.heal?'　治療 '+s.heal:''),11,UI.text,0);
+    let ry=top+94;
+    icon(this,rowL+6,ry,'heart',13,UI.greenN); txt(this,rowL+20,ry-7,'HP '+s.maxHp+(armorSh?'　盾'+armorSh:''),11,UI.text,0);
+    ry+=19; icon(this,rowL+6,ry,'sword',13,UI.goldN); txt(this,rowL+20,ry-7,'ATK '+s.atkSeq.join('/'),11,UI.text,0);
+    ry+=19; icon(this,rowL+6,ry,'shield',13,UI.blueN); txt(this,rowL+20,ry-7,'DEF '+s.def+(s.heal?'　治療 '+s.heal:''),11,UI.text,0);
     ry+=20; txt(this,rowL,ry,h.weapon.name+'　·　'+h.armor.name,10.5,UI.teal,0);
-    txt(this, L+14, top+hh-21, 'EXP', 9, UI.dim, 0);
-    statBar(this, L+44, top+hh-18, w-58, 7, ROSTER[i].xp, xpNeed(s.level), {accent:'violet'});
   }
   depart(){
     const ws=wagonStats();

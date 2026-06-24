@@ -13,15 +13,10 @@ class QuestHall extends Phaser.Scene {
   render(){
     if(this._ui) this._ui.forEach(o=>o.destroy());
     this._ui=[]; const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
-    let activeN=0, doneStages=0, totalStages=0;
-    QUEST_LINES.forEach(l=>{ totalStages+=l.stages.length; doneStages+=lineStageIdx(l.id); if(lineActiveTitle(l)) activeN++; });
-    const specs=[
-      {label:'⭐ 聲望 '+reputation(), accent:'gold', icon:'star', size:12, h:26},
-      {label:'生效稱號 '+activeN+' 條線（全開）', accent:'violet', icon:'star', size:12, h:26},
-      {label:'已完成階段 '+doneStages+' / '+totalStages, accent:'green', icon:'chest', size:12, h:26},
-    ];
-    const chips=specs.map(s=>chip(this,0,0,s)); const gap=10; let tot=chips.reduce((a,c)=>a+c.w,0)+gap*(chips.length-1);
-    let cx=W/2-tot/2; chips.forEach(c=>{ c.setX(cx); c.setY(58); add(c); cx+=c.w+gap; });
+    let doneStages=0, totalStages=0;
+    QUEST_LINES.forEach(l=>{ totalStages+=l.stages.length; doneStages+=lineStageIdx(l.id); });
+    const doneChip=chip(this,0,0,{label:'已完成階段 '+doneStages+' / '+totalStages, accent:'green', icon:'chest', size:12, h:26});
+    doneChip.setX(W/2+360-doneChip.w/2); doneChip.setY(52); add(doneChip);
     const y0=104, pitch=53;
     QUEST_LINES.forEach((l,i)=> this.questRow(l, y0+i*pitch));
   }
