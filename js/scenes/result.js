@@ -83,7 +83,7 @@ class Result extends Phaser.Scene {
     const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
     if(hasNext){
       const nx=DESTINATIONS[di+1];
-      txt(this, W/2, 500, '繼續深入：戰利品先安全入庫、全隊回滿，但下一地城更兇險（階級 '+nx.tier+'）', 11, UI.dim);
+      txt(this, W/2, 500, '繼續深入：遺物送回公會、裝備與道具隨隊保留、全隊回滿，但下一地城更兇險（階級 '+nx.tier+'）', 11, UI.dim);
       button(this, W/2-150, 530, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
       button(this, W/2+150, 530, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
     } else {
@@ -105,14 +105,13 @@ class Result extends Phaser.Scene {
   // v1.5 連續遠征：通關後接續下一地城。戰利品先安全入庫（遺物效果立即生效）、清空貨車、全隊回滿，再依新階級重建遠征。
   continueToNext(nextIndex){
     let newRelics=0;
+    // v2.4 續征：只把「遺物」送回公會收藏、「素材」入庫供工坊；裝備・道具・貴重物品全部留在貨車帶往下一地城
     RUN.cargo.forEach(it=>{
-      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
+      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } if(typeof logItem==='function') logItem('bank', it, '送回公會'); }
       else if(it.kind==='素材'){ addMaterial(it.matId); }
-      else if(it.kind==='食材'){ /* 隨身消耗，不入庫 */ }
-      else { discover(it.name); }
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics);   // 續征：先給新遺物聲望；平安折返獎勵留到最終帶回公會時再給
-    RUN.cargo=[];                                  // 已安全入庫 → 清空貨車、空出貨格
+    RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='素材' && it.kind!=='食材');   // 遺物已送回公會、素材已入庫 → 移出貨車；其餘（武器・防具・道具・貴重物品）保留帶走
     const nx=DESTINATIONS[nextIndex]||DESTINATIONS[DESTINATIONS.length-1];
     RUN.destIndex=nextIndex; RUN.destTier=nx.tier; RUN.destName=nx.name;   // 推進到更深、更高階的地城
     RUN.wiped=false;

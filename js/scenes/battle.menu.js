@@ -4,7 +4,7 @@ Object.assign(Battle.prototype, {
 ,
   openPause(){ if(this._menuPaused) return; this._menuPaused=true; this.paused=true; this.tweens.pauseAll(); this.time.paused=true; if(this.banner) this.banner.setText('').setAlpha(0); this._renderPause(); }
 ,
-  resumeGame(){ this._menuPaused=false; this.paused=false; this.tweens.resumeAll(); this.time.paused=false; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } if(this._gearFrom==='pause'){ this._gearFrom=null; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } } }
+  resumeGame(){ this._menuPaused=false; this.paused=false; this.tweens.resumeAll(); this.time.paused=false; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } if(this._gearFrom==='pause'||this._invFrom==='pause'){ this._gearFrom=null; this._invFrom=null; if(this.overlay){ this.overlay.destroy(); this.overlay=null; } } }
 ,
   _renderPause(){ const W=this.scale.width,H=this.scale.height;
     if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; }
@@ -24,8 +24,9 @@ Object.assign(Battle.prototype, {
     const ae=autoEquipOn();
     mkSet(H/2-38,'🛡 自動裝備','入手新裝／升級時自動換上最佳裝備', ae?'開啟 ✓':'關閉', ae?'go':'info',
       ()=>{ toggleAutoEquip(); this._renderPause(); });
-    if(!this.overlay){ const nG=(RUN&&RUN.cargo)?RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length:0;
-      c.add(button(this,W/2,H/2+30,240,42,'🎒 整裝（換裝備 '+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:15})); }
+    if(!this.overlay){ const nG=(RUN&&RUN.cargo)?RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length:0, nAll=(RUN&&RUN.cargo)?RUN.cargo.length:0;
+      c.add(button(this,W/2-104,H/2+30,196,42,'🎒 整裝（'+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:14}));
+      c.add(button(this,W/2+104,H/2+30,196,42,'📦 物品欄（'+nAll+'）',()=>{ this._invFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evInventory(); },{variant:'go',size:14})); }
     c.add(button(this,W/2,H/2+104,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
   }
 ,

@@ -7,6 +7,7 @@ function useConsumable(item){
     else { const before=h.hp; h.hp=Math.min(mx, h.hp+Math.round(mx*pct)); if(h.hp>before) healed++; }
   });
   discover(item.name); const i=RUN.cargo.indexOf(item); if(i>=0) RUN.cargo.splice(i,1);
+  logItem('use', item, '使用');
   return `使用 ${item.name}：`+(revived?`復活 ${revived} 人、`:'')+`回復 ${healed} 人`;
 }
 function resourceGainNotice(res,n){ return res ? {t:(res.icon||'')+' '+res.name+' ×'+(n||1), c:'#9fd0ff'} : null; }
@@ -35,12 +36,18 @@ function rollItem(risk, kind){
 function equipSwap(item, heroIndex){
   const h=RUN.heroes[heroIndex], slot=item.kind==='武器'?'weapon':'armor', old=h[slot];
   if(!gearClassOK(h.sprite,item)) return;
+  if(old && old.name===item.name){
+    const same=RUN.cargo.indexOf(item); if(same>=0) RUN.cargo.splice(same,1);
+    if(typeof syncEquippedGearCargo==='function') syncEquippedGearCargo();
+    return;
+  }
   const oldMax=heroStat(h).maxHp;
   h[slot]=item.gear; ownGear(item.name); discover(old.name);
   const newMax=heroStat(h).maxHp;
   h.hp=Math.max(1, Math.min(newMax, (h.hp||newMax)+(newMax-oldMax)));
   const ci=RUN.cargo.indexOf(item); if(ci>=0) RUN.cargo.splice(ci,1);
-  RUN.cargo.push({kind: slot==='weapon'?'武器':'防具', name:old.name, icon: slot==='weapon'?'⚔':'🛡', value:25, gear:old});}
+  RUN.cargo.push({kind: slot==='weapon'?'武器':'防具', name:old.name, icon: slot==='weapon'?'⚔':'🛡', value:25, gear:old});
+  if(typeof syncEquippedGearCargo==='function') syncEquippedGearCargo();}
 // 回傳「波次陣列」：每個元素是一波敵人；清完一波才進下一波
 // v1.2：敵人改由「怪物組」MONSTER_GROUPS 提供。一場戰鬥＝挑一組（可多波，王戰＝小兵波＋王波），
 // 每隻怪的站位固定寫在資料裡；此處只負責「依標籤＋深度挑組」與「數值縮放」。

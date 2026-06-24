@@ -383,7 +383,7 @@ class Battle extends Phaser.Scene {
     let best=null,bp=9;
     RUN.cargo.forEach(it=>{ if(it.kind==='道具' && HEAL[it.name]!=null && HEAL[it.name]<bp){ best=it; bp=HEAL[it.name]; } });
     if(!best) return;
-    const pct=HEAL[best.name], idx=RUN.cargo.indexOf(best); if(idx>=0) RUN.cargo.splice(idx,1); discover(best.name);
+    const pct=HEAL[best.name], idx=RUN.cargo.indexOf(best); if(idx>=0) RUN.cargo.splice(idx,1); discover(best.name); logItem('use', best, '自動喝水');
     const h=Math.round(target.maxHp*pct); target.hp=Math.min(target.maxHp,target.hp+h); if(target.ref)target.ref.hp=target.hp; this.bar(target);
     pixelNum(this,target.container.x,target.container.y-34,'+'+h,0x7dff9a);
     this.floatLabel(target.baseX,target.baseY-58,'喝下 '+(best.icon||'🧪')+best.name,'#9fe8a0');
@@ -575,7 +575,7 @@ class Battle extends Phaser.Scene {
       if(wasBoss){
         const rel=rollRelicForDest(RUN.destIndex||0);
         const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};
-        if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(drop); if(drop.kind!=='遺物') discover(drop.name); }
+        if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(drop); if(drop.kind!=='遺物') discover(drop.name); logItem('gain', drop, '王戰掉落'); }
         RUN.exped.pct=100; this.updatePctBar();
         this.scene.start('Result',{outcome:'clear'}); return;
       }
@@ -584,7 +584,7 @@ class Battle extends Phaser.Scene {
         if(hasDeck2() && !RUN.deckExpanded){ RUN.slots+=3; RUN.deckExpanded=true; }
         const count = 2 + (re.extraLoot||0);
         for(let k=0;k<count;k++){ const it=rollItem(node?node.risk:1);
-          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); gains.push({t:(it.icon||'')+' '+it.name, c:'#9fd0ff'}); } }
+          if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '戰利品'); gains.push({t:(it.icon||'')+' '+it.name, c:'#9fd0ff'}); } }
       } else {
         const gc=CFG.gold||{}, g=Math.max(1, Math.round(((gc.battleBase||16)+(node?node.risk:1)*(gc.battlePerRisk||12))*(1+(((RUN.destTier||1)-1)*0.25))));
         addGold(g); this.updateGold(); gains.push({t:'💰 +'+g, c:'#ffe08a'});
@@ -594,7 +594,7 @@ class Battle extends Phaser.Scene {
         if(Math.random()<(_lc.battleGearChance!=null?_lc.battleGearChance:0.30) && RUN.cargo.length<RUN.slots){
           const wantW=Math.random()<(_lc.battleGearWeaponBias!=null?_lc.battleGearWeaponBias:0.60);
           const git=rollItem(node?node.risk:1, wantW?'武器':'防具');
-          if(git){ RUN.cargo.push(git); discover(git.name); if(git.gear) ownGear(git.name); gains.push({t:(git.icon||'')+' '+git.name, c:'#9fd0ff'}); }
+          if(git){ RUN.cargo.push(git); discover(git.name); if(git.gear) ownGear(git.name); logItem('gain', git, '戰利品'); gains.push({t:(git.icon||'')+' '+git.name, c:'#9fd0ff'}); }
         }
       }
       skillMsgs.forEach(m=>gains.push({t:m, c:'#ffe08a'}));

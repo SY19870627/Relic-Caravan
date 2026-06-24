@@ -379,11 +379,25 @@ function initRun(){
     }),
     cargo: [], slots: 0, gold: (CFG.gold? CFG.gold.stipendBase + (Math.max(1,(GUILD.partySize||1))-1)*CFG.gold.stipendPerParty : 0),
     isBoss:false, gotGear:{},   // v1.8：本趟已取得的裝備名稱（掉落去重用；每趟重置、不看永久收藏）
+    itemLog:[],   // 物品異動紀錄（本趟；獲得／使用／捨棄／遺失），於物品欄檢視
+
     // v0.8 本趟一次性旗標（料理／馬匹／工匠功能）
     cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
     deckExpanded:false,
     combatMs:0,   // DPS 分母：本趟累計交戰遊戲毫秒（每員 dmgDealt 隨新 heroes 物件自動歸零）
   };
+}
+// 物品異動紀錄：act = gain/use/discard/lost；item 可為物品物件或名稱字串；reason 為來源說明
+function logItem(act, item, reason){
+  if(typeof RUN==='undefined' || !RUN) return;
+  if(!RUN.itemLog) RUN.itemLog=[];
+  const isObj = item && typeof item==='object';
+  const name = isObj ? (item.name||'') : (item||'');
+  if(!name) return;
+  const kind = isObj ? (item.kind||'') : '';
+  const icon = (isObj && item.icon) || ({'武器':'⚔','防具':'🛡','道具':'🧪','遺物':'🏺','素材':'🧱','貴重物品':'💎'}[kind] || '📦');
+  RUN.itemLog.push({ act, name, kind, icon, reason: reason||'', n: (RUN.itemLog.length+1) });
+  if(RUN.itemLog.length>150) RUN.itemLog.shift();   // 上限，避免無限增長
 }
 // 起始裝：免洗隊每趟出發的基礎武防（P4 將依該職業 tier 升級）
 function startKitWeapon(idx){ const h=HERO_BASE[idx]; return WEAPONS[h.defWeapon]; }
@@ -469,6 +483,18 @@ function gearGotThisRun(name){ if(typeof RUN==='undefined'||!RUN) return false;
   if((RUN.cargo||[]).some(it=>it&&it.name===name)) return true;
   if((RUN.heroes||[]).some(h=>(h.weapon&&h.weapon.name===name)||(h.armor&&h.armor.name===name))) return true;
   return false; }
+function syncEquippedGearCargo(){ if(typeof RUN==='undefined'||!RUN||!Array.isArray(RUN.cargo)||!Array.isArray(RUN.heroes)) return;
+  const equipped={};
+  RUN.heroes.forEach(h=>{
+    if(h&&h.weapon&&h.weapon.name) equipped['武器|'+h.weapon.name]=true;
+    if(h&&h.armor&&h.armor.name) equipped['防具|'+h.armor.name]=true;
+  });
+  RUN.cargo=RUN.cargo.filter(it=>{
+    if(!(it&&(it.kind==='武器'||it.kind==='防具')&&equipped[it.kind+'|'+it.name])) return true;
+    const gear=it.gear || (it.kind==='武器'?WEAPONS:ARMORS).find(g=>g.name===it.name);
+    return !!(gear && gear.starter);
+  });
+}
 // 掉落用裝備選擇：排除起始裝＋已擁有，依出戰最高等級做保底(等級帶 lvReq∈[lvl-2, lvl+1])，優先出戰職業可用
 function rollGear(kind){
   const pool=(kind==='武器')?WEAPONS:ARMORS;
@@ -500,27 +526,37 @@ function bestGear(sprite, kind, level, extras, fallback){
 }
 function autoEquipRun(){ if(!autoEquipOn() || typeof RUN==='undefined' || !RUN || !RUN.heroes) return;
   if(!RUN.cargo) RUN.cargo=[];
-  const takeCargo=(kind,name)=>{ const i=RUN.cargo.findIndex(it=>it&&it.kind===kind&&it.name===name); if(i>=0){ RUN.cargo.splice(i,1); return true; } return false; };
-  const cargoGears=(kind)=>RUN.cargo.filter(it=>it&&it.kind===kind&&it.gear).map(it=>it.gear);
-  const used={武器:{}, 防具:{}};
+  syncEquippedGearCargo();
+  const autoPool=RUN.cargo.filter(it=>it&&(it.kind==='武器'||it.kind==='防具')&&it.gear);
+  const takeCargo=(kind,name)=>{ const i=autoPool.findIndex(it=>it&&it.kind===kind&&it.name===name); if(i<0) return null;
+    const it=autoPool[i]; autoPool.splice(i,1);
+    const ci=RUN.cargo.indexOf(it); if(ci>=0) RUN.cargo.splice(ci,1);
+    return it; };
+  const hasCargo=(kind,name)=>RUN.cargo.some(it=>it&&it.kind===kind&&it.name===name);
+  const putCargo=(kind,gear,icon)=>{ if(gear && !hasCargo(kind,gear.name)) RUN.cargo.push({kind, name:gear.name, icon, value:25, gear}); };
+  const cargoGears=(kind)=>autoPool.filter(it=>it&&it.kind===kind&&it.gear).map(it=>it.gear);
+  const equippedElsewhere=(kind,name,hero)=>{
+    const slot=kind==='武器'?'weapon':'armor';
+    return (RUN.heroes||[]).some(other=>other!==hero && other&&other[slot]&&other[slot].name===name);
+  };
   const swap=(h,kind,slot,icon)=>{
     const cur=h[slot], level=(ROSTER[h.idx]&&ROSTER[h.idx].level)||1;
-    const curUsable=!!(cur && (cur.starter || !used[kind][cur.name]));
-    const extras=cargoGears(kind).concat(curUsable&&cur&&!cur.starter ? [cur] : []);
+    const extras=(cur?[cur]:[]).concat(cargoGears(kind));
     const fallback=kind==='武器' ? startKitWeapon(h.idx) : startKitArmor(h.idx);
     const best=bestGear(h.sprite,kind,level,extras,fallback);
-    if(best && (!cur || best.name!==cur.name || !curUsable)){
-      if(best.starter || takeCargo(kind,best.name)){
-        const old=cur; h[slot]=best;
-        if(old && !old.starter && curUsable) RUN.cargo.push({kind, name:old.name, icon, value:25, gear:old});   // 只把自己真正持有的舊裝放回貨車
+    if(best && (!cur || best.name!==cur.name)){
+      const picked=best.starter ? {gear:best} : takeCargo(kind,best.name);
+      if(picked && picked.gear){
+        const old=cur; h[slot]=picked.gear;
+        if(old && !equippedElsewhere(kind,old.name,h)) putCargo(kind,old,icon);
       }
     }
-    if(h[slot] && !h[slot].starter) used[kind][h[slot].name]=true;
   };
   RUN.heroes.forEach(h=>{ const oldMax=heroStat(h).maxHp;
     swap(h,'武器','weapon','⚔'); swap(h,'防具','armor','🛡');
     if(h.hp>0){ const newMax=heroStat(h).maxHp; if(newMax!==oldMax) h.hp=Math.max(1,Math.min(newMax, h.hp+(newMax-oldMax))); }   // 換裝時 HP 上限變動同步
   });
+  syncEquippedGearCargo();
 }
 function itemDiscovered(name){ if(GUILD.discovered && GUILD.discovered[name]) return true;
   const w=WEAPONS.find(x=>x.name===name); if(w&&w.starter) return true; const a=ARMORS.find(x=>x.name===name); if(a&&a.starter) return true; return false; }

@@ -54,7 +54,7 @@ Object.assign(Battle.prototype, {
     let gainNotice=null;
     if(_r<_matCh){ const m=gainMaterial(di); gainNotice=resourceGainNotice(m,1); msg = m? ('獲得 '+m.icon+' '+m.name+' ×1（已入庫，供工坊強化）') : '寶箱空空如也'; }
     else { const it=rollItem(2, Math.random()<_wBias?'武器':'防具');
-      if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
+      if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '寶箱'); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
       else msg='貨車已滿，放棄 '+it.icon+' '+it.name; }
     o.add(txt(this,W/2,H/2-24,'🧰 發現寶箱！',20,TH.gold)); o.add(txt(this,W/2,H/2+14,msg,14,TH.text));
     if(gainNotice) this.showGains([gainNotice]);
@@ -80,8 +80,8 @@ Object.assign(Battle.prototype, {
     o.add(button(this, sx+st,   cy-10, sw, 32, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:11}));
     o.add(button(this, sx+2*st, cy-10, sw, 32, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:11}));
     o.add(button(this, sx+3*st, cy-10, sw, 32, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:11}));
-    o.add(button(this,W/2-82,cy+40,152,34,'整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
-    o.add(button(this,W/2+82,cy+40,152,34,'用道具（'+nItem+'）',()=>this.evItems(),{variant:'go',size:12}));
+    o.add(button(this,W/2-82,cy+40,152,34,'🎒 整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
+    o.add(button(this,W/2+82,cy+40,152,34,'📦 物品欄（'+RUN.cargo.length+'）',()=>this.evInventory('camp'),{variant:'go',size:12}));
     o.add(button(this,W/2-82,cy+82,152,34,'繼續前進',()=>this.advanceStep(),{variant:'go',size:13}));
     o.add(button(this,W/2+82,cy+82,152,34,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:13}));
     // 閒置 5 秒自動前進：進度條（滑鼠一動就歸零）
@@ -123,6 +123,7 @@ Object.assign(Battle.prototype, {
   evGear(){ this._gearHero=0; this._gearWSel=0; this._gearASel=0; this._renderGear(); }
 ,
   _renderGear(){ const W=this.scale.width,H=this.scale.height;
+    if(typeof syncEquippedGearCargo==='function') syncEquippedGearCargo();
     if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
     if(this.banner) this.banner.setText('').setAlpha(0);
     const o=this.add.container(0,0).setDepth(96); this.overlay=o; const add=x=>{ o.add(x); return x; };
@@ -150,7 +151,10 @@ Object.assign(Battle.prototype, {
     add(icon(this,c2+6,ly,'sword',13,UI.goldN)); add(txt(this,c2+20,ly,'ATK '+s.atkSeq.join('/'),12,TH.text,0));
     ly+=22; add(icon(this,lx+6,ly,'shield',13,UI.blueN)); add(txt(this,lx+20,ly,'DEF '+s.def,12,TH.text,0));
     if(s.heal){ add(icon(this,c2+6,ly,'heal',13,0x6ee29a)); add(txt(this,c2+20,ly,'治療 '+s.heal,12,TH.text,0)); }
-    ly+=30;
+    ly+=24;
+    add(icon(this,lx+6,ly,'sword',12,UI.goldN)); add(txt(this,lx+20,ly,'武器 '+((h.weapon&&h.weapon.name)||'無'),11,TH.gold,0));
+    add(icon(this,c2+6,ly,'shield',12,UI.blueN)); add(txt(this,c2+20,ly,'防具 '+((h.armor&&h.armor.name)||'無'),11,TH.cyan,0));
+    ly+=26;
     const perks=[]; Object.keys(PERKS).forEach(k=>{ if(s.level>=+k) perks.push((PERKS[k].label||'').split('：')[0]); });
     if(perks.length){ add(icon(this,lx+6,ly,'star',12,0xf2c14e)); add(txt(this,lx+20,ly,'能力：'+perks.join('・'),11,TH.cyan,0).setWordWrapWidth(372)); ly+=24; }
     add(txt(this,lx,ly,'技能',12,TH.gold,0)); ly+=20;
@@ -164,8 +168,8 @@ Object.assign(Battle.prototype, {
       ly+=44; });
     const RP=panel(this,682,322,416,448,{accent:'gold',title:'裝備清單',icon:'bag',titleSize:13}); add(RP);
     const rl=RP.left;
-    const wList=[{gear:h.weapon,name:h.weapon.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='武器').map(it=>({gear:it.gear,name:it.name,item:it})));
-    const aList=[{gear:h.armor,name:h.armor.name,cur:true}].concat(RUN.cargo.filter(it=>it.kind==='防具').map(it=>({gear:it.gear,name:it.name,item:it})));
+    const wList=RUN.cargo.filter(it=>it.kind==='武器'&&gearClassOK(h.sprite,it)).map(it=>({gear:it.gear,name:it.name,item:it}));
+    const aList=RUN.cargo.filter(it=>it.kind==='防具'&&gearClassOK(h.sprite,it)).map(it=>({gear:it.gear,name:it.name,item:it}));
     if(this._gearWSel==null||this._gearWSel>=wList.length) this._gearWSel=0;
     if(this._gearASel==null||this._gearASel>=aList.length) this._gearASel=0;
     const slotGrid=(list,selKey,kind,startY)=>{ const isW=kind==='武器', per=8, pitch=50, sz=40, gx=rl+42, gy=startY;
@@ -187,7 +191,7 @@ Object.assign(Battle.prototype, {
       return gy + Math.max(1,Math.ceil(list.length/per))*pitch; };
     const descBox=(e,kind,y)=>{ const isW=kind==='武器', ac=accent(isW?'gold':'blue'), g=this.add.graphics(); add(g);
       g.fillStyle(0x07060f,0.5); g.fillRoundedRect(rl+18,y,384,56,8); g.lineStyle(1.5,ac.num,0.5); g.strokeRoundedRect(rl+18,y,384,56,8);
-      if(!e){ add(txt(this,rl+30,y+20,'（無）',11,TH.dim,0)); return; }
+      if(!e){ add(txt(this,rl+30,y+20,'物品欄沒有可用'+kind,11,TH.dim,0)); return; }
       const gear=e.gear, v=itemVisual(e.name), iac=accent(v.accent), lvReq=(gear&&gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
       g.fillStyle(iac.deep,0.5); g.fillRoundedRect(rl+28,y+9,38,38,8); add(icon(this,rl+47,y+28,v.icon,22,iac.num));
       const tx=rl+80;
@@ -198,10 +202,10 @@ Object.assign(Battle.prototype, {
       else if(s.level<lvReq) add(txt(this,rl+392,y+12,'需 Lv'+lvReq,10,'#ff8a8a',1));
       else add(button(this,rl+360,y+32,76,28,'換上',()=>{ equipSwap(e.item,this._gearHero); this.restatHeroes(); this.refreshHud(); this._gearWSel=0; this._gearASel=0; this._renderGear(); },{variant:'go',size:12})); };
     let y=RP.bodyTop+4;
-    add(txt(this,rl+22,y,'⚔ 武器',13,'#f2c14e',0)); y+=20;
+    add(txt(this,rl+22,y,'⚔ 物品欄武器',13,'#f2c14e',0)); y+=20;
     y=slotGrid(wList,'_gearWSel','武器',y+18)+12;
     descBox(wList[this._gearWSel],'武器',y); y+=68;
-    add(txt(this,rl+22,y,'🛡 防具',13,'#6aa6f0',0)); y+=20;
+    add(txt(this,rl+22,y,'🛡 物品欄防具',13,'#6aa6f0',0)); y+=20;
     y=slotGrid(aList,'_gearASel','防具',y+18)+12;
     descBox(aList[this._gearASel],'防具',y);
   }
@@ -318,6 +322,7 @@ Object.assign(Battle.prototype, {
       spendGold(it.cost);
       const cargoIcon=it.kind==='武器'?'⚔':(it.kind==='防具'?'🛡':'🧪');
       RUN.cargo.push({kind:it.kind,name:it.name,icon:cargoIcon,value:it.value||60,gear:it.gear});
+      logItem('gain', {kind:it.kind,name:it.name,icon:cargoIcon}, '購買');
       if(isGear) ownGear(it.name); else discover(it.name);   // 裝備：標記已擁有 → 不再出現、也擋第二次購買
       this.refreshHud();
       this._shopMsg='✓ 已購入 '+it.name; this._shopMsgC='#9fe8a0'; this._renderShop();
@@ -337,13 +342,13 @@ Object.assign(Battle.prototype, {
       {t:'⛏ 裸露礦脈',d:'岩壁上閃著礦物光澤',auto:true,r:'採得一份素材',act:()=>resourceGainNotice(gainMaterial(RUN.destIndex||0),1)},
       {t:'🍖 獵人營地',d:'廢棄營地還留著食材',auto:true,r:'採集到一份食材',act:()=>resourceGainNotice(forageIngredient(RUN.destIndex||0),1)},
       {t:'🔮 神秘符文',d:'符文閃過微光，賜下祝福',auto:true,r:'回復 15% 體力並拾得 💰50',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.15)); } }); addGold(50); }},
-      {t:'🗡 廢棄武器架',d:'架上還掛著堪用的裝備',auto:true,cond:()=>RUN.cargo.length<RUN.slots,r:'拾得一件裝備',act:()=>{ const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); } }},
+      {t:'🗡 廢棄武器架',d:'架上還掛著堪用的裝備',auto:true,cond:()=>RUN.cargo.length<RUN.slots,r:'拾得一件裝備',act:()=>{ const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '撿拾'); } }},
       // —— 負面事件（自動結算、紅框；扣血保底 1 HP，不會在事件中打死人）——
       {t:'🕳 隱藏陷阱',d:'踩中暗藏的陷阱',auto:true,bad:true,r:'全隊損失 15% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.15)); } }); }},
       {t:'☠ 毒瘴瀰漫',d:'吸入瀰漫的毒瘴',auto:true,bad:true,r:'全隊損失 20% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.20)); } }); }},
       {t:'🪨 落石坍方',d:'通道突然坍方落石',auto:true,bad:true,r:'一名隊員受到重創',act:()=>{ const al=RUN.heroes.filter(h=>h.hp>0); if(al.length){ const h=al[Math.floor(Math.random()*al.length)]; h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.30)); } }},
       {t:'💰 強盜路霸',d:'被攔路強盜訛詐',auto:true,bad:true,r:'被搶走 💰80',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-80); }},
-      {t:'🐀 貪婪鼠群',d:'鼠群竄入貨車翻找',auto:true,bad:true,cond:()=>RUN.cargo.length>0,r:'一件貨物被啃壞',act:()=>{ RUN.cargo.splice(Math.floor(Math.random()*RUN.cargo.length),1); }},
+      {t:'🐀 貪婪鼠群',d:'鼠群竄入貨車翻找',auto:true,bad:true,cond:()=>RUN.cargo.length>0,r:'一件貨物被啃壞',act:()=>{ const _i=Math.floor(Math.random()*RUN.cargo.length); const _it=RUN.cargo[_i]; RUN.cargo.splice(_i,1); logItem('lost', _it, '被鼠群啃壞'); }},
       {t:'🌀 詛咒石碑',d:'觸動了古老的詛咒',auto:true,bad:true,r:'失去 💰50、全隊損失 10% 體力',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-50); RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.10)); } }); }},
     ];
     const ev=Phaser.Utils.Array.GetRandom(pool.filter(e=>!e.cond||e.cond()))||pool[0];
@@ -361,4 +366,108 @@ Object.assign(Battle.prototype, {
     o.add(txt(this,W/2,H/2-64,ev.t,19,'#9fe8a0')); o.add(txt(this,W/2,H/2-28,ev.d,13,TH.text).setWordWrapWidth(400));
     o.add(button(this,W/2-92,H/2+40,156,40,ev.b,()=>{ ev.act(); this.refreshHud(); this.advanceStep(); },{variant:'go',size:13}));
     o.add(button(this,W/2+92,H/2+40,156,40,'離開',()=>this.advanceStep(),{variant:'info',size:13})); }
+});
+
+// ========================= 戰鬥 · 物品欄（暫停／營火共用：檢視 · 使用 · 捨棄） =========================
+Object.assign(Battle.prototype, {
+  // 進入物品欄；from = 'pause' 或 'camp'，決定返回去處
+  evInventory(from){ if(from) this._invFrom=from; this._invConfirm=null; this._invMsg=null; this._invTab='items'; this._renderInventory(); }
+,
+  // 取物品圖示：優先用物品自帶 emoji，否則依類別給預設
+  _invIcon(it){ return (it&&it.icon) || ({'武器':'⚔','防具':'🛡','道具':'🧪','遺物':'🏺','素材':'🧱','貴重物品':'💎'}[it&&it.kind] || '📦'); }
+,
+  // 取一行說明文字（依物品類別呈現數值／效果）
+  _invDesc(it){
+    if(it.kind==='道具') return CONSUM_INFO[it.name] || '戰鬥外使用';
+    if(it.kind==='武器'){ const g=it.gear; return g&&g.atkSeq ? ('傷害 '+g.atkSeq.join('/')+(g.heal?'　治療 '+g.heal:'')) : '武器'; }
+    if(it.kind==='防具'){ const g=it.gear; return g ? ('防禦 '+(g.def||0)+(g.shield?'　護盾 +'+g.shield:'')) : '防具'; }
+    if(it.kind==='遺物') return it.desc || '遺物 · 帶回後永久生效';
+    return it.desc || ('貴重物品 · 價值 💰'+(it.value||0));
+  }
+,
+  _renderInventory(){ const W=this.scale.width,H=this.scale.height;
+    if(typeof syncEquippedGearCargo==='function') syncEquippedGearCargo();
+    if(this.overlay){ this.overlay.destroy(); this.overlay=null; }
+    if(this.banner) this.banner.setText('').setAlpha(0);
+    const o=this.add.container(0,0).setDepth(96); this.overlay=o; const add=x=>{ o.add(x); return x; };
+    add(this.add.rectangle(0,0,W,H,0x000000,0.66).setOrigin(0).setInteractive());
+    add(panel(this,W/2,286,864,500,{accent:'gold'}));
+    const cap=RUN.slots||0, n=(RUN.cargo||[]).length, logN=(RUN.itemLog||[]).length;
+    const isLog=this._invTab==='log';
+    add(txt(this,W/2,46,'📦 物品欄',18,TH.gold));
+    add(txt(this,W/2,68, isLog?'物品異動紀錄（本趟）· 由新到舊':('檢視 · 使用消耗品 · 捨棄　|　貨車 '+n+' ／ '+cap+' 格　·　💰 '+(RUN.gold||0)),11,TH.cyan));
+    add(button(this,W-78,46, this._invFrom==='pause'?96:120,30, this._invFrom==='pause'?'返回':'返回營火',()=>this._closeInventory(),{variant:'info',size:12}));
+    // 分頁切換：物品 ／ 異動紀錄
+    add(button(this,W/2-92,94,168,30,'🎒 物品（'+n+'）',()=>{ this._invTab='items'; this._invConfirm=null; this._renderInventory(); },{variant:isLog?'info':'gold',size:12}));
+    add(button(this,W/2+92,94,168,30,'📜 異動紀錄（'+logN+'）',()=>{ this._invTab='log'; this._invConfirm=null; this._renderInventory(); },{variant:isLog?'gold':'info',size:12}));
+
+    if(isLog){ this._renderInvLog(add, W); return; }
+
+    // 同名同類疊加成一列；排序：道具→武器→防具→遺物→其他
+    const ord={'道具':0,'武器':1,'防具':2,'遺物':3};
+    const groups=[], gmap={};
+    (RUN.cargo||[]).forEach(it=>{ const k=it.kind+'|'+it.name; if(gmap[k]){ gmap[k].count++; } else { gmap[k]={it,count:1,key:k,kind:it.kind,name:it.name}; groups.push(gmap[k]); } });
+    groups.sort((a,b)=> ((ord[a.kind]==null?9:ord[a.kind])-(ord[b.kind]==null?9:ord[b.kind])) || a.name.localeCompare(b.name));
+
+    if(!groups.length){ add(txt(this,W/2,300,'🛒 貨車是空的 — 目前沒有任何物品',15,TH.dim)); return; }
+
+    const top=126, bottom=512, cellW=400;
+    const colX=[W/2-cellW/2-8, W/2+cellW/2+8];
+    const perCol=Math.max(1,Math.ceil(groups.length/2));
+    const pitch=Math.min(54, Math.floor((bottom-top)/perCol));
+    const cellH=Math.min(46, pitch-6);
+
+    groups.forEach((grp,gi)=>{ const col=Math.floor(gi/perCol), row=gi%perCol;
+      const cx=colX[col], cy=top+row*pitch+cellH/2, it=grp.it, L=cx-cellW/2;
+      const confirming=this._invConfirm===grp.key;
+      const ac=accent(it.kind==='遺物'?'violet': it.kind==='道具'?'green': it.kind==='武器'?'gold': it.kind==='防具'?'blue':'slate');
+      const g=this.add.graphics(); add(g);
+      g.fillStyle(0x000000,0.30); g.fillRoundedRect(L,cy-cellH/2+3,cellW,cellH,9);
+      g.fillStyle(confirming?0x3a1f2a:0x18121f, confirming?1:0.92); g.fillRoundedRect(L,cy-cellH/2,cellW,cellH,9);
+      g.lineStyle(2, confirming?0xff6f7a:ac.num, confirming?1:0.55); g.strokeRoundedRect(L,cy-cellH/2,cellW,cellH,9);
+      add(txt(this,L+22,cy,this._invIcon(it),20,'#fff'));
+      add(txt(this,L+42,cy-9,grp.name+(grp.count>1?'  ×'+grp.count:''),12.5,ac.hex,0));
+      add(txt(this,L+42,cy+9, confirming?'⚠ 確認捨棄？此物品將永久消失':this._invDesc(it), 9.5, confirming?'#ff8a8a':TH.dim, 0).setWordWrapWidth(220));
+
+      if(confirming){
+        add(button(this,L+cellW-94,cy,62,cellH-12,'確認捨棄',()=>this._discardOne(grp.kind,grp.name),{variant:'danger',size:11}));
+        add(button(this,L+cellW-34,cy,40,cellH-12,'✕',()=>{ this._invConfirm=null; this._renderInventory(); },{variant:'info',size:14}));
+      } else if(it.kind==='道具'){
+        add(button(this,L+cellW-96,cy,56,cellH-12,'使用',()=>{ const one=(RUN.cargo||[]).find(x=>x.kind==='道具'&&x.name===grp.name); if(one){ this._invMsg=useConsumable(one); this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); if(this.updatePotions) this.updatePotions(); if(this.refreshHud) this.refreshHud(); } this._invConfirm=null; this._renderInventory(); },{variant:'go',size:12}));
+        add(button(this,L+cellW-36,cy,52,cellH-12,'捨棄',()=>{ this._invConfirm=grp.key; this._invMsg=null; this._renderInventory(); },{variant:'gold',size:11}));
+      } else {
+        add(button(this,L+cellW-40,cy,60,cellH-12,'捨棄',()=>{ this._invConfirm=grp.key; this._invMsg=null; this._renderInventory(); },{variant:'gold',size:12}));
+      }
+    });
+
+    if(this._invMsg) add(txt(this,W/2,534,this._invMsg,12,'#9fe8a0'));
+  }
+,
+  // 異動紀錄分頁：列出本趟物品進出（新到舊）；＋獲得／－使用・捨棄・遺失
+  _renderInvLog(add, W){
+    const log=(RUN.itemLog||[]);
+    if(!log.length){ add(txt(this,W/2,300,'📜 本趟還沒有任何物品異動',15,TH.dim)); return; }
+    const META={ gain:['＋','#6ee29a'], use:['－','#6aa6f0'], discard:['－','#f0975a'], lost:['－','#ff6f7a'], bank:['📥','#a98bff'] };
+    const view=log.slice().reverse(), shown=view.slice(0,28);
+    const perCol=Math.max(1,Math.ceil(shown.length/2)), top=128, bottom=510;
+    const rowH=Math.min(30, Math.floor((bottom-top)/perCol)), cellW=400, colX=[W/2-cellW/2-8, W/2+cellW/2+8];
+    shown.forEach((e,i)=>{ const col=Math.floor(i/perCol), row=i%perCol, cx=colX[col], cy=top+row*rowH+rowH/2, L=cx-cellW/2;
+      const m=META[e.act]||['·','#9b93b8'];
+      add(txt(this,L+6,cy,m[0],14,m[1],0,0.5));
+      add(txt(this,L+24,cy,(e.icon||'')+' '+e.name,11.5,TH.text,0,0.5));
+      add(txt(this,L+cellW-6,cy,e.reason||'',10,TH.dim,1,0.5));
+    });
+    if(view.length>28) add(txt(this,W/2,524,'（僅顯示最近 28 筆，本趟共 '+view.length+' 筆）',10,TH.dim));
+  }
+,
+  // 捨棄一件（同名疊加時只移除一件）
+  _discardOne(kind,name){ const i=(RUN.cargo||[]).findIndex(x=>x.kind===kind&&x.name===name);
+    if(i>=0){ const it=RUN.cargo[i]; RUN.cargo.splice(i,1); logItem('discard', it, '捨棄'); this._invMsg='已捨棄 '+this._invIcon(it)+' '+name; }
+    this._invConfirm=null;
+    if(this.refreshHud) this.refreshHud();
+    this._renderInventory(); }
+,
+  _closeInventory(){ const from=this._invFrom; this._invFrom=null; this._invConfirm=null; this._invMsg=null;
+    if(from==='pause'){ if(this.overlay){ this.overlay.destroy(); this.overlay=null; } this._renderPause(); }
+    else { this._renderCamp(); } }
 });
