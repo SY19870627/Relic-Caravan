@@ -237,10 +237,13 @@ function currentFormation(){ return FORMATIONS[GUILD.formation||0] || FORMATIONS
 function formationLayout(){
   const f=currentFormation();
   const present=activeRoster().map(i=>HERO_BASE[i].sprite).filter(sp=>f.slots&&f.slots[sp]);
+  const out={};
+  let custom=(f.cost||0)>=6;
+  present.forEach(sp=>{ const s=f.slots[sp]||{}; if(typeof s.x!=='number'||typeof s.y!=='number') custom=false; });
+  if(custom){ present.forEach(sp=>{ const s=f.slots[sp]; out[sp]={x:s.x, y:s.y, row:s.row||'back'}; }); return out; }
   const rowX={front:335, mid:250, back:165};
   const byRow={front:[],mid:[],back:[]};
   present.forEach(sp=>{ const r=(f.slots[sp].row)||'back'; (byRow[r]=byRow[r]||[]).push(sp); });
-  const out={};
   ['front','mid','back'].forEach(row=>{ const arr=byRow[row]||[]; const n=arr.length;
     arr.forEach((sp,k)=>{ const y = n<=1?360 : Math.round(248 + k*(224/(n-1)));
       out[sp]={x:rowX[row]||200, y, row}; }); });

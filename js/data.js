@@ -292,6 +292,54 @@ const FORMATIONS = [
      warrior:{x:345,y:300,row:'front', atk:6},
      ranger :{x:360,y:360,row:'front', atk:12, def:-3},
      priest :{x:330,y:420,row:'front', heal:5, def:-2}, mage:{x:355,y:475,row:'front', atk:8, def:-3}, rogue:{x:380,y:240,row:'front', atk:11, def:-3} } },
+  { name:'龜甲星盤', desc:'把隊伍縮成占星龜殼，戰士承受主壓力，後排用耐久慢慢磨穿敵人。', cost:6, slots:{
+     warrior:{x:350,y:360,row:'front', def:16, hp:30, atk:-3},
+     ranger :{x:205,y:250,row:'back',  def:5, hp:10, atk:-1},
+     priest :{x:205,y:470,row:'back',  heal:9, hp:18, def:5}, mage:{x:150,y:360,row:'back', def:6, hp:12, atk:-2}, rogue:{x:255,y:360,row:'mid', def:7, hp:10} } },
+  { name:'斷橋誘敵', desc:'戰士故意退半步讓敵人踏空，遊俠與盜賊從兩側補刀。', cost:7, slots:{
+     warrior:{x:275,y:360,row:'mid', def:10, hp:18},
+     ranger :{x:160,y:250,row:'back', atk:11, def:-1},
+     priest :{x:165,y:470,row:'back', heal:6, def:2}, mage:{x:130,y:360,row:'back', atk:6}, rogue:{x:370,y:430,row:'front', atk:12, def:-2} } },
+  { name:'聖釘十字', desc:'牧師釘住十字中心，四角分散保護，適合長戰與穩定回復。', cost:8, slots:{
+     warrior:{x:335,y:360,row:'front', def:8, hp:14},
+     ranger :{x:250,y:250,row:'mid', atk:6, def:2},
+     priest :{x:180,y:360,row:'back', heal:13, hp:24, def:4}, mage:{x:250,y:470,row:'back', atk:4, def:3}, rogue:{x:250,y:360,row:'mid', atk:5, def:3} } },
+  { name:'黑潮逆矛', desc:'全隊像逆流的矛尖往前壓，輸出很高，但後排安全性下降。', cost:9, slots:{
+     warrior:{x:360,y:360,row:'front', atk:8, def:2},
+     ranger :{x:285,y:275,row:'mid', atk:10, def:-2},
+     priest :{x:195,y:455,row:'mid', heal:5, def:-1}, mage:{x:235,y:360,row:'mid', atk:11, def:-3}, rogue:{x:385,y:250,row:'front', atk:13, def:-3} } },
+  { name:'鏡月幻列', desc:'法師藏在鏡月後方放大火力，盜賊負責擾亂中線。', cost:10, slots:{
+     warrior:{x:330,y:360,row:'front', def:7, hp:10},
+     ranger :{x:210,y:255,row:'back', atk:7, def:2},
+     priest :{x:210,y:465,row:'back', heal:5, def:3}, mage:{x:145,y:360,row:'back', atk:16, def:-3}, rogue:{x:265,y:300,row:'mid', atk:9, def:1} } },
+  { name:'雁翼斬首', desc:'雙翼拉開射線，盜賊切喉、遊俠點殺，戰士只負責撐住正面。', cost:11, slots:{
+     warrior:{x:350,y:360,row:'front', def:9, hp:16, atk:-1},
+     ranger :{x:210,y:230,row:'mid', atk:13, def:-1},
+     priest :{x:145,y:455,row:'back', heal:5}, mage:{x:145,y:310,row:'back', atk:5}, rogue:{x:330,y:490,row:'front', atk:14, def:-3} } },
+  { name:'鐘擺護送', desc:'隊伍像鐘擺輪流護送核心，攻防平均，沒有明顯弱點。', cost:12, slots:{
+     warrior:{x:335,y:260,row:'front', def:9, hp:14},
+     ranger :{x:275,y:320,row:'mid', atk:7, def:3},
+     priest :{x:215,y:380,row:'back', heal:8, hp:12}, mage:{x:155,y:440,row:'back', atk:6, def:3}, rogue:{x:275,y:500,row:'mid', atk:7, def:3} } },
+  { name:'藥師蜂巢', desc:'所有人圍成蜂巢保護補給線，輸出普通但治療與生存很強。', cost:13, slots:{
+     warrior:{x:330,y:360,row:'front', def:10, hp:20, atk:-2},
+     ranger :{x:245,y:275,row:'mid', def:5, hp:12},
+     priest :{x:170,y:360,row:'back', heal:15, hp:26, def:4}, mage:{x:205,y:455,row:'back', def:5, hp:12, atk:-1}, rogue:{x:245,y:445,row:'mid', def:6, hp:10} } },
+  { name:'雷槌破門', desc:'戰士當槌、法師當雷，一口氣敲開硬敵，但承傷壓力很大。', cost:14, slots:{
+     warrior:{x:365,y:360,row:'front', atk:12, def:0},
+     ranger :{x:240,y:255,row:'mid', atk:8, def:-1},
+     priest :{x:165,y:455,row:'back', heal:4}, mage:{x:300,y:300,row:'front', atk:15, def:-5}, rogue:{x:300,y:420,row:'front', atk:9, def:-2} } },
+  { name:'霜脈拉鋸', desc:'用厚實站位拖慢戰線，適合面對高爆發敵人。', cost:15, slots:{
+     warrior:{x:340,y:280,row:'front', def:13, hp:22, atk:-2},
+     ranger :{x:230,y:325,row:'back', def:5, hp:10, atk:2},
+     priest :{x:150,y:370,row:'back', heal:10, hp:16, def:5}, mage:{x:225,y:425,row:'back', def:6, hp:14, atk:2}, rogue:{x:315,y:470,row:'mid', def:8, hp:12, atk:2} } },
+  { name:'盜火穿心', desc:'盜賊帶火穿入敵心，遠程火力全跟上，是高風險斬王陣。', cost:16, slots:{
+     warrior:{x:280,y:360,row:'mid', def:6, hp:10},
+     ranger :{x:205,y:250,row:'mid', atk:14, def:-2},
+     priest :{x:150,y:455,row:'back', heal:5, def:-1}, mage:{x:165,y:345,row:'back', atk:10, def:-2}, rogue:{x:385,y:360,row:'front', atk:18, def:-5} } },
+  { name:'日蝕終陣', desc:'最後決戰用的日蝕陣，全員壓上換取最快擊破速度。', cost:18, slots:{
+     warrior:{x:355,y:300,row:'front', atk:12, def:0},
+     ranger :{x:355,y:420,row:'front', atk:15, def:-5},
+     priest :{x:245,y:470,row:'mid', heal:7, def:-2}, mage:{x:245,y:360,row:'mid', atk:14, def:-4}, rogue:{x:355,y:240,row:'front', atk:17, def:-5} } },
 ];
 const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重：前排越容易被集火
 // ===== 馬匹（單一馬車＋選馬）=====
