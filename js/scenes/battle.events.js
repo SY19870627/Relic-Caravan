@@ -249,7 +249,7 @@ Object.assign(Battle.prototype, {
     const slotGrid=(list,selKey,kind,startY)=>{ const isW=kind==='武器', per=8, pitch=50, sz=40, gx=rl+42, gy=startY;
       list.forEach((e,k)=>{ const x=gx+(k%per)*pitch, y=gy+Math.floor(k/per)*pitch, sel=this[selKey]===k;
         const v=itemVisual(e.name), iac=accent(v.accent);
-        const lvReq=(e.gear&&e.gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear:e.gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
+        const lvReq=(e.gear&&e.gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear:e.gear}), ok=!e.cur&&clsOK;   // v7.0 取消等級穿著限制
         const bord=sel?0xffffff:(e.cur?(isW?0xf2c14e:0x6aa6f0):(ok?0x5ad06a:0x5a5470));
         const g=this.add.graphics(); add(g);
         g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,8);
@@ -266,14 +266,13 @@ Object.assign(Battle.prototype, {
     const descBox=(e,kind,y)=>{ const isW=kind==='武器', ac=accent(isW?'gold':'blue'), g=this.add.graphics(); add(g);
       g.fillStyle(0x07060f,0.5); g.fillRoundedRect(rl+18,y,384,56,8); g.lineStyle(1.5,ac.num,0.5); g.strokeRoundedRect(rl+18,y,384,56,8);
       if(!e){ add(txt(this,rl+30,y+20,'沒有可用'+kind,11,TH.dim,0)); return; }
-      const gear=e.gear, v=itemVisual(e.name), iac=accent(v.accent), lvReq=(gear&&gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear}), ok=!e.cur&&clsOK&&s.level>=lvReq;
+      const gear=e.gear, v=itemVisual(e.name), iac=accent(v.accent), lvReq=(gear&&gear.lvReq)||1, clsOK=gearClassOK(h.sprite,e.item||{kind,gear}), ok=!e.cur&&clsOK;   // v7.0 取消等級穿著限制
       g.fillStyle(iac.deep,0.5); g.fillRoundedRect(rl+28,y+9,38,38,8); add(icon(this,rl+47,y+28,v.icon,22,iac.num));
       const tx=rl+80;
       add(txt(this,tx,y+9,(e.cur?'★ ':'')+e.name,12.5,iac.hex,0));
       add(txt(this,tx,y+27,isW?('傷害 '+((gear&&gear.atkSeq)?gear.atkSeq.join(' / '):'?')+(gear&&gear.heal?'　治療 '+gear.heal:'')):('防禦 '+((gear&&gear.def)||0)+(gear&&gear.shield?'　護盾 +'+gear.shield:'')),10.5,TH.text,0));
       if(e.cur) add(txt(this,rl+392,y+12,'使用中',10,'#9fd0ff',1));
       else if(!clsOK) add(txt(this,rl+392,y+12,'職業不符',10,'#ff8a8a',1));
-      else if(s.level<lvReq) add(txt(this,rl+392,y+12,'需 Lv'+lvReq,10,'#ff8a8a',1));
       else add(button(this,rl+360,y+32,76,28,'換上',()=>{ equipSwap(e.item,this._gearHero); this.restatHeroes(); this.refreshHud(); this._gearWSel=0; this._gearASel=0; this._renderGear(); },{variant:'go',size:12})); };
     let y=RP.bodyTop+4;
     add(txt(this,rl+22,y,'⚔ 武器',13,'#f2c14e',0)); y+=20;
@@ -304,11 +303,16 @@ Object.assign(Battle.prototype, {
   openShop(type){
     if(this._campShops && this._campShops[type]){ const s=this._campShops[type]; this._shopTitle=s.title; this._shopHint=s.hint; this._shopGoods=s.goods; this._shopMsg=''; this._shopMsgC='#9fe8a0'; this._renderShop(); return; }   // 同一營火內貨色固定，不重抽
     const price=g=>30+((g.lvReq||1)*15);   // 商店改由營火選單開啟，指定類型
-    // v1.9：商店只賣「隊伍內職業」可用的裝備
-    const _sprites=activeRoster().map(i=>HERO_BASE[i].sprite);
-    const wOK=w=>_sprites.some(sp=>weaponClassOK(sp,w)), aOK=a=>_sprites.some(sp=>armorClassOK(sp,a));
-    const wPool=WEAPONS.filter(x=>!x.starter && !this._hasGear(x.name) && wOK(x));
-    const aPool=ARMORS.filter(x=>!x.starter && !this._hasGear(x.name) && aOK(x));
+    // v7.0 商店同步階梯制：只賣「各隊員當前裝備的下一階」（每人至多貢獻一件候選），與掉落同一條階梯
+    const nextPool=(kind)=>{ const out=[], seen={};
+      (RUN.heroes||[]).forEach(h=>{ if(!h) return;
+        const cur=(kind==='武器'? h.weapon : h.armor);
+        const okC=g=> kind==='武器'? weaponClassOK(h.sprite,g) : armorClassOK(h.sprite,g);
+        const cargoLv=Math.max(0, ...((RUN.cargo||[]).filter(it=>it&&it.kind===kind&&it.gear&&okC(it.gear)).map(it=>it.gear.lvReq||1)), 0);
+        const g=nextGearFor(h.sprite, kind, Math.max((cur&&cur.lvReq)||1, cargoLv));
+        if(g && !seen[g.name] && !this._hasGear(g.name)){ seen[g.name]=true; out.push(g); } });
+      return out; };
+    const wPool=nextPool('武器'), aPool=nextPool('防具');
     if(type==='weapon' && !wPool.length) type = aPool.length?'armor':'potion';   // 該類無貨 → 退別類
     else if(type==='armor' && !aPool.length) type = wPool.length?'weapon':'potion';
     else if(type==='merchant' && !wPool.length && !aPool.length) type='potion';
@@ -319,10 +323,10 @@ Object.assign(Battle.prototype, {
         {kind:'道具',name:'聖水',    tag:'藥水',cost:40,value:60,lines:['戰鬥外使用','回復全隊 50% HP']},
       ];
     } else if(type==='weapon'){
-      this._shopTitle='⚔ 武器商'; this._shopHint='精煉武器（排除基礎與已擁有）';
+      this._shopTitle='⚔ 武器商'; this._shopHint='隊員的下一階武器（與掉落同一條階梯）';
       Phaser.Utils.Array.Shuffle(wPool);
       this._shopGoods=wPool.slice(0,3).map(w=>({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
-        req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
+        req:'限 '+weaponClassLabel(w)+' · 階'+(w.lvReq||1)+'・'+gearRarity(w).name,
         lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), '']}));
     } else if(type==='merchant'){
       // v1.7 流浪商人（綜合商）：道具＋武器＋防具 各一件，同一畫面選購
@@ -330,18 +334,18 @@ Object.assign(Battle.prototype, {
       const gd=[{kind:'道具',name:'治療藥水',tag:'道具',cost:20,value:30,lines:['戰鬥外使用','回復全隊 30% HP']}];
       if(wPool.length){ Phaser.Utils.Array.Shuffle(wPool); const w=wPool[0];
         gd.push({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
-          req:'限 '+weaponClassLabel(w)+' · Lv'+(w.lvReq||1),
+          req:'限 '+weaponClassLabel(w)+' · 階'+(w.lvReq||1)+'・'+gearRarity(w).name,
           lines:['ATK '+w.atkSeq.join('/')+(w.heal?'　治 '+w.heal:''), '']}); }
       if(aPool.length){ Phaser.Utils.Array.Shuffle(aPool); const a=aPool[0];
         gd.push({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
-          req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
+          req:'限 '+armorClassLabel(a)+' · 階'+(a.lvReq||1)+'・'+gearRarity(a).name,
           lines:['DEF '+a.def+'　護盾 +'+(a.shield||0), '']}); }
       this._shopGoods=gd;
     } else {
-      this._shopTitle='🛡 防具商'; this._shopHint='堅實防具（排除基礎與已擁有）';
+      this._shopTitle='🛡 防具商'; this._shopHint='隊員的下一階防具（與掉落同一條階梯）';
       Phaser.Utils.Array.Shuffle(aPool);
       this._shopGoods=aPool.slice(0,3).map(a=>({kind:'防具',name:a.name,tag:'防具',cost:price(a),value:60,gear:a,
-        req:'限 '+armorClassLabel(a)+' · Lv'+(a.lvReq||1),
+        req:'限 '+armorClassLabel(a)+' · 階'+(a.lvReq||1)+'・'+gearRarity(a).name,
         lines:['DEF '+a.def+'　護盾 +'+(a.shield||0), '']}));
     }
     if(!this._campShops) this._campShops={};

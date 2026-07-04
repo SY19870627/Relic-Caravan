@@ -251,9 +251,9 @@ function armorIconKey(name){ name=name||'';
   if(name.indexOf('衣')>=0) return 'robe';
   if(name.indexOf('盔')>=0) return 'helmet';
   return 'armor'; }
-// 裝備稀有度配色（依 lvReq）：同類型升級也能用顏色看出換裝（弓→弓、杖→杖）
-function gearTierColor(item){ const t=Math.max(1,Math.min(5,(item&&item.lvReq)||1));
-  return [0,0x9aa6b2,0x6ad07a,0x5aa6f0,0xc46bff,0xffb347][t]; }   // 1灰 2綠 3藍 4紫 5金
+// v7.0 裝備稀有度配色（依 lvReq 分帶，單一來源）：1-2 普通灰 / 3-4 精良綠 / 5-7 稀有藍 / 9-11 史詩紫 / 14-17 傳說金 / 20 神話紅
+function gearTierColor(item){ const lv=(item&&item.lvReq)||1;
+  return lv>=20?0xff6f7a : lv>=14?0xf2c14e : lv>=9?0xc46bff : lv>=5?0x6aa6f0 : lv>=3?0x6ad07a : 0x9aa6b2; }
 
 function pips(scene,x,y,n,col){ const c=scene.add.container(x,y); const g=scene.add.graphics(); c.add(g); const gap=15;
   for(let i=0;i<n;i++){ g.fillStyle(col,1); _starPath(g, i*gap, 0, 6, 2.6, 5); g.fillPath(); } c.w=(n-1)*gap; return c; }

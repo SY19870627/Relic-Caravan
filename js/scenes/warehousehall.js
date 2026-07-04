@@ -74,10 +74,10 @@ class WarehouseHall extends Phaser.Scene {
     add(icon(this, ix, p.bodyTop+38, v.icon, 42, ac.num));
     add(txt(this, tx, ty+10, item.name, 18, ac.hex, 0));
     if(kind==='武器'){
-      add(txt(this, tx, ty+38, '武器 ・ '+weaponClassLabel(item)+'　|　傷害 '+item.atkSeq.join(' / ')+(item.heal?'　|　治療 '+item.heal:'')+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
+      add(txt(this, tx, ty+38, '武器 ・ '+weaponClassLabel(item)+'　|　傷害 '+item.atkSeq.join(' / ')+(item.heal?'　|　治療 '+item.heal:'')+'　|　階'+item.lvReq+'・'+gearRarity(item).name, 12, UI.text, 0));
       if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
     } else if(kind==='防具'){
-      add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.shield+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
+      add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.shield+'　|　階'+item.lvReq+'・'+gearRarity(item).name, 12, UI.text, 0));
       if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
     } else if(kind==='貴重物品'){
       add(txt(this, tx, ty+38, '貴重物品 ・ 探險中可在地城商店變賣為 💰（每趟）', 12, UI.text, 0));

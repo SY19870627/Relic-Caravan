@@ -557,6 +557,10 @@ const ITEM_ICON = {
 };
 // v2.4：武器/防具圖示改由 data.js 的 vis 欄位衍生（單一資料來源）
 WEAPONS.concat(ARMORS).forEach(g=>{ if(g.vis) ITEM_ICON[g.name]=g.vis; });
+// v7.0 稀有度單一來源：依 lvReq 分帶（圖鑑/角色卡/商店/整裝 統一取色）
+const GEAR_BY_NAME={}; WEAPONS.concat(ARMORS).forEach(g=>{ GEAR_BY_NAME[g.name]=g; });
+function gearRarity(g){ const lv=(g&&g.lvReq)||1;
+  return lv>=20?{name:'神話',accent:'red'} : lv>=14?{name:'傳說',accent:'gold'} : lv>=9?{name:'史詩',accent:'violet'} : lv>=5?{name:'稀有',accent:'blue'} : lv>=3?{name:'精良',accent:'green'} : {name:'普通',accent:'slate'}; }
 // ---- 技能圖示：依機制給專屬 icon、依類型上色 ----
 const SKILL_ICON = {
   '敲暈':'stun','震懾箭':'stun','割喉':'stun',
@@ -576,7 +580,8 @@ function skillVisual(s){ const name=(typeof s==='string')?s:(s&&s.name), type=(s
   else if(type==='reflect'||type==='lowHpDef'||type==='deathSave'||type==='pierce'||type==='atkBonus') acc='blue';
   return {icon, accent:acc};
 }
-function itemVisual(name){ const v=ITEM_ICON[name]; return v? {icon:v[0], accent:v[1]} : {icon:'box', accent:'slate'}; }
+function itemVisual(name){ const v=ITEM_ICON[name]; if(!v) return {icon:'box', accent:'slate'};
+  const g=GEAR_BY_NAME[name]; return g? {icon:v[0], accent:gearRarity(g).accent} : {icon:v[0], accent:v[1]}; }   // v7.0 裝備配色一律走稀有度分帶
 const CONSUM_INFO = {
   '治療藥水':'回復全隊 30% HP', '解毒劑':'回復全隊 20% HP', '聖水':'回復全隊 50% HP',
   '回復卷軸':'回復全隊 60% HP', '復活之種':'復活陣亡成員（50% HP）',
@@ -605,20 +610,29 @@ function syncEquippedGearCargo(){ if(typeof RUN==='undefined'||!RUN||!Array.isAr
     return !!(gear && gear.starter);
   });
 }
-// 掉落用裝備選擇：排除起始裝＋已擁有，依出戰最高等級做保底(等級帶 lvReq∈[lvl-2, lvl+1])，優先出戰職業可用
-function rollGear(kind){
+// v7.0 掉落改「階梯制」：隨機選一名活著的隊員，固定給他「當前該部位裝備的下一階」（不跳級、不重複）
+// 「當前」＝身上穿的與貨車裡他可用的取最高階，避免同一場連掉兩件同階；全員到頂 → 回 null（改給貴重物品）
+function nextGearFor(sprite, kind, curLv){
   const pool=(kind==='武器')?WEAPONS:ARMORS;
-  const ros=activeRoster(), lvl=Math.max(1, ...ros.map(i=>(ROSTER[i]&&ROSTER[i].level)||1));
-  const sprites=ros.map(i=>HERO_BASE[i].sprite);
-  const okClass=g=> sprites.some(sp=> kind==='武器'? weaponClassOK(sp,g) : armorClassOK(sp,g));
-  const band=g=> g.lvReq<=lvl+1 && g.lvReq>=Math.max(1,lvl-2);
-  const unowned=pool.filter(g=>!g.starter && !gearGotThisRun(g.name));   // v1.8：排除起始裝＋「本趟已取得」（不再看永久收藏 → 後期照樣掉裝）
-  const usable=unowned.filter(okClass);
-  let cands=usable.filter(band);                              // 最佳：可用＋等級保底
-  if(!cands.length) cands=usable.filter(g=>g.lvReq<=lvl+1);   // 放寬下限
-  if(!cands.length) cands=usable;                             // 放寬等級（仍限隊伍內職業）
-  // v1.9：只給「隊伍內職業」可用的裝備；沒有可用的就回 null（改給貴重物品），不再掉他職裝備
-  return cands.length? cands[Math.floor(Math.random()*cands.length)] : null;
+  const ok=g=> kind==='武器'? weaponClassOK(sprite,g) : armorClassOK(sprite,g);
+  const ups=pool.filter(g=>ok(g) && (g.lvReq||1)>curLv).sort((a,b)=>(a.lvReq||1)-(b.lvReq||1));
+  if(!ups.length) return null;
+  const lv=ups[0].lvReq||1, same=ups.filter(g=>(g.lvReq||1)===lv);
+  return same[Math.floor(Math.random()*same.length)];   // 同階多件（如重盔/板甲）隨機一件
+}
+function rollGear(kind){
+  if(typeof RUN==='undefined' || !RUN || !RUN.heroes || !RUN.heroes.length) return null;
+  const alive=RUN.heroes.filter(h=>h && h.hp>0);
+  const cands=(alive.length?alive:RUN.heroes).slice().sort(()=>Math.random()-0.5);
+  for(const h of cands){
+    const cur=(kind==='武器'? h.weapon : h.armor);
+    const okC=g=> kind==='武器'? weaponClassOK(h.sprite,g) : armorClassOK(h.sprite,g);
+    const cargoLv=Math.max(0, ...((RUN.cargo||[]).filter(it=>it&&it.kind===kind&&it.gear&&okC(it.gear)).map(it=>it.gear.lvReq||1)), 0);
+    const curLv=Math.max((cur&&cur.lvReq)||1, cargoLv);
+    const g=nextGearFor(h.sprite, kind, curLv);
+    if(g) return g;
+  }
+  return null;
 }
 // ---- 自動裝備：依職業＋等級，從『起始裝＋本趟撿到的』選最佳（v1.8 改為只看本趟）；開關 GUILD.settings.autoEquip（預設開）----
 function autoEquipOn(){ const s=GUILD.settings||{}; return s.autoEquip!==false; }
@@ -628,7 +642,7 @@ function bestGear(sprite, kind, level, extras, fallback){
   const pool=(fallback?[fallback]:[]).concat(extras||[]), seen={};
   let best=null;
   pool.forEach(g=>{ if(!g || seen[g.name]) return; seen[g.name]=true;
-    if(g.lvReq>level) return;
+    // v7.0 取消角色等級穿著限制：裝備等級純粹是階梯標示，掉到就能穿（掉落節奏由階梯制控管）
     if(!(kind==='武器'?weaponClassOK(sprite,g):armorClassOK(sprite,g))) return;
     if(!best || g.lvReq>best.lvReq || (g.lvReq===best.lvReq && gearScore(kind,g)>gearScore(kind,best))) best=g;   // 等級最高優先，同級比數值
   });
