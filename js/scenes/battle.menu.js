@@ -19,15 +19,18 @@ Object.assign(Battle.prototype, {
       c.add(button(this,W/2+146,ry,92,32,btnLabel,handler,{variant,size:13}));
     };
     const sf=autoSipFrac();
-    mkSet(H/2-86,'⚔ 自動喝水','最虛弱隊員低於門檻就自動喝補血藥水',autoSipLabel(), sf>0?'go':'info',
+    mkSet(H/2-96,'⚔ 自動喝水','最虛弱隊員低於門檻就自動喝補血藥水',autoSipLabel(), sf>0?'go':'info',
       ()=>{ cycleAutoSip(); if(this.sipBtn&&this.sipBtn.label) this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); this._renderPause(); });
     const ae=autoEquipOn();
-    mkSet(H/2-38,'🛡 自動裝備','入手新裝／升級時自動換上最佳裝備', ae?'開啟 ✓':'關閉', ae?'go':'info',
+    mkSet(H/2-50,'🛡 自動裝備','入手新裝／升級時自動換上最佳裝備', ae?'開啟 ✓':'關閉', ae?'go':'info',
       ()=>{ toggleAutoEquip(); this._renderPause(); });
+    const pc=pacingOn();   // v3.4 清晰節奏：行動節拍器＋大招定格＋視覺降噪
+    mkSet(H/2-4,'⏱ 清晰節奏','一次一人出手、大招定格、普攻降噪（看得清戰況）', pc?'開啟 ✓':'關閉', pc?'go':'info',
+      ()=>{ togglePacing(); this._renderPause(); });
     if(!this.overlay){ const nG=(RUN&&RUN.cargo)?RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length:0, nAll=(RUN&&RUN.cargo)?RUN.cargo.length:0;
-      c.add(button(this,W/2-104,H/2+30,196,42,'🎒 整裝（'+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:14}));
-      c.add(button(this,W/2+104,H/2+30,196,42,'📦 物品欄（'+nAll+'）',()=>{ this._invFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evInventory(); },{variant:'go',size:14})); }
-    c.add(button(this,W/2,H/2+104,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
+      c.add(button(this,W/2-104,H/2+46,196,42,'🎒 整裝（'+nG+'）',()=>{ this._gearFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evGear(); },{variant:'info',size:14}));
+      c.add(button(this,W/2+104,H/2+46,196,42,'📦 物品欄（'+nAll+'）',()=>{ this._invFrom='pause'; if(this.pauseUI){ this.pauseUI.destroy(); this.pauseUI=null; } this.evInventory(); },{variant:'go',size:14})); }
+    c.add(button(this,W/2,H/2+112,240,46,'▶ 繼續遊戲',()=>this.resumeGame(),{variant:'go',size:17}));
   }
 ,
   // 大改版：技能改由職業規劃器配置、升級時(gainXP)自動發放；取消戰後三選一彈窗，直接推進流程。

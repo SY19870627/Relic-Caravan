@@ -33,6 +33,12 @@ class WorldMap extends Phaser.Scene {
       txt(this, L+62, top+42, d.desc, 11, UI.dim, 0).setWordWrapWidth(440);
       txt(this, L+62, top+64, '危險/遺物', 10.5, UI.faint, 0);
       pips(this, L+140, top+64, d.tier, ac.num);
+      // v3.0 出發前情報：天氣預報＋常見地物（天氣每場擲定、整場固定 → 配 build 前先看這裡賭一把）
+      if(typeof WEATHER_SETS!=='undefined' && ok){
+        const ws=[...new Set(WEATHER_SETS[di]||[])].map(id=>WEATHER_BY_ID[id]?WEATHER_BY_ID[id].icon:'').join(' ');
+        const os=[...new Set((typeof OBJECTS_BY_DEST!=='undefined'&&OBJECTS_BY_DEST[di])||[])].map(k=>BATTLE_OBJECTS[k]?BATTLE_OBJECTS[k].icon:'').join(' ');
+        txt(this, L+290, top+64, '天氣 '+ws+'　·　地物 '+os, 10.5, UI.dim, 0);
+      }
       if(ok){
         button(this, L+ww-90, cy, 150, 44, '前 往', ()=>this.go(di), {variant:'go', size:16, icon:'play', iconSize:15});
       } else {

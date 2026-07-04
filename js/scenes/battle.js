@@ -1,9 +1,15 @@
-// ========================= 戰鬥 =========================
+// ========================= 戰鬥 =========================   // v2.4
 class Battle extends Phaser.Scene {
   constructor(){ super('Battle'); }
   // v1.0：常駐遠征場景。create 只做一次性佈景＋探險%條，之後 beginStep 迴圈跑每場遭遇。
   create(){
     this.over=false; this.paused=false; this.infoUI=null; this.hitstopUntil=0; this.entering=false;
+    // v2.4 遊戲時鐘 gnow：只在戰鬥實際進行時前進（每幀 +delta×speed）。所有戰鬥計時（出手間隔、
+    // 技能 CD、暈眩/buff 到期）一律與 gnow 比較、存「未除以倍率」的原始時長 →
+    // 暫停會真正凍結計時、戰鬥中切換速度也不會讓既有計時失準（修正舊版兩個時序 bug）。
+    this.gnow=0;
+    this._beatAt=0;   // v3.4.1 修正：節拍器閘門必須隨 gnow 一起歸零，否則新地圖（場景重啟）會沿用上一趟的巨大時間戳 → 全員卡住不動作
+    this.envObjs=[]; this._stageType=null;   // 環境物件參照與場景型別同步重置（舊物件已隨場景銷毀）
     // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
     this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null;
@@ -82,13 +88,16 @@ class Battle extends Phaser.Scene {
     const combat=(stype==='boss'||stype==='battle'||stype==='elite');
     RUN.isBoss=(stype==='boss');
     RUN.node = combat
-      ? {type:stype, risk:(stype==='boss'?4:stype==='elite'?3:Math.min(3,1+Math.floor(ex.i/2))), layer:ex.i, weather:(ex.i===0?'clear':Phaser.Utils.Array.GetRandom(WEATHERS).id), done:false}
+      ? {type:stype, risk:(stype==='boss'?4:stype==='elite'?3:Math.min(3,1+Math.floor(ex.i/2))), layer:ex.i, weather:(ex.i===0?'clear':(typeof rollWeather==='function'?rollWeather(RUN.destIndex||0):'clear')), done:false}
       : {type:stype, risk:0, layer:ex.i, weather:'clear', done:false};
     const W=this.scale.width; const node=RUN.node; const wx=WEATHER_BY_ID[node.weather];
+    this._wxId=node.weather;   // v3.0 環境系統：本場天氣 tag（整場固定、不可改變）
     this._heroAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0); this._heroDefMod=0;
     this._enemyAtkMod=((wx&&wx.eff&&wx.eff.allAtk)||0); this._enemyDefMod=((wx&&wx.eff&&wx.eff.enemyDef)||0);
     if(this._envText){ this._envText.destroy(); this._envText=null; }
-    if(wx&&wx.eff) this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name,11,UI.blue).setDepth(60);
+    if(wx&&wx.id!=='clear') this._envText=txt(this,W/2,57,'環境　'+wx.icon+wx.name+(wx.note?('　·　'+wx.note.split('：')[1]):''),11,UI.blue).setDepth(60);
+    if(this.buildWeatherFX) this.buildWeatherFX();   // 天氣氛圍（雨絲/霧氣/風痕/落雪）
+    if(this.clearEnvObjects) this.clearEnvObjects();   // v3.1：物件改與怪物波綁定，由 spawnWave → spawnWaveObjects 生成
     const _gb=(RUN&&RUN.heroes)?RUN.heroes.map(h=>({w:(h.weapon&&h.weapon.name)||'',a:(h.armor&&h.armor.name)||''})):[];   // 換裝偵測：autoEquip 前快照
     autoEquipRun();   // 自動裝備：入手新裝／升級後，每場開始前換上最佳裝備
     this._pendingGearGains=[];
@@ -129,7 +138,8 @@ class Battle extends Phaser.Scene {
       c.maxShield=_ss; c.shield=_ss;   // 每場開場：護盾補滿（與 HP 分開）
       c.atkI=0; c.firstHitDone=false; c.firstStrikeDone=false; c.killCrit=false; c.markCrit=false; c.deathSaveUsed=false; c.firstBlockUsed=false; c._proc=null;
       c.form=null; c.formUntil=0; c.formAtk=0; c.formPierce=0; c.formDef=0; c.formReduce=0; c.atkBuffUntil=0; c.tauntUntil=0; c.berserkUntil=0; c.buffUntil=0; c.buffAtk=0; c.buffDef=0; c.baseScale=SCALE; if(c.spr){ c.spr.setTexture(c.sprite); c.spr.setScale(SCALE); }   // 大改版：每場重置變身/buff/吸引/狂暴/體型
-      c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=-Math.random()*800;
+      c.stunned=false; c.stunUntil=0; c.invulnUntil=0; c.lastAttack=(this.gnow||0)-Math.random()*800;   // 以 gnow 錨定：每場開場出手時間隨機錯開
+      c._wxUsed={}; c.slowUntil=0; c.hasteUntil=0; c._poison=null; c._prayDodge=0; c._envLb=null;   // v3.0：環境狀態每場重置
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
@@ -158,26 +168,27 @@ class Battle extends Phaser.Scene {
       const px=(e.x!=null)?e.x:fb[idx][0], py=(e.y!=null)?e.y:fb[idx][1];
       const eAtk=e.atkSeq.map(a=>Math.max(1,a+(this._enemyAtkMod||0))), eDef=e.def+(this._enemyDefMod||0);
       const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:eAtk,def:eDef,heal:e.heal||0,interval:e.interval,ranged:e.ranged,healer:!!e.healer,boss:e.boss,skills:e.skills,row:e.row}, 'enemy', px, py, big?6:SCALE);
-      // 從畫面右側走進場，到定位才開打
-      c.container.x = W + 80 + idx*70;
-      this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:idx*90});
-      return c;
+      return c;   // v3.2：進場動畫改由場景編排 stageWave 決定（走入/圍火驚動/爬坑/幽魂淡入）
     });
     this.enemies.push(...fresh); this.all.push(...fresh);
+    // v3.2 場景編排：物件＋敵人一起編排成遭遇現場，並接管進場（結束時由編排把 entering 設回 false）
+    this.entering=true;
+    if(this.stageWave) this.stageWave(fresh, this.waveIndex);
+    else { const _W=this.scale.width; fresh.forEach((c,idx)=>{ c.container.x=_W+80+idx*70;
+        this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:idx*90}); });
+      this.time.delayedCall(700 + (ec.length-1)*90, ()=>{ this.entering=false; }); }
     // v2.1 稱號・開場震懾：對每隻敵人取「所有生效稱號中最高的震懾秒數」施加開場暈眩
     // 首波在 create() 內觸發，this.time.now 尚未就緒(=0) → 延後一拍以有效時鐘計算 stunUntil（敵人此時仍在走位進場，視覺無差）。
     const _te=this._title;
     if(_te && _te.spawnStuns && _te.spawnStuns.length){ this.time.delayedCall(60, ()=>{ if(this.over) return;
       fresh.forEach(en=>{ if(!en||!en.alive) return; const d=titleSpawnStunFor(en.sprite,_te); if(d>0) this.stun(en,{name:'震懾',dur:d},null); }); }); }
-    // 馬匹・均衡馬（先攻）：第一波敵人慢半拍出手，給我方一個開場
-    // 走位期間禁止行動，全部就定位才開打（用計時器旗標，避免時鐘 epoch 問題）
-    this.entering=true;
-    this.time.delayedCall(700 + (ec.length-1)*90, ()=>{ this.entering=false; });
     if(this.totalWaves>1) this.waveText.setText(`第 ${this.waveIndex+1} / ${this.totalWaves} 波`);
     const isLast=this.waveIndex===this.totalWaves-1;
+    // v3.2：橫幅依場景編排敘事變化
+    const _stageMsg={ camp:'驚動了紮營的敵人！', pit:'骸骨自地底爬出！', shrine:'幽魂在石像旁盤旋…' }[this._stageType];
     const msg = this.waveIndex===0
-      ? (RUN.isBoss ? (this.totalWaves>1?'遺物室守衛攔路！':'守護者現身！') : '遭遇敵人！')
-      : (RUN.isBoss&&isLast ? '守護者現身！' : `第 ${this.waveIndex+1} 波來襲！`);
+      ? (RUN.isBoss ? (this.totalWaves>1?'遺物室守衛攔路！':'守護者現身！') : (_stageMsg||'遭遇敵人！'))
+      : (RUN.isBoss&&isLast ? '守護者現身！' : (_stageMsg||`第 ${this.waveIndex+1} 波來襲！`));
     if(RUN.isBoss && isLast){ this.screenFlash(0xff5a5a,0.34,540); this.shake(540,0.015);
       this.banner.setText(msg).setAlpha(1).setScale(0.5);
       this.tweens.add({targets:this.banner,scale:1.3,duration:430,ease:'Back.out'});
@@ -206,7 +217,7 @@ class Battle extends Phaser.Scene {
     const shieldFill=this.add.rectangle(-25,-42,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false);   // 護盾段（青色）：與 HP 同一條，緊接在 HP 之後
     cont.add([shadow,spr,nameText,barBg,barFill,shieldFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
-    const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:-Math.random()*800,atkI:0,shield:0,maxShield:0,baseScale:(scl||SCALE)};
+    const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:(this.gnow||0)-Math.random()*800,atkI:0,shield:0,maxShield:0,baseScale:(scl||SCALE),_wxUsed:{}};
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
     // v2.3：技能格不再畫在頭頂；由 buildPartyHud() 統一畫進上方隊員卡片
@@ -292,14 +303,16 @@ class Battle extends Phaser.Scene {
       cx+=ps+gap;
     });
   }
-  // 技能施放：閃爍對應技能格 + 在頭上彈出技能名
-  skillCast(c,s){ this.skillProc(c, s.name); }
+  // 技能施放：閃爍對應技能格 + 在頭上彈出技能名（v3.4 降噪：清晰節奏下，小招只閃技能格、氣泡留給大招）
+  skillCast(c,s){ const quiet=(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx && s.role!=='ultimate');
+    this.skillProc(c, s.name, quiet?{pipOnly:true}:undefined); }
   // 顯示技能名稱（主動立即；被動可加 throttle 防洗版）並閃爍對應技能格
   skillProc(c, name, opt){
     opt=opt||{};
-    if(opt.throttle){ const now=this.time.now; if(!c._proc)c._proc={}; if(now-(c._proc[name]||-1e9) < opt.throttle) return; c._proc[name]=now; }
+    if(opt.throttle){ const now=this.gnow||0; if(!c._proc)c._proc={}; if(now-(c._proc[name]||-1e9) < opt.throttle) return; c._proc[name]=now; }
     const pip=c.skillPips&&c.skillPips[name];
     if(pip){ this.tweens.add({targets:pip.c,scaleX:1.4,scaleY:1.4,duration:130,yoyo:true,repeat:1,ease:'Quad.out'}); }
+    if(opt.pipOnly) return;   // v3.4 降噪：只閃技能格，不彈名稱氣泡
     const accNum = c.side==='hero'? (pip?pip.acc:0x6aa6f0) : 0xff6f7a;
     const cont=this.add.container(c.container.x, c.baseY-102).setDepth(86);
     const t=txt(this,0,0,name,13,'#ffffff'); const w=t.width+18;
@@ -323,13 +336,16 @@ class Battle extends Phaser.Scene {
       if(!c.skillPips) return;
       for(const name in c.skillPips){ const p=c.skillPips[name]; let alpha=1;
         if(!c.alive) alpha=0.18;
-        else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : (now-st.last < p.skill.cd/this.speed ? 0.5 : 1); } }
+        else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : ((this.gnow||0)-st.last < p.skill.cd ? 0.5 : 1); } }   // v2.4：CD 以 gnow 計
         p.c.setAlpha(alpha);
       }
     });
   }
   showInfo(c){
     this.paused=true;
+    // v2.4：連同 tween／計時器一併凍結（與 gnow 遊戲時鐘一致），避免暈眩星星、變身還原等
+    // delayedCall 在邏輯暫停期間先行到期造成視覺與邏輯脫鉤
+    if(!this._menuPaused){ this.tweens.pauseAll(); this.time.paused=true; }
     if(this.infoUI) this.infoUI.destroy();
     const W=this.scale.width,H=this.scale.height, px=W/2, py=H/2;
     const ui=this.add.container(0,0).setDepth(105); this.infoUI=ui;
@@ -348,14 +364,15 @@ class Battle extends Phaser.Scene {
     if(c.side==='hero' && c.ref){ const lv=(ROSTER[c.ref.idx]&&ROSTER[c.ref.idx].level)||1; const pk=[]; Object.keys(PERKS).forEach(k=>{ if(lv>=+k) pk.push((PERKS[k].label||'').split('：')[0]); });
       ui.add(txt(this,px+20,py+42,'能力：'+(pk.length?pk.join('・'):'尚無（Lv3 疾行・Lv5 護身・Lv7 熟練）'),11,'#9fe0ff',0)); }
     ui.add(txt(this,px,py+66,BIO[c.sprite]||'',12,TH.cyan,0.5));
-    ui.add(button(this,px,py+98,120,32,'關閉',()=>{ ui.destroy(); this.infoUI=null; this.paused=false; },{size:14,fill:0x4a3f63,stroke:0x7a6f93}));
+    ui.add(button(this,px,py+98,120,32,'關閉',()=>{ ui.destroy(); this.infoUI=null;
+      if(!this._menuPaused){ this.paused=false; this.tweens.resumeAll(); this.time.paused=false; } },{size:14,fill:0x4a3f63,stroke:0x7a6f93}));
   }
   // v2.0 震懾狀態文字：每幀更新剩餘秒數並跟隨單位位置（star 之上）
   updateStunLabels(){
-    const now=this.time.now;
+    const now=this.gnow||0;
     for(const c of (this.all||[])){
       if(!c||!c.stunLabel) continue;
-      const rem=Math.max(0,((c.stunUntil||0)-now)/1000*(c.stunSpeed||1));   // stunUntil 已依倍率縮短 → 乘回倍率顯示「遊戲秒數」
+      const rem=Math.max(0,((c.stunUntil||0)-now)/1000);   // v2.4：stunUntil 為 gnow 遊戲時間，直接顯示
       c.stunLabel.setText((c.stunName||'暈眩')+' '+rem.toFixed(1)+'s');
       if(c.container) c.stunLabel.setPosition(c.container.x, c.baseY-80);
     }
@@ -367,11 +384,20 @@ class Battle extends Phaser.Scene {
     if(this.over||this.paused) return;
     if(this.entering) return;              // 敵人走位進場中，雙方都先不出手
     if(this.time.now < this.hitstopUntil) return;   // 命中停頓（用場景時鐘，與速度一致）
+    this.gnow=(this.gnow||0)+(delta||16)*this.speed;   // v2.4 遊戲時鐘：只在戰鬥實際進行時前進
     // DPS 分母：累計「實際交戰中」的遊戲秒數（×speed → 與戰鬥倍率無關）。只在尚有敵人存活時計時
     if(RUN && this.enemies && this.aliveOf('enemy').length){ RUN.combatMs=(RUN.combatMs||0)+(delta||16)*this.speed; }
+    if(this.envTick) this.envTick();   // v3.0：物件光環（岩漿/毒沼）＋毒 DoT
     this.autoSip();
-    for(const c of this.all){ if(!c.alive) continue; if(this.time.now < (c.stunUntil||0)) continue;
-      if(time>c.lastAttack+c.interval/this.speed){ c.lastAttack=time; this.act(c); } }
+    for(const c of this.all){ if(!c.alive) continue; if(this.gnow < (c.stunUntil||0)) continue;
+      const iv=this.effInterval? this.effInterval(c) : c.interval;   // v3.0：含雪天/降速/加速
+      if(this.gnow>c.lastAttack+iv){
+        // v3.4 行動節拍器（可開關）：全場兩次起手強制隔 beatMs，準備好的單位排隊——同一瞬間只有一人出手
+        if(typeof pacingOn==='function' && pacingOn()){
+          if(this.gnow < (this._beatAt||0)) continue;
+          this._beatAt=this.gnow+CFG.pacing.beatMs;
+        }
+        c.lastAttack=this.gnow; this.act(c); } }
   }
   // 戰鬥中自動喝水：最低血隊員 < 門檻時自動喝「最弱的補血藥水」（保留強藥），整隊回復；有冷卻避免狂喝
   autoSip(){
@@ -380,7 +406,7 @@ class Battle extends Phaser.Scene {
     const cd=(CFG.autoSip&&CFG.autoSip.cooldownMs)||2500;
     // 每名隊員各自的喝水冷卻：挑「低於門檻、且自己冷卻已過」的最虛弱者，一瓶只補他一人
     let target=null,lowest=9;
-    alive.forEach(c=>{ const fr=c.hp/c.maxHp; if(fr<frac && this.time.now>=(c._sipUntil||0) && fr<lowest){ lowest=fr; target=c; } });
+    alive.forEach(c=>{ const fr=c.hp/c.maxHp; if(fr<frac && this.gnow>=(c._sipUntil||0) && fr<lowest){ lowest=fr; target=c; } });
     if(!target) return;
     const HEAL={'治療藥水':0.3,'聖水':0.5,'回復卷軸':0.6};
     let best=null,bp=9;
@@ -391,11 +417,11 @@ class Battle extends Phaser.Scene {
     pixelNum(this,target.container.x,target.container.y-34,'+'+h,0x7dff9a);
     this.floatLabel(target.baseX,target.baseY-58,'喝下 '+(best.icon||'🧪')+best.name,'#9fe8a0');
     this.updatePotions();
-    target._sipUntil=this.time.now+cd/this.speed;   // v2.2：依倍率縮放
+    target._sipUntil=this.gnow+cd;   // v2.4：gnow 遊戲時間，天然隨倍率
   }
   aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side&&!c.isSummon); }   // 召喚精靈不算「存活成員」：不被鎖定、不影響勝負判定
   // 防溢殺：估算「即將落在某敵人身上、尚未結算」的我方傷害（排除自己）
-  _incoming(f, exclude){ let s=0; const now=this.time.now;
+  _incoming(f, exclude){ let s=0; const now=this.gnow||0;
     for(const h of (this.heroes||[])){ if(!h.alive||h===exclude) continue;
       if(h._aimTarget===f && now < (h._aimUntil||0)) s+=(h._estDmg||0); }
     return s; }
@@ -425,7 +451,7 @@ class Battle extends Phaser.Scene {
     for(let i=1;i<foes.length;i++){ const f=foes[i];
       for(const crit of order){ const a=key(f,crit), b=key(best,crit); if(a<b){ best=f; break; } if(a>b) break; } }
     return best; }
-  pickByRow(foes){ const _now=this.time.now; const tt=foes.filter(f=>f.tauntUntil&&_now<f.tauntUntil); if(tt.length) foes=tt;   // 大改版・挑釁/熊人變身：強制吸引火力
+  pickByRow(foes){ const _now=this.gnow||0; const tt=foes.filter(f=>f.tauntUntil&&_now<f.tauntUntil); if(tt.length) foes=tt;   // 大改版・挑釁/熊人變身：強制吸引火力
     const w=foes.map(f=>ROW_WEIGHT[f.row]||1.5); let total=w.reduce((a,b)=>a+b,0), r=Math.random()*total;
     for(let i=0;i<foes.length;i++){ r-=w[i]; if(r<=0) return foes[i]; } return foes[foes.length-1]; }
   getSkill(c,type){ return (c.skills||[]).find(s=>s.type===type); }
@@ -434,24 +460,39 @@ class Battle extends Phaser.Scene {
   trySkill(c,type){
     const s=(c.skills||[]).find(k=>k.type===type); if(!s || s.cd===undefined) return null;
     const st=c.skillCD[s.name]; if(!st || st.left<=0) return null;
-    if(this.time.now - st.last < s.cd/this.speed) return null;   // v2.2：技能 CD 依倍率縮放
-    st.last=this.time.now; st.left--; this.skillCast(c,s); return s;
+    if((this.gnow||0) - st.last < s.cd) return null;   // v2.4：CD 以 gnow 遊戲時間計，不需除以倍率
+    st.last=this.gnow||0; st.left--; this.skillCast(c,s);
+    if(s.role==='ultimate' && this.ultPunch) this.ultPunch(c,s);   // v3.4 大招定格（可開關）
+    return s;
+  }
+  // v3.4 大招定格：施放瞬間全場停頓＋施法者放大脈動＋白閃——給戰鬥「重音」
+  ultPunch(c,s){
+    if(typeof pacingOn==='function' && !pacingOn()) return;
+    this.hitstop(CFG.pacing.ultFreezeMs);
+    if(c&&c.spr){ const b=c.baseScale||SCALE;
+      this.tweens.add({targets:c.spr, scaleX:b*CFG.pacing.ultZoom, scaleY:b*CFG.pacing.ultZoom, yoyo:true, duration:190, ease:'Quad.out'}); }
+    this.screenFlash(0xffffff, 0.10, 170);
   }
   // 大改版：每次行動嘗試觸發主動大招/小招（變身/戰吼/挑釁/大吼），各自 CD＋次數
   tryActiveBuffs(c){
-    const now=this.time.now;
+    const now=this.gnow||0;   // v2.4：buff 到期一律以 gnow 計、存原始時長
     const tf=this.trySkill(c,'transform'); if(tf) this.doTransform(c,tf);
-    const ab=this.trySkill(c,'atkBuff'); if(ab){ c.atkBuffUntil=now+(ab.dur||4000)/this.speed; c.atkBuffAmt=(ab.amt||8); this.floatLabel(c.baseX,c.baseY-58,'戰吼!','#ffd24a'); }
-    const tt=this.trySkill(c,'taunt'); if(tt){ c.tauntUntil=now+(tt.dur||2500)/this.speed; this.floatLabel(c.baseX,c.baseY-58,'挑釁!','#ffb347'); }
-    const sa=this.trySkill(c,'stunAll'); if(sa){ this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,sa,c); }); this.floatLabel(c.baseX,c.baseY-58,(sa.name||'大吼')+'!','#ffd24a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); }
+    const ab=this.trySkill(c,'atkBuff'); if(ab){ c.atkBuffUntil=now+(ab.dur||4000); c.atkBuffAmt=(ab.amt||8); this.floatLabel(c.baseX,c.baseY-58,'戰吼!','#ffd24a'); }
+    const tt=this.trySkill(c,'taunt'); if(tt){ c.tauntUntil=now+(tt.dur||2500); this.floatLabel(c.baseX,c.baseY-58,'挑釁!','#ffb347'); }
+    const sa=this.trySkill(c,'stunAll'); if(sa){
+      let _sa=sa;
+      if(this.voidAmp && this.voidAmp(c,sa)){ _sa=Object.assign({},sa,{dur:Math.round((sa.dur||1000)*CFG.env.voidStunMul)}); }   // v3.3 空間裂縫：隕石暈眩延長
+      this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,_sa,c); }); this.floatLabel(c.baseX,c.baseY-58,(sa.name||'大吼')+'!','#ffd24a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); }
     const sm=this.trySkill(c,'summon'); if(sm) this.doSummon(c,sm);   // 召喚實體精靈（場上單位）
-    const tb=this.trySkill(c,'teamBuff'); if(tb){ const amt=(tb.amt||6)+(tb.plus||0)*3, until=now+(tb.dur||6000)/this.speed;   // 阿加托斯：全隊強化
+    const gl=this.trySkill(c,'gale'); if(gl&&this.doGale) this.doGale(c,gl);   // v3.0 遊俠・回風：全敵降速＋地坑
+    const pr=this.trySkill(c,'pray'); if(pr&&this.doPray) this.doPray(c,pr);   // v3.0 牧師・祈禱：依天氣降神蹟
+    const tb=this.trySkill(c,'teamBuff'); if(tb){ const amt=(tb.amt||6)+(tb.plus||0)*3, until=now+(tb.dur||6000);   // 阿加托斯：全隊強化
       this.aliveOf('hero').forEach(h=>{ h.buffAtk=amt; h.buffDef=amt; h.buffUntil=until; this.holyLight(h,0xffe27a); });
       this.floatLabel(c.baseX,c.baseY-58,'聖光庇佑!','#ffe27a'); this.screenFlash(0xffe27a,0.18,300); }
-    const db=this.trySkill(c,'debuffAll'); if(db){ const amt=(db.amt||6)+(db.plus||0)*3, until=now+(db.dur||6000)/this.speed;   // 卡科斯：全敵弱化
+    const db=this.trySkill(c,'debuffAll'); if(db){ const amt=(db.amt||6)+(db.plus||0)*3, until=now+(db.dur||6000);   // 卡科斯：全敵弱化
       this.aliveOf('enemy').forEach(e=>{ e.buffAtk=-amt; e.buffDef=-amt; e.buffUntil=until; this.holyLight(e,0x9a5fd0); });
       this.floatLabel(c.baseX,c.baseY-58,'惡靈詛咒!','#c46bff'); this.screenFlash(0x9a5fd0,0.18,300); }
-    const bz=this.trySkill(c,'berserk'); if(bz){ const d=(bz.dur||6000)+(bz.plus||0)*1500; c.berserkUntil=now+d/this.speed;   // 盜賊狂暴化：每擊連擊2段＋染紅，升級延長
+    const bz=this.trySkill(c,'berserk'); if(bz){ const d=(bz.dur||6000)+(bz.plus||0)*1500; c.berserkUntil=now+d;   // 盜賊狂暴化：每擊連擊2段＋染紅，升級延長
       if(c.spr) c.spr.setTint(0xff5050); this.floatLabel(c.baseX,c.baseY-58,'狂暴化!','#ff5a4a'); this.screenFlash(0xff5050,0.2,300);
       this.time.delayedCall(d, ()=>{ c.berserkUntil=0; if(c.alive&&c.spr&&!c.stunned) c.spr.clearTint(); }); }
   }
@@ -476,7 +517,8 @@ class Battle extends Phaser.Scene {
   doSummon(c,sk){
     if(!this.summons) this.summons=[];
     const sx=c.baseX+38, sy=c.baseY-18, plus=sk.plus||0, scl=3+plus*0.7;   // 精靈隨升級變大（+0.7/級）
-    const atk=(sk.atkSeq||[16,20]).map(a=>a+plus*5);   // 精靈隨升級增傷（+5/級）
+    let atk=(sk.atkSeq||[16,20]).map(a=>a+plus*5);   // 精靈隨升級增傷（+5/級）
+    if(this._wxId==='wind'){ atk=atk.map(a=>Math.round(a*CFG.env.windSummonMul)); this.floatLabel(sx,sy-40,'風勢助長!','#9fe8ff'); }   // v3.0 強風：精靈強化
     const sp=this.makeCombatant({sprite:sk.form, name:sk.name, maxHp:30, hp:30, atkSeq:atk, def:0, heal:0, interval:(sk.interval||1100), ranged:true, healer:false, aoe:!!sk.aoe, isSummon:true}, 'hero', sx, sy, scl);
     sp.ownerRef=c.ref;   // 召喚精靈的傷害計入召喚者的 DPS
     sp.container.setAlpha(0).setScale(0.4);
@@ -493,7 +535,7 @@ class Battle extends Phaser.Scene {
   }
   // 變身（大招）：換 sprite＋型態增益，計時還原
   doTransform(c,sk){
-    const now=this.time.now; c.form=sk.form; c.formUntil=now+(sk.dur||6000)/this.speed;
+    const now=this.gnow||0; c.form=sk.form; c.formUntil=now+(sk.dur||6000);   // v2.4：gnow 遊戲時間
     c.formToken=(c.formToken||0)+1; const tok=c.formToken;   // 每次變身一個 token：還原計時器只還原自己這次
     if(sk.form==='minotaur'){ c.formAtk=(sk.amt||12); c.formPierce=(sk.frac||0.5); c.formDef=0; c.formReduce=0; }
     else { c.formDef=(sk.amt||8); c.formReduce=(sk.frac||0.25); c.formAtk=0; c.formPierce=0; c.tauntUntil=c.formUntil; }   // 熊人：防禦＋嘲諷
@@ -519,6 +561,13 @@ class Battle extends Phaser.Scene {
   act(c){
     if(c.isSummon){ const foes=this.aliveOf('enemy'); if(!foes.length) return;   // 召喚精靈：只攻擊，不做英雄專屬行為
       if(c.aoe){ this.aoeCast(c); } else { this.ranged(c, this.pickTarget(c,foes), false); } return; }
+    // v3.3 烤肉：受傷的紮營敵人這次行動改為跑去吃烤肉（回血、耗烤肉耐久）
+    if(c.side==='enemy' && this.tryEatRoast && this.tryEatRoast(c)) return;
+    // v3.0 拔樹投擲：變身中的戰士，場上有巨木 → 這次行動改為拔樹擲向敵陣（消耗樹木）
+    if(c.side==='hero' && c.sprite==='warrior' && c.form && this.gnow<(c.formUntil||0) && this.objectWithTag){
+      const tr=this.objectWithTag('throwable');
+      if(tr && this.aliveOf('enemy').length){ this.treeThrow(c, tr); return; }
+    }
     // 遺物・殘缺護符（生機）：非治療成員每次行動回復少量 HP
     if(c.side==='hero' && this._regen>0 && !c.healer && c.alive && c.hp>0 && c.hp<c.maxHp){ const h=Math.max(1,Math.round(c.maxHp*this._regen)); c.hp=Math.min(c.maxHp,c.hp+h); this.bar(c); pixelNum(this,c.container.x,c.container.y-34,'+'+h,0x7dff9a); }
     if(c.side==='hero') this.tryActiveBuffs(c);   // 大改版：主動大招/buff（變身/戰吼/挑釁/大吼）自動觸發
@@ -532,21 +581,28 @@ class Battle extends Phaser.Scene {
     if(c.aoe){ this.aoeCast(c); }
     else {
       const target = c.side==='enemy' ? this.pickByRow(foes) : this.pickTarget(c,foes);
-      if(c.side==='hero' && target){ c._aimTarget=target; c._aimUntil=this.time.now+450/this.speed; c._estDmg=this._estDamage(c,target); }   // 防溢殺：登記這一擊的預定傷害
+      if(c.side==='hero' && target){ c._aimTarget=target; c._aimUntil=this.gnow+450; c._estDmg=this._estDamage(c,target); }   // 防溢殺：登記這一擊的預定傷害
       if(c.ranged) this.ranged(c,target,c.healer); else this.melee(c,target);
     }
     // 連射／連環施法：追加一擊（CD＋次數）
-    if(this.trySkill(c,'doubleHit')){
-      this.time.delayedCall(300,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
-        if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
-    if(c.berserkUntil && this.time.now<c.berserkUntil){   // 狂暴化：每次攻擊都追加一擊
+    { const _dh=this.trySkill(c,'doubleHit');
+      if(_dh){
+        const extra=(n)=>{ this.time.delayedCall(300+n*220,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
+          if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); };
+        extra(0);
+        // v3.0 天氣親和・雨水導電：雨天的連環施法追加第二段（每場一次）
+        if(this.weatherBoost && this.weatherBoost(c,_dh)){ this.envLabel(c,'雨水導電!','#9fe8ff',500); extra(1); }
+      } }
+    if(c.berserkUntil && this.gnow<c.berserkUntil){   // 狂暴化：每次攻擊都追加一擊
       this.time.delayedCall(200,()=>{ if(!c.alive||this.over) return; const fs=this.aliveOf(c.side==='hero'?'enemy':'hero');
         if(fs.length){ if(c.aoe){ this.aoeCast(c); } else { const t=(c.side==='enemy'?this.pickByRow(fs):this.pickTarget(c,fs)); c.ranged?this.ranged(c,t,false):this.melee(c,t);} } }); }
   }
   // 全滅 → 結算（撤退/全滅都走 Result）
   finish(win){
     if(this.over) return; this.over=true;
+    if(this.clearEnvObjects) this.clearEnvObjects(true);   // v3.3：戰鬥結束物件即刻消散
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
+    saveGuild();   // v2.4：擊殺進度改批次存檔 → 全滅前在此落盤（勝利路徑由 clearStep 的 saveGuild 涵蓋）
     this.time.delayedCall(700,()=>{ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); });
   }
   // 升級獲得 perk（疾行/護身/熟練）浮字提示：把原本被丟棄的 gainXP 回傳接回來顯示
@@ -565,6 +621,8 @@ class Battle extends Phaser.Scene {
   // 本場清空：結算經驗/掉落，推進探險%，王→通關，否則行軍到下一場
   clearStep(){
     if(this.over) return; this.over=true;
+    if(this.campfireRest) this.campfireRest();   // v3.0：營火存活 → 戰後小憩回血（先於 ref.hp 回寫）
+    if(this.clearEnvObjects) this.clearEnvObjects(true);   // v3.3：戰鬥結束物件即刻消散（不等換場）
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
     const wasBoss=RUN.isBoss, node=RUN.node;
     this.time.delayedCall(700,()=>{
@@ -617,6 +675,7 @@ class Battle extends Phaser.Scene {
     this.time.delayedCall(760,()=>{
       (this.enemies||[]).forEach(c=>{ if(c&&c.container) c.container.destroy(); });
       (this.summons||[]).forEach(s=>{ if(s){ s._removed=true; s.alive=false; if(s.container) s.container.destroy(); } }); this.summons=[];   // 換場：清掉殘留召喚精靈
+      if(this.clearEnvObjects) this.clearEnvObjects();   // v3.0：換場清掉戰場物件（下一場由 beginStep 重生）
       if(this.encIntro){ this.encIntro.destroy(); this.encIntro=null; } if(this.encCap){ this.encCap.destroy(); this.encCap=null; }
       if(this._envText){ this._envText.destroy(); this._envText=null; }
       this.enemies=[]; this.all=[...(this.heroes||[])];

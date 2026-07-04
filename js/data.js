@@ -117,34 +117,38 @@ const GLYPH = {
 // 武器：atkSeq = 傷害表，依序循環輸出固定 ATK（第三次回到第一個）
 const WEAPONS = [
   // starter:true 才會出現在整備目錄；其餘為地城掉落專屬
-  {name:'鐵劍', atkSeq:[14,18], heal:0, lvReq:1, starter:true},
-  {name:'雙手斧', atkSeq:[20,28], heal:0, lvReq:3, starter:true},
-  {name:'獵弓', atkSeq:[18,20,22], heal:0, lvReq:2, starter:true},
-  {name:'短弓', atkSeq:[16,18,20], heal:0, lvReq:1, starter:true},
-  {name:'橡木杖', atkSeq:[10,12], heal:8, lvReq:1, starter:true},
-  {name:'聖光杖', atkSeq:[14,16], heal:14, lvReq:3, starter:true},
-  {name:'火花杖', atkSeq:[9,11], heal:0, lvReq:1, starter:true, magic:true},   // 法師起手（範圍魔法）
-  {name:'短刃', atkSeq:[10,12,14], heal:0, lvReq:1, starter:true},   // 盜賊起手（快速三段）
+  // v2.4 單一資料來源：cls＝可裝備職業（省略＝通用）、vis＝[圖示,配色]（WEAPON_CLASS/ITEM_ICON 由此衍生，新增武器只改這裡）
+  {name:'鐵劍', atkSeq:[14,18], heal:0, lvReq:1, starter:true, cls:'warrior', vis:['sword','teal']},
+  {name:'雙手斧', atkSeq:[20,28], heal:0, lvReq:3, starter:true, cls:'warrior', vis:['axe','teal']},
+  {name:'獵弓', atkSeq:[18,20,22], heal:0, lvReq:2, starter:true, cls:'ranger', vis:['bow','teal']},
+  {name:'短弓', atkSeq:[16,18,20], heal:0, lvReq:1, starter:true, cls:'ranger', vis:['bow','teal']},
+  {name:'橡木杖', atkSeq:[10,12], heal:8, lvReq:1, starter:true, cls:'priest', vis:['staff','green']},
+  {name:'聖光杖', atkSeq:[14,16], heal:14, lvReq:3, starter:true, cls:'priest', vis:['staff','gold']},
+  {name:'火花杖', atkSeq:[9,11], heal:0, lvReq:1, starter:true, magic:true, cls:'mage', vis:['magestaff','violet']},   // 法師起手（範圍魔法）
+  {name:'短刃', atkSeq:[10,12,14], heal:0, lvReq:1, starter:true, cls:'rogue', vis:['dagger','teal']},   // 盜賊起手（快速三段）
   // 掉落專屬（靠探險取得，整備目錄看不到）；回歸基本：只有傷害數值，無特殊效果
-  {name:'匕首', atkSeq:[12,13,14,16], heal:0, lvReq:2},
-  {name:'雙刃劍', atkSeq:[18,22,26], heal:0, lvReq:3},
-  {name:'巨劍', atkSeq:[26,34], heal:0, lvReq:4},
-  {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4},
-  {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4},
-  {name:'烈焰法杖', atkSeq:[14,18], heal:0, lvReq:3, magic:true},
+  {name:'匕首', atkSeq:[12,13,14,16], heal:0, lvReq:2, cls:'rogue', vis:['dagger','blue']},
+  {name:'雙刃劍', atkSeq:[18,22,26], heal:0, lvReq:3, cls:'warrior', vis:['dualblade','gold']},
+  {name:'巨劍', atkSeq:[26,34], heal:0, lvReq:4, cls:'warrior', vis:['greatsword','gold']},
+  {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4, cls:'ranger', vis:['bow','gold']},
+  {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4, cls:'priest', vis:['staff','green']},
+  {name:'烈焰法杖', atkSeq:[14,18], heal:0, lvReq:3, magic:true, cls:'mage', vis:['magestaff','red']},
 ];
 // 防具：回歸基本＝防禦 + 護盾（每場開場補滿的護盾值；不再加最大血量、無特殊效果）
 const ARMORS = [
-  {name:'布衣', def:1, shield:8, lvReq:1, starter:true}, {name:'皮甲', def:3, shield:12, lvReq:1, starter:true},
-  {name:'鎖子甲', def:6, shield:22, lvReq:3, starter:true}, {name:'法袍', def:2, shield:16, lvReq:2, starter:true},
+  // v2.4 單一資料來源：cls＝可裝備職業陣列（5 職全列＝通用）、vis＝[圖示,配色]
+  {name:'布衣', def:1, shield:8, lvReq:1, starter:true, cls:['warrior','ranger','priest','mage','rogue'], vis:['robe','slate']},
+  {name:'皮甲', def:3, shield:12, lvReq:1, starter:true, cls:['warrior','ranger','rogue'], vis:['armor','teal']},
+  {name:'鎖子甲', def:6, shield:22, lvReq:3, starter:true, cls:['warrior'], vis:['armor','blue']},
+  {name:'法袍', def:2, shield:16, lvReq:2, starter:true, cls:['priest','mage'], vis:['robe','violet']},
   // 掉落專屬：更高防禦＋更高護盾
-  {name:'精鋼板甲', def:9, shield:30, lvReq:4},
-  {name:'守護重盔', def:7, shield:26, lvReq:3},
-  {name:'法師長袍', def:3, shield:20, lvReq:2},
-  {name:'龍鱗甲', def:11, shield:36, lvReq:5},
-  {name:'遊獵皮衣', def:4, shield:16, lvReq:2},
-  {name:'影襲夜衣', def:6, shield:22, lvReq:3},
-  {name:'疾風革鎧', def:8, shield:28, lvReq:4},
+  {name:'精鋼板甲', def:9, shield:30, lvReq:4, cls:['warrior'], vis:['armor','gold']},
+  {name:'守護重盔', def:7, shield:26, lvReq:3, cls:['warrior'], vis:['helmet','gold']},
+  {name:'法師長袍', def:3, shield:20, lvReq:2, cls:['priest','mage'], vis:['robe','violet']},
+  {name:'龍鱗甲', def:11, shield:36, lvReq:5, cls:['warrior'], vis:['armor','red']},
+  {name:'遊獵皮衣', def:4, shield:16, lvReq:2, cls:['ranger','rogue'], vis:['armor','green']},
+  {name:'影襲夜衣', def:6, shield:22, lvReq:3, cls:['ranger','rogue'], vis:['armor','teal']},
+  {name:'疾風革鎧', def:8, shield:28, lvReq:4, cls:['ranger','rogue'], vis:['armor','blue']},
 ];
 // 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
 // world：每 4 關為一個世界（0=遺跡地城・偏暗，1=沙漠雨林・偏亮）。地城索引 0-3＝第一世界、4-7＝第二世界。

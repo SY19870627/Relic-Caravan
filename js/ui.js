@@ -259,76 +259,11 @@ function pips(scene,x,y,n,col){ const c=scene.add.container(x,y); const g=scene.
   for(let i=0;i<n;i++){ g.fillStyle(col,1); _starPath(g, i*gap, 0, 6, 2.6, 5); g.fillPath(); } c.w=(n-1)*gap; return c; }
 
 
-function buildTextures(scene){
-  // v2.3：第二世界生物在明亮背景上對比不足 → 自動為這些精靈加一圈深色描邊（利用既有空白邊格，不改變尺寸）
-  const OUTLINE_KEYS = new Set(['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm','crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth','jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus','chimeraBeast','crystalStalker','sporeHound','leechWyrm','heartOfRot','worldEater']);
-  for(const key in SPRITES){
-    if(scene.textures.exists(key)) continue;
-    const grid=SPRITES[key], hh=grid.length, ww=Math.max(...grid.map(r=>r.length));
-    const tex=scene.textures.createCanvas(key,ww,hh), ctx=tex.getContext();
-    if(OUTLINE_KEYS.has(key)){
-      const filled=(x,y)=> y>=0&&y<hh&&x>=0&&x<grid[y].length && !!PAL[grid[y][x]];
-      ctx.fillStyle='#120c08';   // 深色描邊
-      for(let y=0;y<hh;y++){ for(let x=0;x<ww;x++){
-        if(filled(x,y)) continue;                      // 已有顏色的格不畫描邊
-        let adj=false;
-        for(let dy=-1;dy<=1&&!adj;dy++){ for(let dx=-1;dx<=1;dx++){ if((dx||dy)&&filled(x+dx,y+dy)){ adj=true; break; } } }
-        if(adj) ctx.fillRect(x,y,1,1);                 // 緊鄰實心格的空白格 → 描邊
-      }}
-    }
-    for(let y=0;y<hh;y++){ const row=grid[y]; for(let x=0;x<row.length;x++){ const col=PAL[row[x]]; if(!col) continue; ctx.fillStyle=col; ctx.fillRect(x,y,1,1);} }
-    tex.refresh();
-  }
-  if(!scene.textures.exists('wall')){
-    const t=scene.textures.createCanvas('wall',32,32), c=t.getContext();
-    c.fillStyle='#161228'; c.fillRect(0,0,32,32);
-    for(let row=0;row<4;row++){ const y=row*8; for(let bx=-1;bx<3;bx++){ const x=bx*16+(row%2?8:0);
-      c.fillStyle=((row+bx)%2)?'#2a2346':'#221b3c'; c.fillRect(x+1,y+1,14,6); c.fillStyle='#39306a'; c.fillRect(x+1,y+1,14,1);} }
-    t.refresh();
-  }
-  if(!scene.textures.exists('floor')){
-    const t=scene.textures.createCanvas('floor',32,32), c=t.getContext();
-    c.fillStyle='#100c20'; c.fillRect(0,0,32,32);
-    c.fillStyle='#1b1636'; c.fillRect(1,1,30,14); c.fillRect(1,17,14,14); c.fillRect(17,17,14,14);
-    c.fillStyle='#241d42'; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
-    t.refresh();
-  }
-  // v1.1 各地區戰鬥背景：wall0~wall3 / floor0~floor3（演算法同上，僅換主題色）。
-  // 原 'wall'/'floor' 保留給公會大廳等場景使用，不受影響。
-  const BG_THEMES=[
-    {wall:{base:'#1a1712',b1:'#2f2a20',b2:'#262017',hi:'#3f4a2a'}, floor:{base:'#141009',tile:'#221c12',hi:'#2f3a1e'}}, // 0 近郊遺跡：苔蝕石牆
-    {wall:{base:'#1c1814',b1:'#3a3024',b2:'#2e2619',hi:'#5a4a36'}, floor:{base:'#161108',tile:'#2a2114',hi:'#3e3220'}}, // 1 枯骨峽谷：枯黃砂岩
-    {wall:{base:'#0b1a1e',b1:'#15323a',b2:'#102a30',hi:'#2f8190'}, floor:{base:'#08161a',tile:'#103038',hi:'#1c6675'}}, // 2 沉沒神城：幽藍水域
-    {wall:{base:'#140a1e',b1:'#2a1640',b2:'#1f1030',hi:'#7a47b0'}, floor:{base:'#0e0618',tile:'#20123a',hi:'#48267a'}}, // 3 虛空裂隙：暗紫虛空
-    // v2.2 第二世界（色調偏亮）：沙漠 / 綠洲 / 叢林 / 深雨林
-    {wall:{base:'#c2a061',b1:'#d8bc82',b2:'#b6964f',hi:'#f2dca0'}, floor:{base:'#a8854a',tile:'#c6a566',hi:'#e6c987'}}, // 4 燔流沙漠：烈陽砂岩
-    {wall:{base:'#3f8f88',b1:'#54aaa0',b2:'#347a73',hi:'#86e6d6'}, floor:{base:'#4a8a58',tile:'#6aa86a',hi:'#aede8e'}}, // 5 綠洲水澤：碧水青澤
-    {wall:{base:'#3d7d39',b1:'#56a047',b2:'#326e32',hi:'#aede50'}, floor:{base:'#46682c',tile:'#6c8a3a',hi:'#aece5c'}}, // 6 翠冠叢林：蓊鬱林冠
-    {wall:{base:'#34705a',b1:'#4a9070',b2:'#285a48',hi:'#b24de0'}, floor:{base:'#36563f',tile:'#4f7a5a',hi:'#9ede7e'}}, // 7 蝕心雨林：異變翠影
-  ];
-  BG_THEMES.forEach((th,di)=>{
-    const wk='wall'+di;
-    if(!scene.textures.exists(wk)){
-      const t=scene.textures.createCanvas(wk,32,32), c=t.getContext();
-      c.fillStyle=th.wall.base; c.fillRect(0,0,32,32);
-      for(let row=0;row<4;row++){ const y=row*8; for(let bx=-1;bx<3;bx++){ const x=bx*16+(row%2?8:0);
-        c.fillStyle=((row+bx)%2)?th.wall.b1:th.wall.b2; c.fillRect(x+1,y+1,14,6); c.fillStyle=th.wall.hi; c.fillRect(x+1,y+1,14,1);} }
-      t.refresh();
-    }
-    const fk='floor'+di;
-    if(!scene.textures.exists(fk)){
-      const t=scene.textures.createCanvas(fk,32,32), c=t.getContext();
-      c.fillStyle=th.floor.base; c.fillRect(0,0,32,32);
-      c.fillStyle=th.floor.tile; c.fillRect(1,1,30,14); c.fillRect(1,17,14,14); c.fillRect(17,17,14,14);
-      c.fillStyle=th.floor.hi; c.fillRect(1,1,30,2); c.fillRect(1,17,14,2); c.fillRect(17,17,14,2);
-      t.refresh();
-    }
-  });
-}
+// v2.3：第二世界生物在明亮背景上對比不足 → 自動為這些精靈加一圈深色描邊（共用常數，勿重複定義）
+const OUTLINE_KEYS = new Set(['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm','crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth','jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus','chimeraBeast','crystalStalker','sporeHound','leechWyrm','heartOfRot','worldEater']);
 
 function _actorTexture(scene,key){
   if(scene.textures.exists(key)) scene.textures.remove(key);
-  const OUTLINE_KEYS = new Set(['sandScorpion','hornViper','antlionLord','jackal','vulture','sandWyrm','crocodile','cobra','swampHydra','dragonfly','marshHippo','bogBehemoth','jaguar','jungleApe','canopyTyrant','dartFrog','mantis','bloomColossus','chimeraBeast','crystalStalker','sporeHound','leechWyrm','heartOfRot','worldEater']);
   const grid=SPRITES[key], hh=grid.length, ww=Math.max(...grid.map(r=>r.length));
   const tex=scene.textures.createCanvas(key,ww,hh), ctx=tex.getContext();
   if(OUTLINE_KEYS.has(key)){
@@ -404,14 +339,17 @@ function buildTextures(scene){
   battleThemes.forEach((th,i)=>{ _battleBgTexture(scene,'battleWall'+i,th.wall,false); _battleBgTexture(scene,'battleFloor'+i,th.floor,true); });
 }
 
-function pixelNum(scene,x,y,str,color,big){
-  const s=big?6:4, cw=3*s, gap=s, total=str.length*(cw+gap)-gap, h=5*s;
+function pixelNum(scene,x,y,str,color,big,small){
+  // 效能：整組跳數字畫進單一 Graphics（原本每格一個 rectangle，一次跳字最多生成 ~30 個 GameObject）
+  // v3.4：small＝降噪用小號跳字（普攻傷害），更小更快淡出，把視覺權重讓給暴擊/大招
+  const s=big?6:(small?3:4), cw=3*s, gap=s, total=str.length*(cw+gap)-gap, h=5*s;
   const cont=scene.add.container(x,y).setDepth(80);
-  const draw=(off,col)=>{ let cx=-total/2; for(const ch of str){ const pat=GLYPH[ch];
-    if(pat){ for(let ry=0;ry<5;ry++)for(let rx=0;rx<3;rx++){ if(pat[ry][rx]==='1') cont.add(scene.add.rectangle(cx+rx*s+off,ry*s+off-h/2,s,s,col).setOrigin(0)); } }
+  const g=scene.add.graphics(); cont.add(g);
+  const draw=(off,col)=>{ g.fillStyle(col,1); let cx=-total/2; for(const ch of str){ const pat=GLYPH[ch];
+    if(pat){ for(let ry=0;ry<5;ry++)for(let rx=0;rx<3;rx++){ if(pat[ry][rx]==='1') g.fillRect(cx+rx*s+off,ry*s+off-h/2,s,s); } }
     cx+=cw+gap; } };
   draw(big?3:s,0x000000); draw(0,color);
   cont.setScale(big?0.4:0.6);
-  scene.tweens.add({targets:cont,scale:big?1.35:1,duration:150,ease:'Back.out'});
-  scene.tweens.add({targets:cont,y:y-(big?62:48),alpha:0,duration:big?950:800,delay:big?170:120,ease:'Quad.out',onComplete:()=>cont.destroy()});
+  scene.tweens.add({targets:cont,scale:big?1.35:(small?0.85:1),duration:150,ease:'Back.out'});
+  scene.tweens.add({targets:cont,y:y-(big?62:(small?34:48)),alpha:0,duration:big?950:(small?520:800),delay:big?170:120,ease:'Quad.out',onComplete:()=>cont.destroy()});
 }

@@ -76,10 +76,12 @@ function buildEncounter(n){
   const prog=(RUN.exped&&RUN.exped.plan&&RUN.exped.plan.length)? Math.min(1, RUN.exped.i/RUN.exped.plan.length) : 0;
   const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
   const g=pickGroup(n.type==='elite'?'elite':'normal');
+  RUN.nodeObjs=(g&&g.objs)||null;   // v3.1：怪物組可自帶「每波物件配置」objs:[ [{type,x,y},...] 每波一組 ]；未指定則由引擎依站位自動配置
   return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,scale))) : [];
 }
 function buildBoss(){
   const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.bossTierScale)*(0.62+0.13*p);   // 王＝末段：補上深度縮放，成為真正的最強戰
   const g=pickGroup('boss');
+  RUN.nodeObjs=(g&&g.objs)||null;   // v3.1：王戰同樣支援手動物件配置（未指定＝王波固定祭壇）
   return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,s))) : [];   // 該組自含波次（小兵波→王波）
 }

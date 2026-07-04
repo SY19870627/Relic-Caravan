@@ -5,14 +5,9 @@ let RUN = null;
 const SPRITE_INDEX = {}; HERO_BASE.forEach((h,i)=>{ SPRITE_INDEX[h.sprite]=i; });
 const CLASS_ORDER = HERO_BASE.map(h=>h.sprite);   // ['warrior','ranger','priest','mage','rogue']
 
-// ---- v0.9 職業裝備限制：武器依職業、防具依重量 ----
-const WEAPON_CLASS = { '鐵劍':'warrior','雙手斧':'warrior','雙刃劍':'warrior','巨劍':'warrior',
-  '短弓':'ranger','獵弓':'ranger','戰弓':'ranger', '橡木杖':'priest','聖光杖':'priest','神息法杖':'priest',
-  '火花杖':'mage','烈焰法杖':'mage', '短刃':'rogue','匕首':'rogue' };
-const ARMOR_CLASSES = { '布衣':['warrior','ranger','priest','mage','rogue'], '皮甲':['warrior','ranger','rogue'],
-  '鎖子甲':['warrior'], '法袍':['priest','mage'], '精鋼板甲':['warrior'], '守護重盔':['warrior'],
-  '法師長袍':['priest','mage'], '龍鱗甲':['warrior'],
-  '遊獵皮衣':['ranger','rogue'], '影襲夜衣':['ranger','rogue'], '疾風革鎧':['ranger','rogue'] };
+// ---- v0.9 職業裝備限制 → v2.4 改由 data.js 裝備定義的 cls 欄位衍生（單一資料來源，新增裝備只改 data.js）----
+const WEAPON_CLASS = {}; WEAPONS.forEach(w=>{ if(w.cls) WEAPON_CLASS[w.name]=w.cls; });
+const ARMOR_CLASSES = {}; ARMORS.forEach(a=>{ if(a.cls) ARMOR_CLASSES[a.name]=a.cls; });
 const CLASS_LABEL = { warrior:'戰士', ranger:'遊俠', priest:'牧師', mage:'法師', rogue:'盜賊' };
 function weaponClassOK(sprite,w){ if(!w) return true; const c=WEAPON_CLASS[w.name]; return !c || c===sprite; }
 function armorClassOK(sprite,a){ if(!a) return true; const cs=ARMOR_CLASSES[a.name]; return !cs || cs.includes(sprite); }
@@ -99,6 +94,9 @@ function gainMaterial(di){ const m=MATERIAL_BY_DEST[di]; if(m){ addMaterial(m.id
 function addIngredient(id,n){ GUILD.ingredients[id]=(GUILD.ingredients[id]||0)+(n||1); }
 function ingCount(id){ return GUILD.ingredients[id]||0; }
 function ingTotal(){ return Object.values(GUILD.ingredients||{}).reduce((a,b)=>a+b,0); }
+// v3.4 清晰節奏模式（行動節拍器＋大招定格＋視覺降噪）：預設開，可於暫停選單切換
+function pacingOn(){ const s=GUILD.settings||{}; return s.pacing!==false; }
+function togglePacing(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.pacing=!pacingOn(); saveGuild(); return GUILD.settings.pacing; }
 // 自動喝水：門檻 0.30/0.50/1.00（低於就喝），0＝關；單一按鈕循環切換（含舊存檔相容）
 function autoSipFrac(){ const s=GUILD.settings||{}; return (s.autoSipFrac!==undefined)? s.autoSipFrac : (s.autoSip===false?0:0.30); }
 function autoSipLabel(){ const f=autoSipFrac(); return f<=0?'關':('<'+Math.round(f*100)+'%'); }
@@ -168,10 +166,10 @@ function lineStageClaimable(line){ const st=lineCurrentStage(line); return !!st 
 function lineAllDone(line){ return line? lineStageIdx(line.id)>=line.stages.length : false; }
 function lineActiveTitle(line){ const c=lineStageIdx(line.id); return (line && c>0)? line.stages[c-1].title : null; }   // 該線「最高已領階段」的稱號（生效中）
 // 敵人死亡 → 為每條任務線累計擊殺（持久、跨趟、跨階保留；上限為該線最後一階目標）
-function creditEnemyKill(e){ if(!e || typeof GUILD==='undefined' || !GUILD || typeof QUEST_LINES==='undefined') return; let changed=false;
+function creditEnemyKill(e){ if(!e || typeof GUILD==='undefined' || !GUILD || typeof QUEST_LINES==='undefined') return;
   QUEST_LINES.forEach(l=>{ if(!questMatch(l.match,e)) return; const cap=l.stages[l.stages.length-1].target, cur=lineKills(l.id);
-    if(cur>=cap) return; if(!GUILD.questKills) GUILD.questKills={}; GUILD.questKills[l.id]=cur+1; changed=true; });
-  if(changed) saveGuild(); }
+    if(cur>=cap) return; if(!GUILD.questKills) GUILD.questKills={}; GUILD.questKills[l.id]=cur+1; });
+}   // v2.4：不再每殺必寫 localStorage；由戰後 clearStep / 全滅 finish 批次 saveGuild()
 // 領取目前階段：達標 → +聲望、解鎖(即生效)該階稱號、推進下一階；回傳剛領到的階段(供提示)
 function claimLineStage(id){ const l=(typeof QLINE_BY_ID!=='undefined')?QLINE_BY_ID[id]:null; if(!l || !lineStageClaimable(l)) return null;
   const st=lineCurrentStage(l);
@@ -234,19 +232,23 @@ function heroPerks(i){ const lv=(ROSTER[i]&&ROSTER[i].level)||1; const out={inte
 function currentFormation(){ return FORMATIONS[GUILD.formation||0] || FORMATIONS[0]; }
 // 站位按「目前出戰人數」動態排列：每個職業的 row（前/中/後）決定 X，同排成員依人數平均分配 Y。
 // 這樣 1~5 人都能排得好看，並修掉舊版「多人共用一套站位、多餘 slot 被忽略」的問題。
+let _formLayoutCache={key:null,val:null};   // v2.4：站位結果快取（formationSlot 每次呼叫都會用到）
 function formationLayout(){
+  const _key=(GUILD.formation||0)+'|'+(GUILD.partySize||1)+'|'+activeRoster().join(',');
+  if(_formLayoutCache.key===_key) return _formLayoutCache.val;
   const f=currentFormation();
   const present=activeRoster().map(i=>HERO_BASE[i].sprite).filter(sp=>f.slots&&f.slots[sp]);
   const out={};
   let custom=(f.cost||0)>=6;
   present.forEach(sp=>{ const s=f.slots[sp]||{}; if(typeof s.x!=='number'||typeof s.y!=='number') custom=false; });
-  if(custom){ present.forEach(sp=>{ const s=f.slots[sp]; out[sp]={x:s.x, y:s.y, row:s.row||'back'}; }); return out; }
+  if(custom){ present.forEach(sp=>{ const s=f.slots[sp]; out[sp]={x:s.x, y:s.y, row:s.row||'back'}; }); _formLayoutCache={key:_key,val:out}; return out; }
   const rowX={front:335, mid:250, back:165};
   const byRow={front:[],mid:[],back:[]};
   present.forEach(sp=>{ const r=(f.slots[sp].row)||'back'; (byRow[r]=byRow[r]||[]).push(sp); });
   ['front','mid','back'].forEach(row=>{ const arr=byRow[row]||[]; const n=arr.length;
     arr.forEach((sp,k)=>{ const y = n<=1?360 : Math.round(248 + k*(224/(n-1)));
       out[sp]={x:rowX[row]||200, y, row}; }); });
+  _formLayoutCache={key:_key,val:out};
   return out;
 }
 function formationSlot(sprite){ const f=currentFormation(); const base=(f.slots&&f.slots[sprite])||{row:'back'};
@@ -444,20 +446,13 @@ function heroStat(h){
 
 // ---- v0.9 物品圖鑑：每件物品的圖示與色彩、發現追蹤 ----
 const ITEM_ICON = {
-  // 武器
-  '鐵劍':['sword','teal'], '雙手斧':['axe','teal'], '獵弓':['bow','teal'], '短弓':['bow','teal'],
-  '橡木杖':['staff','green'], '聖光杖':['staff','gold'], '火花杖':['magestaff','violet'], '短刃':['dagger','teal'],
-  '匕首':['dagger','blue'], '雙刃劍':['dualblade','gold'], '巨劍':['greatsword','gold'], '戰弓':['bow','gold'],
-  '神息法杖':['staff','green'], '烈焰法杖':['magestaff','red'],
-  // 防具
-  '布衣':['robe','slate'], '皮甲':['armor','teal'], '鎖子甲':['armor','blue'], '法袍':['robe','violet'],
-  '精鋼板甲':['armor','gold'], '守護重盔':['helmet','gold'], '法師長袍':['robe','violet'], '龍鱗甲':['armor','red'],
-  '遊獵皮衣':['armor','green'], '影襲夜衣':['armor','teal'], '疾風革鎧':['armor','blue'],
   // 道具
   '治療藥水':['potion','red'], '解毒劑':['potion','green'], '聖水':['potion','blue'], '回復卷軸':['scroll','gold'], '復活之種':['seed','violet'],
   // 貴重物品
   '碎銀錢袋':['coin','slate'], '古青銅幣':['coin','teal'], '寶石原石':['gem','blue'], '黃金聖盃':['coin','gold'], '失落王冠':['gem','gold'],
 };
+// v2.4：武器/防具圖示改由 data.js 的 vis 欄位衍生（單一資料來源）
+WEAPONS.concat(ARMORS).forEach(g=>{ if(g.vis) ITEM_ICON[g.name]=g.vis; });
 // ---- 技能圖示：依機制給專屬 icon、依類型上色 ----
 const SKILL_ICON = {
   '敲暈':'stun','震懾箭':'stun','割喉':'stun',

@@ -6,11 +6,20 @@ Object.assign(Battle.prototype, {
     const cx=foes.reduce((a,b)=>a+b.container.x,0)/foes.length, cy=foes.reduce((a,b)=>a+b.container.y,0)/foes.length;
     const orb=this.add.circle(c.container.x+c.facing*18, c.container.y-4, 7, 0x9a7fd0).setDepth(50).setStrokeStyle(2,0xffffff,0.7);
     const cs=this.trySkill(c,'crit'); let opt = cs? {crit:true, mult:cs.mult} : {crit:false};
-    if(!cs){ const nk=this.trySkill(c,'nuke'); if(nk){ opt={crit:true, mult:nk.mult||2.5}; this.floatLabel(c.baseX,c.baseY-58,(nk.name||'魔力轟擊')+'!','#c46bff'); this.castBurst(c,0xc46bff); } }   // 範圍職(法師)的 nuke 大招＋奧術爆發特效
+    let _skillUsed=cs;
+    if(!cs){ const nk=this.trySkill(c,'nuke'); if(nk){ _skillUsed=nk; opt={crit:true, mult:nk.mult||2.5}; this.floatLabel(c.baseX,c.baseY-58,(nk.name||'魔力轟擊')+'!','#c46bff'); this.castBurst(c,0xc46bff); } }   // 範圍職(法師)的 nuke 大招＋奧術爆發特效
+    // v3.0 火系親和：雨天削弱倍率；命中後若場上有火源 → 引燃連鎖
+    let _fireCast=false;
+    if(_skillUsed && _skillUsed.affinity && _skillUsed.affinity.indexOf('fire')>=0){ _fireCast=true;
+      if(this._wxId==='rain' && opt.mult){ opt.mult=Math.max(1, +(opt.mult*CFG.env.rainFireMul).toFixed(2)); this.envLabel(c,'雨勢削弱','#9fd0ff',2500); } }
+    // v3.3 空間魔法 × 空間裂縫：增幅傷害（裂縫耐久 −1）
+    if(_skillUsed && this.voidAmp && this.voidAmp(c,_skillUsed) && opt.mult){ opt.mult=+(opt.mult*CFG.env.voidAmpMult).toFixed(2); }
+    // v3.0 天氣親和・冰封範圍化由 damage() 的 stun 分支處理（此處為 AoE 職業，stun 技能不在此觸發）
     this.tweens.add({targets:orb,x:cx,y:cy,duration:240,ease:'Quad.in',onComplete:()=>{ orb.destroy();
       const ring=this.add.circle(cx,cy,12,0xc9a0ff,0.5).setDepth(45); this.tweens.add({targets:ring,radius:95,alpha:0,duration:320,onComplete:()=>ring.destroy()});
       this.shake(120,0.008);
       const tg=this.aliveOf(c.side==='hero'?'enemy':'hero'); tg.forEach(f=>{ if(f.alive) this.damage(c,f,Object.assign({aoeHit:true},opt)); });
+      if(_fireCast && this.fireChain) this.fireChain(c);    // v3.0：火系 AoE 引燃火源連鎖（v3.1：物件不受攻擊，僅被利用）
       // 被動・奧術精通（aoeBonus）：命中 2+ 敵時追加一輪較弱全體傷害
       if(this.hasSkillType(c,'aoeBonus') && tg.length>=2){ const _s=this.getSkill(c,'aoeBonus'); if(_s)this.skillProc(c,_s.name,{throttle:1200}); this.floatLabel(c.baseX,c.baseY-58,'奧術連鎖!','#c9a0ff');
         this.time.delayedCall(160,()=>{ if(this.over||!c.alive) return; this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.damage(c,f,{aoeHit:true,weak:0.5}); }); }); }
@@ -23,10 +32,10 @@ Object.assign(Battle.prototype, {
     // 遺物・枯骨王徽（不倒）：我方低血免疫暈眩
     if(target.side==='hero' && this._lastStand && target.hp/target.maxHp<0.25){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
     // 大改版・霸體／熊人變身：免疫暈眩
-    if(target.side==='hero' && (this.getSkill(target,'hyperarmor') || (target.formUntil&&this.time.now<target.formUntil&&target.form==='bearman'))){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
-    target.stunUntil=this.time.now+sk.dur/this.speed; target.stunSpeed=this.speed;   // v2.2：場景時鐘為原始時間，需依倍率縮短才會「與速度一致」
+    if(target.side==='hero' && (this.getSkill(target,'hyperarmor') || (target.formUntil&&(this.gnow||0)<target.formUntil&&target.form==='bearman'))){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
+    target.stunUntil=(this.gnow||0)+sk.dur;   // v2.4：gnow 遊戲時間，存原始時長（切速/暫停皆正確）
     this.floatLabel(target.baseX,target.baseY-52, (sk.name||'暈眩')+'!','#ffd24a');
-    this.screenFlash(0xffd24a,0.10,140);
+    if(!(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx)) this.screenFlash(0xffd24a,0.10,140);   // v3.4 降噪：暈眩不閃屏
     target.stunned=true; target.spr.setTint(0x9a9ad0);   // 被暈：偏紫灰
     if(!target.stunStar){ target.stunStar=txt(this,target.baseX,target.baseY-60,'★',16,'#ffd24a').setDepth(70).setStroke('#000',3);
       this.tweens.add({targets:target.stunStar,angle:360,duration:700,repeat:-1}); }
@@ -39,11 +48,14 @@ Object.assign(Battle.prototype, {
   }
 ,
   melee(c,target){
-    const fx=c.baseX+(target.container.x-c.baseX)*0.55, fy=c.baseY+(target.container.y-c.baseY)*0.55;
+    // v3.0 背刺演出：盜賊有掩體時閃現到目標身後出手（純視覺，無走位引擎）
+    const bs=(c.side==='hero' && c.sprite==='rogue' && this.objectWithTag && this.objectWithTag('cover'));
+    const fx=bs? target.container.x+26 : c.baseX+(target.container.x-c.baseX)*0.55;
+    const fy=bs? target.container.y     : c.baseY+(target.container.y-c.baseY)*0.55;
     // 預備後拉 → 衝刺命中 → 回位
     this.tweens.add({targets:c.container,x:c.baseX-c.facing*7,duration:80,ease:'Quad.out',
       onComplete:()=>{ if(this.over) return;
-        this.tweens.add({targets:c.container,x:fx,y:fy,duration:130,yoyo:true,ease:'Quad.in',
+        this.tweens.add({targets:c.container,x:fx,y:fy,duration:bs?100:130,yoyo:true,ease:'Quad.in',
           onYoyo:()=>{ if(target.alive) this.damage(c,target); }}); }});
   }
 ,
@@ -71,7 +83,7 @@ Object.assign(Battle.prototype, {
       if(shieldOnHeal){ a.shield=(a.shield||0)+(shieldOnHeal.amt||12); this.skillProc(c,shieldOnHeal.name,{throttle:1500}); }
       if((this._healToShield&&over>0)||shieldOnHeal) this.bar(a);   // 護盾增減即時反映到血條
       if(cleanse && a.stunned){ a.stunUntil=0; a.stunned=false; if(a.stunStar){a.stunStar.destroy(); a.stunStar=null;} if(a.alive) a.spr.clearTint(); if(sCleanse)this.skillProc(c,sCleanse.name,{throttle:1200}); }
-      if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=this.time.now+1000/this.speed; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
+      if(this._bondHealInvuln && c.sprite==='priest' && a.sprite==='warrior'){ a.invulnUntil=(this.gnow||0)+1000; this.floatLabel(a.baseX,a.baseY-62,'無敵!','#9fe8ff'); }   // 羈絆・以信護盾
       const ring=this.add.circle(a.container.x,a.container.y,10,0x7dff9a,0.5).setDepth(40);
       this.tweens.add({targets:ring,radius:36,alpha:0,duration:450,onComplete:()=>ring.destroy()}); };
     if(this.trySkill(c,'groupHeal')){ this.aliveOf(c.side).forEach(healOne); }
@@ -83,14 +95,24 @@ Object.assign(Battle.prototype, {
     const seq=c.atkSeq&&c.atkSeq.length?c.atkSeq:[1];
     let atk=seq[c.atkI % seq.length]; c.atkI++;
     if(opt.weak) atk=Math.round(atk*opt.weak);
-    const _now=this.time.now;
+    if(opt.envMult) atk=Math.round(atk*opt.envMult);   // v3.0 環境倍率（拔樹投擲等）
+    const _now=this.gnow||0;   // v2.4：buff/變身到期以 gnow 判定
     if(c.atkBuffUntil && _now<c.atkBuffUntil) atk+=(c.atkBuffAmt||0);              // 大改版・戰吼：限時加攻
     if(c.formUntil && _now<c.formUntil && c.formAtk) atk+=c.formAtk;               // 大改版・牛頭人變身：加攻
     if(c.buffUntil && _now<c.buffUntil) atk=Math.max(1, atk+(c.buffAtk||0));        // 牧師強化(我方+ATK)/弱化(敵-ATK)
-    let crit=false, mult=2;
+    // v3.0 天氣：濃霧/強風 → 雙方遠程（非精靈）減弱
+    if(c.ranged && !c.isSummon){
+      if(this._wxId==='fog') atk=Math.max(1,Math.round(atk*CFG.env.fogRangedMul));
+      else if(this._wxId==='wind') atk=Math.max(1,Math.round(atk*CFG.env.windRangedMul));
+    }
+    let crit=false, mult=2, _fireCast=false;
     if(opt.crit!==undefined){ crit=opt.crit; mult=opt.mult||2; }            // 範圍攻擊：暴擊一次套全體
-    else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; }
-      else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; this.floatLabel(c.baseX,c.baseY-58,(nk.name||'重擊')+'!','#ff8a3a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); } } }   // 大改版・重擊類大招
+    else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; if(cs.affinity&&cs.affinity.indexOf('fire')>=0) _fireCast=true;
+        if(this.voidAmp&&this.voidAmp(c,cs)) mult=+(mult*CFG.env.voidAmpMult).toFixed(2); }   // v3.3 空間裂縫增幅
+      else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; if(nk.affinity&&nk.affinity.indexOf('fire')>=0) _fireCast=true;
+        if(this.voidAmp&&this.voidAmp(c,nk)) mult=+(mult*CFG.env.voidAmpMult).toFixed(2);   // v3.3 空間裂縫增幅
+        this.floatLabel(c.baseX,c.baseY-58,(nk.name||'重擊')+'!','#ff8a3a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); } } }   // 大改版・重擊類大招
+    if(_fireCast && this._wxId==='rain'){ mult=Math.max(1,+(mult*CFG.env.rainFireMul).toFixed(2)); this.envLabel(c,'雨勢削弱','#9fd0ff',2500); }   // v3.0 雨天火系減弱
     // 條件型暴擊（我方）
     if(!crit && c.side==='hero'){
       if(c.killCrit){ crit=true; mult=2; c.killCrit=false; }                                       // 遺物・低語石板（殺意）
@@ -98,6 +120,10 @@ Object.assign(Battle.prototype, {
       else if(this.hasSkillType(c,'critVsFull') && target.hp>=target.maxHp){ crit=true; mult=2; const _s=this.getSkill(c,'critVsFull'); if(_s)this.skillProc(c,_s.name,{throttle:1400}); }   // 被動・鷹眼
       else if(this.hasSkillType(c,'critVsStunned') && target.stunned){ crit=true; mult=2; const _s=this.getSkill(c,'critVsStunned'); if(_s)this.skillProc(c,_s.name,{throttle:1400}); }         // 被動・致命
       else if((this._firstHitCrit||this._cookFirstCrit) && !c.firstHitDone){ crit=true; mult=2; }   // 遺物・永燃聖燭／料理
+      // v3.1 盜賊：掩體在場 → 背刺必暴（每次觸發消耗掩體耐久 1）；否則濃霧中機率暴擊（霧影）
+      else if(c.sprite==='rogue' && this.objectWithTag && this.objectWithTag('cover')){ const _cov=this.objectWithTag('cover');
+        crit=true; mult=CFG.env.backstabMult; this.useObject(_cov,1); this.envLabel(c,'背刺!','#ffd24a',600); }
+      else if(c.sprite==='rogue' && this._wxId==='fog' && Math.random()<CFG.env.fogRogueCrit){ crit=true; mult=CFG.env.fogCritMult; this.envLabel(c,'霧影!','#9fe8ff',1800); }
     }
     if(c.side==='hero') c.firstHitDone=true;
     if(crit) atk=Math.round(atk*mult);
@@ -117,8 +143,16 @@ Object.assign(Battle.prototype, {
     if(target.buffUntil && _now<target.buffUntil) tdef=Math.max(0, tdef+(target.buffDef||0));   // 牧師強化(我方+DEF)/弱化(敵-DEF)
     let raw=Math.max(1, atk - tdef);
     if(target.side==='hero'){ let red=0; const ha=this.getSkill(target,'hyperarmor'); if(ha) red+=(ha.frac||0.15); if(target.formUntil&&_now<target.formUntil&&target.formReduce) red+=target.formReduce; if(red>0){ raw=Math.max(1,Math.round(raw*(1-Math.min(0.85,red)))); if(ha)this.skillProc(target,ha.name,{throttle:2600}); } }   // 大改版・霸體/熊人變身：受傷減免
+    // v3.3 盜賊・移形換位：受擊瞬間與巨木換位（單體攻擊 MISS、巨木代承一擊）
+    if(!opt.aoeHit && target.side==='hero' && this.hasSkillType(target,'treeSwap') && this.swapWithTree){
+      const _tr=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='tree'&&o.dur>0);
+      if(_tr){ this.swapWithTree(target,_tr); return; }
+    }
+    // v3.0 神蹟・匿影神隱：完全迴避一次攻擊（充能制）
+    if(target.side==='hero' && (target._prayDodge||0)>0){
+      target._prayDodge--; this.floatLabel(target.baseX,target.baseY-46,'神隱','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
     // 羈絆・以信護盾：無敵時間內完全格擋
-    if(target.invulnUntil && this.time.now < target.invulnUntil){
+    if(target.invulnUntil && _now < target.invulnUntil){
       this.floatLabel(target.baseX,target.baseY-40,'格擋','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
     // 遺物・古神之眼（洞察）：每位成員本場第一次受到的攻擊無效
     if(target.side==='hero' && this._firstHitBlock && !target.firstBlockUsed){
@@ -143,9 +177,10 @@ Object.assign(Battle.prototype, {
       pixelNum(this,target.container.x,target.container.y-34,'🛡'+absorbed,0x9fd0ff); this.spark(target.container.x,target.container.y,0x9fd0ff);
     } else {
       if(absorbed>0) pixelNum(this,target.container.x,target.container.y-52,'🛡'+absorbed,0x9fd0ff);
-      pixelNum(this,target.container.x,target.container.y-34,'-'+dmg, crit?0xffd24a:(heavy?0xff8a3a:0xff6b6b), crit);
+      const _quiet=(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx);
+      pixelNum(this,target.container.x,target.container.y-34,'-'+dmg, crit?0xffd24a:(heavy?0xff8a3a:0xff6b6b), crit, _quiet&&!crit&&!heavy);   // v3.4：普攻跳字縮小
       this.spark(target.container.x,target.container.y, crit?0xffd24a:0xffe08a);
-      target.spr.setTintFill(crit?0xffe08a:0xffffff); this.time.delayedCall(crit?120:80,()=>{ if(target.alive&&!target.stunned){ if(target.berserkUntil&&this.time.now<target.berserkUntil) target.spr.setTint(0xff5050); else target.spr.clearTint(); } });
+      target.spr.setTintFill(crit?0xffe08a:0xffffff); this.time.delayedCall(crit?120:80,()=>{ if(target.alive&&!target.stunned){ if(target.berserkUntil&&(this.gnow||0)<target.berserkUntil) target.spr.setTint(0xff5050); else target.spr.clearTint(); } });
       const kb=Math.min(14, 4+dmg*0.4);
       target.spr.setScale(base*1.18, base*0.84);
       this.tweens.add({targets:target.spr,scaleX:base,scaleY:base,duration:170,ease:'Back.out'});
@@ -153,26 +188,43 @@ Object.assign(Battle.prototype, {
     }
     if(crit){ this.floatLabel(c.baseX,c.baseY-58,'暴擊!','#ffd24a'); this.shake(180,0.012); this.screenFlash(0xffe08a,0.22,200); this.hitstop(70); }
     else if(heavy){ this.shake(120,0.007); this.hitstop(45); }
-    else { this.shake(55,0.003); }
+    else if(!(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx)){ this.shake(55,0.003); }   // v3.4 降噪：普攻不震動
     // 吸血（遺物・虛空之心 ＋ 技能・嗜血）
     if(c.side==='hero' && dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(this._lifesteal||0)+(lsk?(lsk.frac||0.2):0);
       if(ls>0 && c.hp<c.maxHp){ const hp=Math.max(1,Math.round(dmg*ls)); c.hp=Math.min(c.maxHp,c.hp+hp); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'+'+hp,0x7dff9a); } }
-    // 反傷（被動・堅守）：我方被敵攻擊時反彈
+    // 反傷（被動・堅守）：我方被敵攻擊時反彈（v2.4：改走 rawHit，先扣護盾再扣血）
     if(target.side==='hero' && c.side==='enemy' && c.alive && dmg>0){
       let refl=0; const rs=(target.skills||[]).find(s=>s.type==='reflect'); if(rs) refl+=(rs.frac||0.25);
-      if(refl>0){ const rd=Math.max(1,Math.round(dmg*refl)); c.hp=Math.max(0,c.hp-rd); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'-'+rd,0xff9a3a); if(rs)this.skillProc(target,rs.name,{throttle:1500}); if(c.hp<=0) this.die(c); } }
-    // 濺射（遺物・破碎神像）：我方每第 3 擊對其他敵人造成 50% 濺射
+      if(refl>0){ const rd=this.rawHit(c, Math.max(1,Math.round(dmg*refl)), 0xff9a3a); if(rs)this.skillProc(target,rs.name,{throttle:1500}); if(c.hp<=0) this.die(c); } }
+    // 濺射（遺物・破碎神像）：我方每第 3 擊對其他敵人造成 50% 濺射（v2.4：改走 rawHit）
     if(c.side==='hero' && this._splash && !opt.aoeHit && c.alive && c.atkI%3===0){
       const others=this.aliveOf('enemy').filter(f=>f!==target);
       if(others.length){ this.floatLabel(c.baseX,c.baseY-58,'濺射!','#ff8a3a');
-        others.forEach(f=>{ const sd=Math.max(1,Math.round(raw*0.5)); f.hp=Math.max(0,f.hp-sd); this.bar(f); pixelNum(this,f.container.x,f.container.y-30,'-'+sd,0xff8a3a); if(f.hp<=0) this.die(f); }); } }
-    // 一般暈（主動技能 stun）
-    if(target.hp>0){ const ss=this.trySkill(c,'stun'); if(ss) this.stun(target,ss,c); }
+        others.forEach(f=>{ this.rawHit(f, Math.max(1,Math.round(raw*0.5)), 0xff8a3a); if(f.hp<=0) this.die(f); }); } }
+    // 一般暈（主動技能 stun）；v3.0 天氣親和・冰封×雨：暈眩範圍化（每場一次）
+    if(target.hp>0){ const ss=this.trySkill(c,'stun');
+      if(ss){
+        if(this.weatherBoost && this.weatherBoost(c,ss)){ this.envLabel(c,'天候共鳴!','#9fe8ff',500);
+          this.aliveOf(c.side==='hero'?'enemy':'hero').forEach(f=>{ if(f.alive) this.stun(f,ss,c); }); }
+        else this.stun(target,ss,c);
+      } }
+    // v3.0 火系單體技（爆裂箭等）命中後：場上有火源 → 引燃連鎖
+    if(_fireCast && this.fireChain) this.fireChain(c);
     // 擊殺後處理
     if(target.hp<=0){ this.die(target);
       if(c.side==='hero' && this._killCrit && c.alive) c.killCrit=true;               // 遺物・低語石板：擊殺→下一擊必暴
       if(c.sprite==='ranger' && this._bondKillCdCut && c.alive) this.cutPriestCd();    // 羈絆・神諭指引
     }
+  }
+,
+  // v2.4 附帶傷害（濺射/反傷等副結算）統一入口：先扣護盾再扣血、更新血條與跳字，回傳實際 HP 傷害
+  rawHit(t,dmg,col){
+    let d=dmg, ab=0;
+    if((t.shield||0)>0){ ab=Math.min(t.shield,d); t.shield-=ab; d-=ab; }
+    if(ab>0) pixelNum(this,t.container.x,t.container.y-52,'🛡'+ab,0x9fd0ff);
+    if(d>0){ t.hp=Math.max(0,t.hp-d); pixelNum(this,t.container.x,t.container.y-30,'-'+d,col||0xff8a3a); }
+    this.bar(t);
+    return d;
   }
 ,
   bar(c){
@@ -232,6 +284,7 @@ Object.assign(Battle.prototype, {
         if(this.waveClearing) return;
         this.waveClearing=true;
         this.floatLabel(this.scale.width/2, this.scale.height/2-40, '波次清空！', '#7dff9a');
+        if(this.campfireRest) this.campfireRest();   // v3.0：營火存活 → 波次間小憩回血
         this.time.delayedCall(900,()=>{ this.waveClearing=false; this.waveIndex++; this.spawnWave(); });
       } else this.clearStep();                       // 最後一波 → 本場清空、推進探險%
     }
