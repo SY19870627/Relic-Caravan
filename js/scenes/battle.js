@@ -295,6 +295,8 @@ class Battle extends Phaser.Scene {
   setCardGear(c){ if(!c.card||!c.card.cont) return;
     if(c.card.wIcon){ c.card.wIcon.destroy(); c.card.wIcon=null; }
     if(c.card.aIcon){ c.card.aIcon.destroy(); c.card.aIcon=null; }
+    if(c.card.wLv){ c.card.wLv.destroy(); c.card.wLv=null; }   // v6.2.2 裝備等級角標
+    if(c.card.aLv){ c.card.aLv.destroy(); c.card.aLv=null; }
     const wo=(c.ref&&c.ref.weapon)||null, ao=(c.ref&&c.ref.armor)||null;
     const wn=(wo&&wo.name)||'', an=(ao&&ao.name)||'';
     // 與「上次畫的裝備」比對（存在持久的 c.ref，跨場有效）→ 換裝就閃一下
@@ -303,6 +305,9 @@ class Battle extends Phaser.Scene {
     c.card.wName=wn; c.card.aName=an;   // 供 updateSkillPips 偵測換裝
     c.card.wIcon=icon(this,76,14,weaponIconKey(wn),13,gearTierColor(wo)); c.card.cont.add(c.card.wIcon);   // 顏色＝稀有度，同類型升級也看得出
     c.card.aIcon=icon(this,92,14,armorIconKey(an),13,gearTierColor(ao)); c.card.cont.add(c.card.aIcon);
+    // v6.2.2 裝備等級角標：圖示右下的小數字＝該裝備 lvReq（與技能次數角標同款式）
+    c.card.wLv=txt(this,84,26,''+((wo&&wo.lvReq)||1),8,'#ffd27a',1,1).setStroke('#000',3); c.card.cont.add(c.card.wLv);
+    c.card.aLv=txt(this,100,26,''+((ao&&ao.lvReq)||1),8,'#9fd0ff',1,1).setStroke('#000',3); c.card.cont.add(c.card.aLv);
     if(changed){ this.tweens.add({targets:[c.card.wIcon,c.card.aIcon], scaleX:1.7, scaleY:1.7, yoyo:true, duration:200, ease:'Quad.out'}); } }   // 換裝瞬間放大脈動，醒目
   // 技能格：畫進該員的上方卡片（亮=可用、暗=冷卻/用盡）。資料結構同舊版，只是位置改到卡片。
   buildSkillPips(c){
@@ -316,8 +321,10 @@ class Battle extends Phaser.Scene {
       const pc=this.add.container(cx,0); const g=this.add.graphics();
       g.fillStyle(0x07060f,0.9); g.fillRoundedRect(-ps/2,-ps/2,ps,ps,5);
       g.lineStyle(1.5, ac.num, 0.95); g.strokeRoundedRect(-ps/2,-ps/2,ps,ps,5);
-      pc.add([g, icon(this,0,0,sv.icon,ps*0.64,ac.num)]); cont.add(pc);
-      c.skillPips[s.name]={c:pc, acc:ac.num, active, skill:s};
+      pc.add([g, icon(this,0,0,sv.icon,ps*0.64,ac.num)]);
+      const nb=txt(this, ps/2+2, ps/2+3, '', 9, '#ffd27a', 1, 1).setStroke('#000',3); pc.add(nb);   // v6.2 剩餘施放次數角標
+      cont.add(pc);
+      c.skillPips[s.name]={c:pc, acc:ac.num, active, skill:s, n:nb};
       cx+=ps+gap;
     });
   }
@@ -360,6 +367,9 @@ class Battle extends Phaser.Scene {
       for(const name in c.skillPips){ const p=c.skillPips[name]; let alpha=1;
         if(!c.alive) alpha=0.18;
         else if(p.active){ const st=c.skillCD[name]; if(st){ alpha = st.left<=0 ? 0.32 : ((this.gnow||0)-st.last < p.skill.cd ? 0.5 : 1); } }   // v2.4：CD 以 gnow 計
+        // v6.2 剩餘施放次數角標：金＝還有額度、紅＝用盡（僅數字變動時重繪）
+        if(p.n && p.active){ const st=c.skillCD[name], left=st?st.left:0;
+          if(p._lv!==left){ p._lv=left; p.n.setText(''+left); p.n.setColor(left>0?'#ffd27a':'#ff6f7a'); } }
         p.c.setAlpha(alpha);
       }
     });

@@ -413,6 +413,32 @@ function skillWithPlus(base, plus){ if(!plus) return base; const s=Object.assign
   if(s.amt!==undefined) s.amt=s.amt+4*plus;
   if(s.dur!==undefined) s.dur=s.dur+200*plus;
   s.plus=plus; return s; }
+// v6.2 升級效益說明：依技能實際欄位＋戰鬥端專屬加成，算出「每 +1 級」的具體收益文字（職業規劃器顯示用）
+function upgradeGain(s){
+  if(!s) return '';
+  const parts=[];
+  if(s.cd!==undefined) parts.push('每場可施放次數 +1、冷卻 −15%');
+  if(s.mult!==undefined) parts.push('傷害倍率 +'+((s.type==='stunAll'?0.4:0.2)).toFixed(1));   // 隕石術類：通用+0.2 再疊戰鬥端+0.2
+  let fr=0; if(s.frac!==undefined) fr+=10;
+  if(s.type==='reviveAlly') fr+=10;
+  if(s.type==='mark') fr+=5;
+  if(fr) parts.push((s.type==='mark'?'集火增傷':(s.type==='reviveAlly'?'復活血量':'效果比例'))+' +'+fr+'%');
+  let amt=0; if(s.amt!==undefined) amt+=4;
+  if(s.type==='teamBuff'||s.type==='debuffAll') amt+=3;
+  if(s.type==='overload') amt+=4;
+  if(amt) parts.push('效果數值 +'+amt);
+  let dms=0; if(s.dur!==undefined) dms+=200;
+  if(s.type==='overload') dms+=1200;
+  if(s.type==='mark') dms+=1500;
+  if(s.type==='berserk') dms+=1500;
+  if(s.type==='gale') dms+=800;
+  if(dms) parts.push('持續 +'+(dms/1000)+' 秒');
+  if(s.type==='rageShout') parts.push('血怒攻擊上限 +4');
+  if(s.type==='devotionWall') parts.push('護心堆疊上限 +2');
+  if(s.type==='summon') parts.push('精靈體型提升');
+  if(s.type==='transform') parts.push('變身體型提升');
+  return parts.join('、') || '效果提升';
+}
 function equippedSkills(idx){ return Array.isArray(ROSTER[idx]&&ROSTER[idx].skills)?ROSTER[idx].skills:[]; }
 // 回傳本次升級的 3 個選項：2 個新技能 ＋ 1 個強化已裝（無已裝則補第 3 個新技能）
 function rollLevelChoices(idx){

@@ -133,6 +133,18 @@ const WEAPONS = [
   {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4, cls:'ranger', vis:['bow','gold']},
   {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4, cls:'priest', vis:['staff','green']},
   {name:'烈焰法杖', atkSeq:[14,18], heal:0, lvReq:3, magic:true, cls:'mage', vis:['magestaff','red']},
+  // v6.1 職業平衡補齊：每職業 5 把武器（Lv1~5 完整曲線）
+  {name:'屠龍戰斧', atkSeq:[32,42], heal:0, lvReq:5, cls:'warrior', vis:['axe','red']},
+  {name:'長弓', atkSeq:[19,21,24], heal:0, lvReq:3, cls:'ranger', vis:['bow','blue']},
+  {name:'風隼獵弓', atkSeq:[24,27,30,33], heal:0, lvReq:5, cls:'ranger', vis:['bow','red']},
+  {name:'祝福權杖', atkSeq:[12,14], heal:11, lvReq:2, cls:'priest', vis:['staff','blue']},
+  {name:'晨星聖杖', atkSeq:[20,24], heal:26, lvReq:5, cls:'priest', vis:['staff','gold']},
+  {name:'秘紋法杖', atkSeq:[11,14], heal:0, lvReq:2, magic:true, cls:'mage', vis:['magestaff','blue']},
+  {name:'霜寒法杖', atkSeq:[17,21], heal:0, lvReq:4, magic:true, cls:'mage', vis:['magestaff','teal']},
+  {name:'虛空法杖', atkSeq:[21,26], heal:0, lvReq:5, magic:true, cls:'mage', vis:['magestaff','violet']},
+  {name:'雙風短刃', atkSeq:[13,15,17,19], heal:0, lvReq:3, cls:'rogue', vis:['dagger','teal']},
+  {name:'毒牙彎刃', atkSeq:[15,17,19,22], heal:0, lvReq:4, cls:'rogue', vis:['dagger','green']},
+  {name:'影歿刺劍', atkSeq:[18,21,24,27], heal:0, lvReq:5, cls:'rogue', vis:['dagger','gold']},
 ];
 // 防具：回歸基本＝防禦 + 護盾（每場開場補滿的護盾值；不再加最大血量、無特殊效果）
 const ARMORS = [
@@ -149,6 +161,11 @@ const ARMORS = [
   {name:'遊獵皮衣', def:4, shield:16, lvReq:2, cls:['ranger','rogue'], vis:['armor','green']},
   {name:'影襲夜衣', def:6, shield:22, lvReq:3, cls:['ranger','rogue'], vis:['armor','teal']},
   {name:'疾風革鎧', def:8, shield:28, lvReq:4, cls:['ranger','rogue'], vis:['armor','blue']},
+  // v6.1 職業平衡補齊：皮甲系 Lv5、布甲系 Lv3~5（每系 6 件）
+  {name:'夜梟獵裝', def:9, shield:34, lvReq:5, cls:['ranger','rogue'], vis:['armor','gold']},
+  {name:'咒印織袍', def:4, shield:24, lvReq:3, cls:['priest','mage'], vis:['robe','blue']},
+  {name:'星幕綢袍', def:5, shield:30, lvReq:4, cls:['priest','mage'], vis:['robe','gold']},
+  {name:'大賢者法衣', def:6, shield:36, lvReq:5, cls:['priest','mage'], vis:['robe','red']},
 ];
 // 世界地圖目的地：tier＝危險/遺物階級、repReq＝解鎖所需聲望（遺物種類數）
 // world：每 4 關為一個世界（0=遺跡地城・偏暗，1=沙漠雨林・偏亮）。地城索引 0-3＝第一世界、4-7＝第二世界。

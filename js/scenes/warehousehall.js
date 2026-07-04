@@ -1,4 +1,5 @@
-// ========================= 倉庫 ・ 收藏（格狀圖鑑）v0.9 =========================
+// ========================= 倉庫 ・ 收藏（頁簽圖鑑）v6.1 =========================
+// v6.1：武器/防具/道具/貴重 改為獨立頁簽——單列擺不下全部裝備後的擴容方案；格位自動換行
 class WarehouseHall extends Phaser.Scene {
   constructor(){ super('WarehouseHall'); }
   create(){
@@ -9,43 +10,52 @@ class WarehouseHall extends Phaser.Scene {
     sceneHeader(this,'圖 鑑 ・ 收 藏','',{accent:'gold'});
     button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
 
-
-    const cats=[
-      {label:'武器', accent:'teal', items:WEAPONS, kind:'武器'},
-      {label:'防具', accent:'blue', items:ARMORS, kind:'防具'},
+    const byLv=(a,b)=>(a.lvReq||1)-(b.lvReq||1);   // 圖鑑依需求等級排序（同級維持目錄順序）
+    this.cats=[
+      {label:'武器', accent:'teal', items:WEAPONS.slice().sort(byLv), kind:'武器'},
+      {label:'防具', accent:'blue', items:ARMORS.slice().sort(byLv), kind:'防具'},
       {label:'道具', accent:'green', items:LOOT.consum.map(n=>({name:n})), kind:'道具'},
       {label:'貴重', accent:'gold', items:LOOT.valuable.map(n=>({name:n})), kind:'貴重物品'},
     ];
     let total=0, got=0;
-    cats.forEach(c=>{ c.items.forEach(it=>{ total++; if(this.lit(c.kind,it.name)) got++; }); });
+    this.cats.forEach(c=>{ c.items.forEach(it=>{ total++; if(this.lit(c.kind,it.name)) got++; }); });
     const pc=chip(this, 0, 20, {label:'收藏 '+got+' / '+total, accent:'gold', icon:'bag', size:12, h:26}); pc.setX(W-14-pc.w);
 
-    // 三區段固定格位
-    const sz=44, pitch=56, x0=35+sz/2;
-    const rowsY=[114,186,258,330], labelY=[78,150,222,294];
-    cats.forEach((c,ci)=>{
-      const gotC=c.items.filter(it=>this.lit(c.kind,it.name)).length;
-      const lb=txt(this, 35, labelY[ci], c.label, 13, accent(c.accent).hex, 0, 0.5);
-      txt(this, 35+lb.width+12, labelY[ci], gotC+' / '+c.items.length, 11, UI.dim, 0, 0.5);
-      c.items.forEach((it,i)=>{ this.slot(x0+i*pitch, rowsY[ci], sz, it, c.kind); });
-    });
-
-    // 詳細面板
+    // 詳細面板（常駐，不隨頁簽重建）
     this.det=panel(this, W/2, 462, 866, 138, {accent:'gold', title:'物品資訊', icon:'bag', titleSize:14});
     this._det=[];
+    this.tab=0;
+    this.render();
+  }
+  render(){
+    const W=this.scale.width;
+    if(this._objs) this._objs.forEach(o=>o.destroy());
+    this._objs=[];
+    // 頁簽列：各分類獨立頁面，標籤附收藏進度
+    const tw=168, tg=14, tx=W/2-(4*tw+3*tg)/2+tw/2;
+    this.cats.forEach((c,i)=>{ const on=i===this.tab;
+      const gotC=c.items.filter(it=>this.lit(c.kind,it.name)).length;
+      this._objs.push(button(this, tx+i*(tw+tg), 80, tw, 32, c.label+'　'+gotC+' / '+c.items.length,
+        ()=>{ if(this.tab!==i){ this.tab=i; this.render(); } },
+        {accent:on?c.accent:'slate', size:13}));
+    });
+    // 格狀圖鑑：每列 14 格、自動換行
+    const c=this.cats[this.tab], sz=44, pitch=56, cols=14, x0=35+sz/2, y0=138, rowH=62;
+    c.items.forEach((it,i)=>{ const col=i%cols, row=Math.floor(i/cols);
+      this.slot(x0+col*pitch, y0+row*rowH, sz, it, c.kind); });
     this.showDetail(null,null,false);
   }
   lit(kind,name){ return (kind==='武器'||kind==='防具')? gearOwned(name) : itemDiscovered(name); }
   slot(x,y,sz,item,kind){
     const disc=this.lit(kind,item.name), v=disc?itemVisual(item.name):null, ac=disc?accent(v.accent):accent('slate');
-    const g=this.add.graphics();
+    const g=this.add.graphics(); this._objs.push(g);
     g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,9);
     g.fillStyle(disc?UI.raisedN:UI.panelN, disc?1:0.55); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
     if(disc){ g.fillStyle(ac.deep,0.4); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz*0.5,9); }
     g.lineStyle(2, disc?ac.num:UI.lineN, disc?0.9:0.35); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
-    if(disc){ icon(this, x, y-2, v.icon, sz*0.52, ac.num); }
-    else { txt(this, x, y, '?', sz*0.42, UI.faint); }
-    const hit=this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true});
+    if(disc){ this._objs.push(icon(this, x, y-2, v.icon, sz*0.52, ac.num)); }
+    else { this._objs.push(txt(this, x, y, '?', sz*0.42, UI.faint)); }
+    const hit=this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true}); this._objs.push(hit);
     hit.on('pointerover',()=>this.showDetail(item,kind,disc));
   }
   showDetail(item,kind,disc){
@@ -67,7 +77,7 @@ class WarehouseHall extends Phaser.Scene {
       add(txt(this, tx, ty+38, '武器 ・ '+weaponClassLabel(item)+'　|　傷害 '+item.atkSeq.join(' / ')+(item.heal?'　|　治療 '+item.heal:'')+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
       if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
     } else if(kind==='防具'){
-      add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.hp+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
+      add(txt(this, tx, ty+38, '防具 ・ '+armorClassLabel(item)+'　|　防禦 '+item.def+'　|　護盾 +'+item.shield+'　|　需求 Lv'+item.lvReq, 12, UI.text, 0));
       if(item.traitDesc) add(txt(this, tx, ty+62, '特效：'+item.traitDesc, 12, UI.gold, 0));
     } else if(kind==='貴重物品'){
       add(txt(this, tx, ty+38, '貴重物品 ・ 探險中可在地城商店變賣為 💰（每趟）', 12, UI.text, 0));

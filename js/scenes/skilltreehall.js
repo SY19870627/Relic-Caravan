@@ -51,6 +51,7 @@ class SkillTreeHall extends Phaser.Scene {
     saveGuild(); this.render(); }
   // ---- 繪製 ----
   render(){
+    this.hideTip();   // v6.2：重繪時清掉懸停浮窗（點擊升級後舊列已銷毀，pointerout 不會觸發）
     if(this._ui) this._ui.forEach(o=>o.destroy()); this._ui=[];
     const add=o=>{ this._ui.push(o); return o; };
     const cap=this.cap(), spent=this.spent(), c=this.roleCounts(), valid=planValid(this.sprite);
@@ -107,12 +108,30 @@ class SkillTreeHall extends Phaser.Scene {
     add(rect);
     add(icon(this, 26, y, skillVisual(s).icon, 16, locked?UI.lineN:ac.num));
     add(txt(this, 42, y, s.name, 14, locked?UI.faint:(learned?ac.hex:UI.white), 0, 0.5));
-    let d=s.desc||''; if(d.length>15) d=d.slice(0,14)+'…';
+    let d=(s.cd!==undefined?('×'+(s.uses||1)+'｜'):'')+(s.desc||''); if(d.length>15) d=d.slice(0,14)+'…';   // v6.2.1 列上直接標原始每場次數
     add(txt(this, 134, y, d, 11, locked?UI.faint:UI.dim, 0, 0.5));
     const right = locked ? ('🔒 '+CFG.ranks.names[s.rank||0]) : (learned ? ('Lv'+rank+' ▲升級') : ('費 '+(s.tier||1)));
     add(txt(this, 452, y, right, 11.5, locked?UI.faint:(learned?UI.green:UI.dim), 1, 0.5));
     rect.on('pointerdown',()=>{ if(locked){ this.flash('需晉升至「'+CFG.ranks.names[s.rank||0]+'」——前往試煉之間'); return; } if(learned) this.addUpgrade(s.name); else this.addLearn(s.name); });
+    // v6.2 懸停詳情：完整描述＋升級效益（解決「看不出升級效果」）
+    rect.on('pointerover',()=>this.showTip(s));
+    rect.on('pointerout',()=>this.hideTip());
   }
+  // ---- v6.2 技能詳情浮窗：全描述＋每 +1 級的具體收益（底部覆蓋層，懸停顯示）----
+  showTip(s){
+    this.hideTip();
+    const W=this.scale.width, cy=522, add=o=>{ this._tip.push(o); return o; };
+    this._tip=[];
+    const ac=accent(this.ROLE_ACC[s.role]||'blue'), rank=this.rankOf(s.name);
+    const g=this.add.graphics().setDepth(95); this._tip.push(g);
+    g.fillStyle(0x07060f,0.94); g.fillRoundedRect(W/2-330,cy-34,660,68,10);
+    g.lineStyle(1.5,ac.num,0.9); g.strokeRoundedRect(W/2-330,cy-34,660,68,10);
+    const base = s.cd!==undefined ? ('　每場 ×'+(s.uses||1)+'・冷卻 '+(s.cd/1000)+'s'+(s.dur?('・持續 '+(s.dur/1000)+'s'):'')) : '　被動・常駐';   // v6.2.1 原始次數/冷卻/持續時間標示
+    add(txt(this, W/2-314, cy-20, s.name+'　['+this.ROLE_LABEL[s.role]+']'+base+(rank?('　目前 Lv'+rank+' / 3'):'　尚未習得'), 12.5, ac.hex, 0, 0.5).setDepth(96));
+    add(txt(this, W/2-314, cy-1, s.desc||'', 11, UI.text, 0, 0.5).setDepth(96));
+    add(txt(this, W/2-314, cy+19, '▲ 每升 1 級：'+upgradeGain(s), 11, UI.gold, 0, 0.5).setDepth(96));
+  }
+  hideTip(){ if(this._tip){ this._tip.forEach(o=>o.destroy()); this._tip=null; } }
   flash(msg, col){ if(this._f) this._f.destroy();
     this._f=txt(this, this.scale.width/2, 540, msg, 13, col||UI.red).setDepth(99).setStroke('#000',3);
     this.tweens.add({targets:this._f, alpha:0, delay:900, duration:500, onComplete:()=>{ if(this._f){ this._f.destroy(); this._f=null; } }}); }
