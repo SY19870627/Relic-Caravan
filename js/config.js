@@ -55,6 +55,28 @@ const CFG = {
   repCost: { partySlot:[3,5,8,12], craftsman:[2,4,6], leader:3, upgradeBase:2, upgradePerCraft:2 },
   repEarn: { perRelic:3, perReturn:1 },   // 帶回新遺物 +3、平安折返 +1
 
+  // ===== v4.0 職業階級制（見習/正式/精銳/菁英/大師）=====
+  // v4.6 世界難度：敵人 血/攻/防 乘數；遺物品階＝通關難度（粗劣/完好/完美 → 數值效果乘數）
+  diff: {
+    names:['普通','困難','煉獄'], icons:['🌿','⚔','🔥'],
+    muls:[0.8, 1.0, 1.2],          // 敵人 HP/ATK/DEF 乘數
+    relicMuls:[0.7, 1.0, 1.4],     // 遺物數值效果乘數（規則型旗標不受影響）
+    gradeNames:['粗劣','完好','完美'],
+  },
+
+  // v4.1 單人晉升試煉：獨立縮放（為單人重新佈局，不用五人 partyMul 公式）
+  trial: {
+    scaleByStage:[0.5, 0.7, 0.9, 1.1],   // 關卡Ⅰ~Ⅳ 敵人縮放
+    bossMul:1.15,                        // 關底小王額外倍率
+    pointsByStage:[0, 2, 3, 5],          // 通關職業點數上限獎勵（R1 無、R2+2、R3+3、R4+5）
+    firstClearRep:2,                     // 首通聲望
+  },
+  ranks: {
+    enforce:true,    // v4.1 試煉之間已上線 → 正式啟用階級鎖定（技能依 rank 解鎖）
+    names:['見習','正式','精銳','菁英','大師'],
+    perks:{ hp:[0,8,8,8,8] },   // 每晉一階該職業 HP 累加（R1-R4 各 +8；裝階/點數福利由試煉結算發放）
+  },
+
   // ===== v3.4 清晰節奏模式（可開關，GUILD.settings.pacing；預設開）=====
   pacing: {
     beatMs:170,        // A 行動節拍器：全場兩次「起手」的最短間隔（遊戲毫秒，隨倍率縮放）——同一瞬間只有一人出手

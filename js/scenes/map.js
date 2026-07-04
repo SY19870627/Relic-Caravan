@@ -51,10 +51,11 @@ function equipSwap(item, heroIndex){
 // 回傳「波次陣列」：每個元素是一波敵人；清完一波才進下一波
 // v1.2：敵人改由「怪物組」MONSTER_GROUPS 提供。一場戰鬥＝挑一組（可多波，王戰＝小兵波＋王波），
 // 每隻怪的站位固定寫在資料裡；此處只負責「依標籤＋深度挑組」與「數值縮放」。
-function scaleEnemy(e, scale){
+function scaleEnemy(e, scale, defMul){
   return {sprite:e.sprite, name:e.name, hp:Math.round(e.hp*scale),
-    atkSeq:e.atkSeq.map(a=>Math.round(a*scale)), def:e.def, interval:e.interval,
+    atkSeq:e.atkSeq.map(a=>Math.round(a*scale)), def:Math.round(e.def*(defMul||1)), interval:e.interval,
     ranged:!!e.ranged, healer:!!e.healer, heal:e.heal||0, boss:!!e.boss, skills:e.skills,
+    charge:!!e.charge, selfBurn:!!e.selfBurn,   // v4.4 試煉傀儡機制旗標（蓄能/自燃）
     x:e.x, y:e.y, row:e.row};
 }
 // 探險深度等級（1~3）：越深開放越大的怪物組（淺層只出小組）；高階目的地（神城/虛空）提早一級。
@@ -74,14 +75,31 @@ function pickGroup(kind){
 function buildEncounter(n){
   const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), partyMul=0.5+0.13*p;   // 敵人強度隨出戰人數縮放
   const prog=(RUN.exped&&RUN.exped.plan&&RUN.exped.plan.length)? Math.min(1, RUN.exped.i/RUN.exped.plan.length) : 0;
-  const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul;
+  // v4.4 試煉：改用 TRIAL_MOBS 手工波次（不再借用主線怪物組），每職業獨立縮放
+  if(RUN&&RUN.trial){
+    const sd=TRIAL_DEFS[RUN.trial.sprite].stages[RUN.trial.stage-1];
+    const fi=Math.min(RUN.trialFight||0, sd.fights.length-1);
+    RUN.trialFight=(RUN.trialFight||0)+1;
+    RUN.nodeObjs=sd.objs||null;
+    return sd.fights[fi].map(w=>w.map(id=>scaleEnemy(TRIAL_MOBS[id], sd.mul||0.8)));
+  }
+  const dm=((CFG.diff&&CFG.diff.muls)||[0.8,1,1.2])[(RUN.diff!=null)?RUN.diff:1]||1;   // v4.6 世界難度：血/攻/防 全乘
+  const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul*dm;
   const g=pickGroup(n.type==='elite'?'elite':'normal');
-  RUN.nodeObjs=(g&&g.objs)||null;   // v3.1：怪物組可自帶「每波物件配置」objs:[ [{type,x,y},...] 每波一組 ]；未指定則由引擎依站位自動配置
-  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,scale))) : [];
+  RUN.nodeObjs=(g&&g.objs)||null;   // v3.1 怪物組 objs
+  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,scale,dm))) : [];
 }
 function buildBoss(){
-  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length), s=(1+CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.bossTierScale)*(0.62+0.13*p);   // 王＝末段：補上深度縮放，成為真正的最強戰
+  const t=RUN.destTier||1, p=Math.max(1, activeRoster().length);
+  // v4.4 試煉關主：TRIAL_DEFS 手工波次
+  if(RUN&&RUN.trial){
+    const sd=TRIAL_DEFS[RUN.trial.sprite].stages[RUN.trial.stage-1];
+    RUN.nodeObjs=sd.objs||null;
+    return sd.boss.map(w=>w.map(id=>scaleEnemy(TRIAL_MOBS[id], (sd.mul||0.8)*CFG.trial.bossMul)));
+  }
+  const dm=((CFG.diff&&CFG.diff.muls)||[0.8,1,1.2])[(RUN.diff!=null)?RUN.diff:1]||1;   // v4.6 世界難度
+  const s=(1+CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.bossTierScale)*(0.62+0.13*p)*dm;   // 王＝末段：補上深度縮放，成為真正的最強戰
   const g=pickGroup('boss');
-  RUN.nodeObjs=(g&&g.objs)||null;   // v3.1：王戰同樣支援手動物件配置（未指定＝王波固定祭壇）
-  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,s))) : [];   // 該組自含波次（小兵波→王波）
+  RUN.nodeObjs=(g&&g.objs)||null;
+  return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,s,dm))) : [];   // 該組自含波次（小兵波→王波）
 }

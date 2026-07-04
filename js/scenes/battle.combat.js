@@ -12,6 +12,8 @@ Object.assign(Battle.prototype, {
     let _fireCast=false;
     if(_skillUsed && _skillUsed.affinity && _skillUsed.affinity.indexOf('fire')>=0){ _fireCast=true;
       if(this._wxId==='rain' && opt.mult){ opt.mult=Math.max(1, +(opt.mult*CFG.env.rainFireMul).toFixed(2)); this.envLabel(c,'雨勢削弱','#9fd0ff',2500); } }
+    // v4.3：AoE 技能的 真傷／灼燒 旗標透過 opt 傳入每一次 damage()
+    if(_skillUsed){ if(_skillUsed.trueDmg) opt.trueDmg=true; if(_skillUsed.burn) opt.burn=_skillUsed.burn; }
     // v3.3 空間魔法 × 空間裂縫：增幅傷害（裂縫耐久 −1）
     if(_skillUsed && this.voidAmp && this.voidAmp(c,_skillUsed) && opt.mult){ opt.mult=+(opt.mult*CFG.env.voidAmpMult).toFixed(2); }
     // v3.0 天氣親和・冰封範圍化由 damage() 的 stun 分支處理（此處為 AoE 職業，stun 技能不在此觸發）
@@ -34,6 +36,7 @@ Object.assign(Battle.prototype, {
     // 大改版・霸體／熊人變身：免疫暈眩
     if(target.side==='hero' && (this.getSkill(target,'hyperarmor') || (target.formUntil&&(this.gnow||0)<target.formUntil&&target.form==='bearman'))){ this.floatLabel(target.baseX,target.baseY-52,'免疫','#9fe8ff'); return; }
     target.stunUntil=(this.gnow||0)+sk.dur;   // v2.4：gnow 遊戲時間，存原始時長（切速/暫停皆正確）
+    if(target.charge){ target.lastAttack=(this.gnow||0); this.floatLabel(target.baseX,target.baseY-66,'蓄能中斷!','#9fe8ff'); }   // v4.4 蓄能傀儡：被暈＝蓄力重置
     this.floatLabel(target.baseX,target.baseY-52, (sk.name||'暈眩')+'!','#ffd24a');
     if(!(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx)) this.screenFlash(0xffd24a,0.10,140);   // v3.4 降噪：暈眩不閃屏
     target.stunned=true; target.spr.setTint(0x9a9ad0);   // 被暈：偏紫灰
@@ -71,6 +74,15 @@ Object.assign(Battle.prototype, {
   }
 ,
   heal(c,target){
+    // v4.3 牧師・虔誠壁壘：每施放一次治療 → 全隊 DEF +1（該場疊加，上限 amt）
+    // v4.5 祈願燭台：每次治療點亮一燭（三燭俱燃 → 小神蹟並重燃，見 candleMiracle）
+    const _cn=this.objectWithTag&&this.objectWithTag('candle');
+    if(_cn) this.useObject(_cn,1,'燭火點亮');
+    const dw=this.getSkill(c,'devotionWall');
+    if(dw && (c._devStacks||0) < ((dw.amt||8)+(dw.plus||0)*2)){ c._devStacks=(c._devStacks||0)+1;
+      (this.heroes||[]).forEach(h=>{ if(h.alive) h.def+=1; });
+      this.skillProc(c,dw.name,{throttle:1500});
+      if(this.envLabel) this.envLabel(c,'壁壘 DEF+'+c._devStacks,'#9fd0ff',1500); }
     const baseAmt=Phaser.Math.Between(c.heal, c.heal+CFG.battle.healVariance);
     const critLow=this.hasSkillType(c,'critHealLow');         // 被動・聖療：對半血以下治療翻倍
     const shieldOnHeal=this.getSkill(c,'shieldOnHeal');       // 被動・聖盾：被治療者得護盾
@@ -105,11 +117,14 @@ Object.assign(Battle.prototype, {
       if(this._wxId==='fog') atk=Math.max(1,Math.round(atk*CFG.env.fogRangedMul));
       else if(this._wxId==='wind') atk=Math.max(1,Math.round(atk*CFG.env.windRangedMul));
     }
-    let crit=false, mult=2, _fireCast=false;
-    if(opt.crit!==undefined){ crit=opt.crit; mult=opt.mult||2; }            // 範圍攻擊：暴擊一次套全體
+    let crit=false, mult=2, _fireCast=false, _true=!!opt.trueDmg, _burnN=opt.burn||0;
+    if(opt.crit!==undefined){ crit=opt.crit; mult=opt.mult||2; }            // 範圍攻擊：暴擊一次套全體（trueDmg/burn 由 opt 傳入）
     else { const cs=this.trySkill(c,'crit'); if(cs){ crit=true; mult=cs.mult; if(cs.affinity&&cs.affinity.indexOf('fire')>=0) _fireCast=true;
+        if(cs.trueDmg) _true=true; if(cs.burn) _burnN=cs.burn;   // v4.3 真傷／灼燒（炎爆）
         if(this.voidAmp&&this.voidAmp(c,cs)) mult=+(mult*CFG.env.voidAmpMult).toFixed(2); }   // v3.3 空間裂縫增幅
       else { const nk=this.trySkill(c,'nuke'); if(nk){ crit=true; mult=nk.mult||2.5; if(nk.affinity&&nk.affinity.indexOf('fire')>=0) _fireCast=true;
+        if(nk.trueDmg) _true=true; if(nk.burn) _burnN=nk.burn;   // v4.3 真傷（靈魂震爆）
+        if(nk.execLow && target.maxHp>0 && target.hp/target.maxHp < nk.execLow){ mult*=2; this.floatLabel(c.baseX,c.baseY-58,'處決!','#ff5a4a'); this.screenFlash(0xff5a4a,0.16,220); }   // v4.3 盜賊・暗殺處決
         if(this.voidAmp&&this.voidAmp(c,nk)) mult=+(mult*CFG.env.voidAmpMult).toFixed(2);   // v3.3 空間裂縫增幅
         this.floatLabel(c.baseX,c.baseY-58,(nk.name||'重擊')+'!','#ff8a3a'); if(c.sprite==='mage') this.castBurst(c,0xc46bff); } } }   // 大改版・重擊類大招
     if(_fireCast && this._wxId==='rain'){ mult=Math.max(1,+(mult*CFG.env.rainFireMul).toFixed(2)); this.envLabel(c,'雨勢削弱','#9fd0ff',2500); }   // v3.0 雨天火系減弱
@@ -123,12 +138,14 @@ Object.assign(Battle.prototype, {
       // v3.1 盜賊：掩體在場 → 背刺必暴（每次觸發消耗掩體耐久 1）；否則濃霧中機率暴擊（霧影）
       else if(c.sprite==='rogue' && this.objectWithTag && this.objectWithTag('cover')){ const _cov=this.objectWithTag('cover');
         crit=true; mult=CFG.env.backstabMult; this.useObject(_cov,1); this.envLabel(c,'背刺!','#ffd24a',600); }
-      else if(c.sprite==='rogue' && this._wxId==='fog' && Math.random()<CFG.env.fogRogueCrit){ crit=true; mult=CFG.env.fogCritMult; this.envLabel(c,'霧影!','#9fe8ff',1800); }
+      else if(c.sprite==='rogue' && (this._wxId==='fog' || (this._darkUntil&&_now<this._darkUntil)) && Math.random()<((this._darkUntil&&_now<this._darkUntil)?0.45:CFG.env.fogRogueCrit)){ crit=true; mult=CFG.env.fogCritMult; this.envLabel(c,(this._darkUntil&&_now<this._darkUntil)?'暗襲!':'霧影!','#9fe8ff',1800); }   // v4.5 吹燈入暗：暗中暴擊率更高
     }
     if(c.side==='hero') c.firstHitDone=true;
     if(crit) atk=Math.round(atk*mult);
     // v2.1 稱號・對族群增傷（取所有生效稱號中最高的比例）
     if(c.side==='hero' && this._title){ const _p=titleDmgVsFor(target.sprite,this._title); if(_p>0) atk=Math.round(atk*(1+_p)); }
+    // v4.0 遊俠・致命標記：全隊對被標記者增傷
+    if(c.side==='hero' && target._markUntil && _now<target._markUntil) atk=Math.round(atk*(1+(target._markPct||0.25)));
     if(c.side==='hero'){ const ex=this.getSkill(c,'execute'); if(ex && target.maxHp>0 && target.hp/target.maxHp<0.30){ atk=Math.round(atk*(1+(ex.frac||0.5))); this.skillProc(c,ex.name,{throttle:1500}); } }   // 大改版・處決：低血增傷
     // 有效防禦：破甲（技能）→ 低血 DEF 翻倍（遺物・枯骨王徽／被動・鐵骨）
     let tdef=target.def;
@@ -141,6 +158,7 @@ Object.assign(Battle.prototype, {
       if(_lowHp){ const _s=this.getSkill(target,'lowHpDef'); if(_s)this.skillProc(target,_s.name,{throttle:2600}); }
     }
     if(target.buffUntil && _now<target.buffUntil) tdef=Math.max(0, tdef+(target.buffDef||0));   // 牧師強化(我方+DEF)/弱化(敵-DEF)
+    if(_true){ tdef=0; }   // v4.3 真傷：無視防禦（護盾豁免見下方吸收段）
     let raw=Math.max(1, atk - tdef);
     if(target.side==='hero'){ let red=0; const ha=this.getSkill(target,'hyperarmor'); if(ha) red+=(ha.frac||0.15); if(target.formUntil&&_now<target.formUntil&&target.formReduce) red+=target.formReduce; if(red>0){ raw=Math.max(1,Math.round(raw*(1-Math.min(0.85,red)))); if(ha)this.skillProc(target,ha.name,{throttle:2600}); } }   // 大改版・霸體/熊人變身：受傷減免
     // v3.3 盜賊・移形換位：受擊瞬間與巨木換位（單體攻擊 MISS、巨木代承一擊）
@@ -157,9 +175,9 @@ Object.assign(Battle.prototype, {
     // 遺物・古神之眼（洞察）：每位成員本場第一次受到的攻擊無效
     if(target.side==='hero' && this._firstHitBlock && !target.firstBlockUsed){
       target.firstBlockUsed=true; this.floatLabel(target.baseX,target.baseY-46,'洞察!','#9fe8ff'); this.spark(target.container.x,target.container.y,0x9fe8ff); return; }
-    // 護盾吸收（守護／治療轉盾／裝備／升級／料理）
+    // 護盾吸收（守護／治療轉盾／裝備／升級／料理）；v4.3 真傷無視護盾
     let dmg=raw, absorbed=0;
-    if(target.shield>0){ absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed; }
+    if(target.shield>0 && !_true){ absorbed=Math.min(target.shield,dmg); target.shield-=absorbed; dmg-=absorbed; }
     // 大改版・掩護：部分傷害轉由持「掩護」的隊友承受（不遞迴、不雙重結算）
     if(target.side==='hero' && dmg>1){ const cov=(this.heroes||[]).find(h=>h.alive&&h!==target&&this.getSkill(h,'cover'));
       if(cov){ const cv=this.getSkill(cov,'cover'); const redir=Math.min(dmg-1, Math.round(dmg*(cv.frac||0.20)));
@@ -189,13 +207,20 @@ Object.assign(Battle.prototype, {
     if(crit){ this.floatLabel(c.baseX,c.baseY-58,'暴擊!','#ffd24a'); this.shake(180,0.012); this.screenFlash(0xffe08a,0.22,200); this.hitstop(70); }
     else if(heavy){ this.shake(120,0.007); this.hitstop(45); }
     else if(!(typeof pacingOn==='function' && pacingOn() && CFG.pacing.quietFx)){ this.shake(55,0.003); }   // v3.4 降噪：普攻不震動
-    // 吸血（遺物・虛空之心 ＋ 技能・嗜血）
-    if(c.side==='hero' && dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(this._lifesteal||0)+(lsk?(lsk.frac||0.2):0);
+    // v4.0 盜賊・淬毒（R4）：攻擊使敵人疊真毒（與毒沼共用 DoT 堆疊）
+    if(c.side==='hero' && dmg>0 && target.side==='enemy' && target.alive && this.addPoison && this.hasSkillType(c,'poisonOnHit')) this.addPoison(target, 1);
+    // v4.3 法師・炎爆灼燒：命中掛灼燒層（與毒共用堆疊、火焰視覺）
+    if(_burnN>0 && target.alive && this.addPoison) this.addPoison(target, _burnN, 'burn');
+    // 吸血（遺物・虛空之心 ＋ 技能・嗜血）；v4.4：敵方也可持有 lifesteal（暗影竊命者）
+    if(dmg>0 && c.alive){ const lsk=this.getSkill(c,'lifesteal'); const ls=(c.side==='hero'?(this._lifesteal||0):0)+(lsk?(lsk.frac||0.2):0);
       if(ls>0 && c.hp<c.maxHp){ const hp=Math.max(1,Math.round(dmg*ls)); c.hp=Math.min(c.maxHp,c.hp+hp); this.bar(c); pixelNum(this,c.container.x,c.container.y-30,'+'+hp,0x7dff9a); } }
-    // 反傷（被動・堅守）：我方被敵攻擊時反彈（v2.4：改走 rawHit，先扣護盾再扣血）
-    if(target.side==='hero' && c.side==='enemy' && c.alive && dmg>0){
-      let refl=0; const rs=(target.skills||[]).find(s=>s.type==='reflect'); if(rs) refl+=(rs.frac||0.25);
-      if(refl>0){ const rd=this.rawHit(c, Math.max(1,Math.round(dmg*refl)), 0xff9a3a); if(rs)this.skillProc(target,rs.name,{throttle:1500}); if(c.hp<=0) this.die(c); } }
+    // 反傷（被動・堅守／荊棘傀儡）：v4.4 通用化——任一側帶 reflect 被打都反彈
+    if(c.alive && dmg>0 && c!==target){
+      const rs=(target.skills||[]).find(s=>s.type==='reflect');
+      if(rs){ this.rawHit(c, Math.max(1,Math.round(dmg*(rs.frac||0.25))), 0xff9a3a);
+        if(target.side==='hero') this.skillProc(target,rs.name,{throttle:1500});
+        else if(this.envLabel) this.envLabel(target,'荊棘反彈!','#ff9a3a',1200);
+        if(c.hp<=0) this.die(c); } }
     // 濺射（遺物・破碎神像）：我方每第 3 擊對其他敵人造成 50% 濺射（v2.4：改走 rawHit）
     if(c.side==='hero' && this._splash && !opt.aoeHit && c.alive && c.atkI%3===0){
       const others=this.aliveOf('enemy').filter(f=>f!==target);
@@ -266,6 +291,8 @@ Object.assign(Battle.prototype, {
       this.tweens.add({targets:ring,radius:60,alpha:0,duration:420,onComplete:()=>ring.destroy()});
       return;
     }
+    // v4.7 骸骨地坑重生：接管死亡流程（沉入地底 3 秒後半血爬回；擊殺數只在最終死亡計）
+    if(c.side==='enemy' && this.pitRebirth && this.pitRebirth(c)) return;
     c.alive=false;
     if(c.side==='enemy') creditEnemyKill(c);   // v2.0：敵人死亡 → 累計任務擊殺數
     // 遺物・失落聖徽（聖庇）：每場首位成員陣亡 → 全隊回援
@@ -279,7 +306,7 @@ Object.assign(Battle.prototype, {
     this.shake(150,0.009);
     this.tweens.add({targets:c.container,alpha:0,angle:c.facing*80,y:c.baseY+16,duration:420,ease:'Quad.in'});
     if(this.aliveOf('hero').length===0){ this.finish(false); return; }
-    if(this.aliveOf('enemy').length===0){
+    if(this.aliveOf('enemy').length===0 && !(this._pendingRebirth>0)){   // v4.7：有骸骨待重生時不提早判定勝利
       if(this.waveIndex < this.totalWaves-1){       // 還有下一波
         if(this.waveClearing) return;
         this.waveClearing=true;

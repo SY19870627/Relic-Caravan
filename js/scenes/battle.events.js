@@ -117,7 +117,7 @@ Object.assign(Battle.prototype, {
     o.add(button(this,W/2-82,cy+52,152,34,'🎒 整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
     o.add(button(this,W/2+82,cy+52,152,34,'📦 物品欄（'+RUN.cargo.length+'）',()=>this.evInventory('camp'),{variant:'go',size:12}));
     o.add(button(this,W/2-82,cy+94,152,34,'繼續前進',()=>this.advanceStep(),{variant:'go',size:13}));
-    o.add(button(this,W/2+82,cy+94,152,34,'撤退收工',()=>{ this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:13}));
+    o.add(button(this,W/2+82,cy+94,152,34, (RUN&&RUN.trial)?'放棄試煉':'撤退收工', ()=>{ if(RUN&&RUN.trial){ if(this.overlay){this.overlay.destroy(); this.overlay=null;} this.trialEnd(false); } else this.scene.start('Result',{outcome:'retreat'}); },{variant:'danger',size:13}));
     // 閒置 5 秒自動前進：進度條（滑鼠一動就歸零）
     const by=cy+150, bw=360;
     o.add(txt(this,W/2,by-15,'🖱 滑鼠靜止 5 秒自動前進',11,TH.dim));

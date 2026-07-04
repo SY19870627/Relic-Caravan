@@ -45,7 +45,9 @@ let ROSTER = defaultRoster();   // 開局只有戰士；其餘於招募所解鎖
 function ensureRoster(){ while(ROSTER.length<CLASS_ORDER.length) ROSTER.push(newRosterSlot(false));
   ROSTER.forEach((r,i)=>{ if(r.unlocked==null)r.unlocked=false; if(r.tier==null)r.tier=0; if(r.level==null)r.level=1; if(r.xp==null)r.xp=0;
     if(r.unlocked && !Array.isArray(r.skills)) r.skills=[]; }); }
-function activeRoster(){ const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) out.push(i); }); const list=out.length?out:[0]; return list.slice(0, Math.max(1, GUILD.partySize||1)); }
+function activeRoster(){
+  if(typeof RUN!=='undefined' && RUN && RUN.trial) return [RUN.trial.idx];   // v4.1 試煉：強制單人（無視隊伍格與解鎖）
+  const out=[]; ROSTER.forEach((r,i)=>{ if(r.unlocked) out.push(i); }); const list=out.length?out:[0]; return list.slice(0, Math.max(1, GUILD.partySize||1)); }
 
 let BATTLE_SPEED = 1;   // 戰鬥速度倍率（1/2/4），跨場記住
 let TARGET_ORDER = ['lowHp','healer','back','front','lowDef','status'];   // 我方鎖定優先序（由上到下），跨場記住
@@ -94,6 +96,50 @@ function gainMaterial(di){ const m=MATERIAL_BY_DEST[di]; if(m){ addMaterial(m.id
 function addIngredient(id,n){ GUILD.ingredients[id]=(GUILD.ingredients[id]||0)+(n||1); }
 function ingCount(id){ return GUILD.ingredients[id]||0; }
 function ingTotal(){ return Object.values(GUILD.ingredients||{}).reduce((a,b)=>a+b,0); }
+// ===== v4.0 職業階級（GUILD.classRanks，0-4；晉階由單人試煉發放）=====
+function classRankOf(sprite){ return (GUILD.classRanks&&GUILD.classRanks[sprite])||0; }
+function classRankName(sprite){ return (CFG.ranks&&CFG.ranks.names&&CFG.ranks.names[classRankOf(sprite)])||'見習'; }
+function setClassRank(sprite, r){ if(!GUILD.classRanks) GUILD.classRanks={}; GUILD.classRanks[sprite]=Math.max(classRankOf(sprite), Math.min(4, r|0)); saveGuild(); }
+// 技能是否已解鎖：enforce 關閉時全開（試煉上線前的過渡）；開啟時依 rank 欄位 vs 職業階級
+function skillUnlocked(sprite, sk){ if(!sk) return false; if(!(CFG.ranks&&CFG.ranks.enforce)) return true; return (sk.rank||0)<=classRankOf(sprite); }
+// 階級 HP 福利（heroStat 讀取）
+function rankHpBonus(sprite){ const arr=(CFG.ranks&&CFG.ranks.perks&&CFG.ranks.perks.hp)||[]; let s=0; for(let i=1;i<=classRankOf(sprite);i++) s+=arr[i]||0; return s; }
+
+// ===== v4.6 世界難度與遺物品階 =====
+function worldDiff(){ const s=GUILD.settings||{}; return (s.worldDiff!=null)? s.worldDiff : 0; }   // 預設普通
+function setWorldDiff(d){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.worldDiff=Math.max(0,Math.min(2,d|0)); saveGuild(); return GUILD.settings.worldDiff; }
+function relicGradeOf(id){ return (GUILD.relicGrades&&GUILD.relicGrades[id]!=null)? GUILD.relicGrades[id] : 1; }   // 舊存檔預設「完好」
+// 遺物入庫（三個結算點共用）：新遺物 push；品階取歷史最高（高難度重打＝升級）。回傳是否為新遺物
+function bankRelic(it){ if(!it||!it.relicId) return false;
+  if(!GUILD.relicGrades) GUILD.relicGrades={};
+  const g=(it.grade!=null)?it.grade:1;
+  const had=(GUILD.relics||[]).includes(it.relicId);
+  const cur=(GUILD.relicGrades[it.relicId]!=null)? GUILD.relicGrades[it.relicId] : (had?1:-1);
+  if(!had) GUILD.relics.push(it.relicId);
+  GUILD.relicGrades[it.relicId]=Math.max(cur, g);
+  return !had; }
+
+// ===== v4.1 試煉紀錄與啟動 =====
+function trialKey(sp,st){ return sp+'_'+st; }
+function trialCleared(sp,st){ return !!(GUILD.trialClears&&GUILD.trialClears[trialKey(sp,st)]); }
+function initTrialRun(sprite, stage){
+  const idx=CLASS_ORDER.indexOf(sprite), def=TRIAL_DEFS[sprite], sd=def.stages[stage-1];
+  RUN={ trial:{sprite, stage, idx}, wagon:null, heroes:[], cargo:[], slots:6,
+    gold:60, isBoss:false, gotGear:{}, itemLog:[],
+    cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
+    deckExpanded:false, combatMs:0,
+    destTier:1, destName:def.name+'・關卡'+stage, destIndex:def.dest,
+    trialWeather:sd.weather, trialObjs:sd.objs, trialHint:(stage===1? sd.hint : null), trialFight:0 };   // v4.4：戰鬥計數（依序取用 fights 波次）
+  ROSTER[idx].level=1; ROSTER[idx].xp=0; ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
+  grantPlannedSkill(idx, 1);
+  const weapon=startKitWeapon(idx), armor=startKitArmor(idx);
+  ROSTER[idx].weapon=weapon.name; ROSTER[idx].armor=armor.name;
+  const hobj={...HERO_BASE[idx], idx, weapon, armor, hp:0};
+  hobj.hp=heroStat(hobj).maxHp;   // 試煉直接滿血出發（不經整備）
+  RUN.heroes=[hobj];
+  RUN.exped={ pct:0, plan:sd.plan.slice(), i:0 };
+}
+
 // v3.4 清晰節奏模式（行動節拍器＋大招定格＋視覺降噪）：預設開，可於暫停選單切換
 function pacingOn(){ const s=GUILD.settings||{}; return s.pacing!==false; }
 function togglePacing(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.pacing=!pacingOn(); saveGuild(); return GUILD.settings.pacing; }
@@ -138,7 +184,9 @@ function relicEffects(){
     // v0.8 規則型旗標
     splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0, firstHitBlock:false};
   (GUILD.relics||[]).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
-    for(const k in ef){ if(typeof ef[k]==='boolean'){ e[k]=e[k]||ef[k]; } else { e[k]=(e[k]||0)+ef[k]; } } });
+    const gm=((CFG.diff&&CFG.diff.relicMuls)||[0.7,1,1.4])[relicGradeOf(id)]||1;   // v4.6 品階乘數（數值效果）
+    for(const k in ef){ if(typeof ef[k]==='boolean'){ e[k]=e[k]||ef[k]; }
+      else { const v=ef[k]*gm; e[k]=(e[k]||0)+(Number.isInteger(ef[k])? Math.round(v) : v); } } });
   return e;
 }
 // 遺物效果摘要（數值＋規則名稱），給大廳/整備顯示
@@ -146,11 +194,17 @@ function relicCollected(id){ return (GUILD.relics||[]).includes(id); }
 function relicTotalCount(){ return RELIC_CATALOG.length; }
 // 本趟目的地尚未收集的遺物（排除已入庫＋本趟貨車已撿到的，避免重複）
 function uncollectedRelicsForDest(di){
-  const banked=new Set(GUILD.relics||[]);
   const inCargo=new Set(((RUN&&RUN.cargo)||[]).filter(it=>it.kind==='遺物').map(it=>it.relicId));
-  return (RELICS_BY_DEST[di]||[]).filter(r=>!banked.has(r.id)&&!inCargo.has(r.id));
+  const d=(typeof RUN!=='undefined'&&RUN&&RUN.diff!=null)? RUN.diff : 1;
+  return (RELICS_BY_DEST[di]||[]).filter(r=>{
+    if(inCargo.has(r.id)) return false;
+    if(!(GUILD.relics||[]).includes(r.id)) return true;
+    return relicGradeOf(r.id) < d;   // v4.6：已擁有但品階較低 → 更高難度可重打升級
+  });
 }
-function makeRelicItem(r){ return {kind:'遺物', relicId:r.id, name:r.name, icon:r.icon, desc:r.desc, value:CFG.loot.relicValueBase+(r.dest+1)*CFG.loot.relicValuePerTier}; }
+function makeRelicItem(r){ return {kind:'遺物', relicId:r.id, name:r.name, icon:r.icon, desc:r.desc,
+  grade:((typeof RUN!=='undefined'&&RUN&&RUN.diff!=null)?RUN.diff:1),   // v4.6 品階＝取得時的難度
+  value:CFG.loot.relicValueBase+(r.dest+1)*CFG.loot.relicValuePerTier}; }
 function rollRelicForDest(di){ const pool=uncollectedRelicsForDest(di); if(!pool.length) return null; return makeRelicItem(Phaser.Utils.Array.GetRandom(pool)); }
 
 // ---- v2.1 任務/懸賞（分階段任務鏈）+ 稱號（全開：解鎖即生效、同線取最高階、跨線相加）----
@@ -295,13 +349,16 @@ function planValid(sprite){ const plan=GUILD.classPlans&&GUILD.classPlans[sprite
   if(planSpent(sprite)>classPointCap(sprite)) return false;
   const cnt={ultimate:0,active:0,passive:0}, seen={};
   for(const s of plan.slots){ if(!s||!s.skill||s.act!=='learn'||seen[s.skill]) continue; seen[s.skill]=true;
-    const sk=skillByName(sprite,s.skill); const role=(sk&&sk.role)||'active'; cnt[role]=(cnt[role]||0)+1; }
+    const sk=skillByName(sprite,s.skill); const role=(sk&&sk.role)||'active';
+    if(sk && !skillUnlocked(sprite,sk)) return false;   // v4.0：未達職業階級的技能不可配置（enforce 開啟時生效）
+    cnt[role]=(cnt[role]||0)+1; }
   return cnt.ultimate<=1 && cnt.active<=3; }
 // 升級到 lv（含 Lv1）時，依配置表 slots[lv-1] 靜默發放/升級該技能；回傳提示字串(或 null)
 function grantPlannedSkill(idx, lv){ if(!ROSTER[idx]) return null; const sprite=HERO_BASE[idx].sprite;
   const plan=GUILD.classPlans&&GUILD.classPlans[sprite]; if(!plan||!plan.slots) return null;
   const slot=plan.slots[lv-1]; if(!slot||!slot.skill) return null;
-  if(!skillByName(sprite, slot.skill)) return null;
+  const _sk=skillByName(sprite, slot.skill); if(!_sk) return null;   // 被砍除的技能自動略過（＝自動退點）
+  if(!skillUnlocked(sprite,_sk)) return null;   // v4.0：階級未達不發放
   if(!Array.isArray(ROSTER[idx].skills)) ROSTER[idx].skills=[];
   if(!ROSTER[idx].skillPlus) ROSTER[idx].skillPlus={};
   if(slot.act==='upgrade'){
@@ -379,7 +436,9 @@ function initExpedition(){
   RUN.exped={ pct:0, plan, i:0 };
 }
 function initRun(){
+  RUN=null;   // v4.5.1 修正：先清空再建構——否則 activeRoster() 在建構過程讀到舊試煉 RUN 的 trial 旗標，隊伍會被建成單人
   RUN = {
+    diff:(typeof worldDiff==='function'? worldDiff() : 1),   // v4.6 本趟世界難度
     wagon: null,
     heroes: activeRoster().map(idx=>{ const h=HERO_BASE[idx];
       // 免洗隊伍：每趟重置為 Lv1、職業起始裝、技能清空（技能改由地城升級取得，P2）
@@ -433,7 +492,7 @@ function heroStat(h){
   // 攻防來源：武器/防具 ＋ 被動技能 ＋ 遺物 ＋ 寡兵；角色本身無基礎攻防，純等級只給 HP
   return {
     level:  lv,
-    maxHp:  baseHp + h.growthHp*(lv-1) + bl.hp + bo.hp + phpB + soloH + tl.hp,   // 防具不再加血量（改給護盾）
+    maxHp:  baseHp + h.growthHp*(lv-1) + bl.hp + bo.hp + phpB + soloH + tl.hp + (typeof rankHpBonus==='function'?rankHpBonus(h.sprite):0),   // 防具不再加血量（改給護盾）；v4.0 職業階級 HP 福利
     atkSeq: h.weapon.atkSeq.map(a=>a+bl.atk+bo.atk+patk+soloA+tl.atk+(h.growthAtk||0)*(lv-1)),
     def:    h.armor.def + pdef + bl.def + bo.def + soloD + tl.def,
     heal:   (h.weapon.heal? h.weapon.heal + healB + bo.heal + bl.heal : 0),

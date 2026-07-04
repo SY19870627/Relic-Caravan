@@ -16,12 +16,19 @@ class WorldMap extends Phaser.Scene {
     for(let i=0;i<WORLD_COUNT;i++){ const dx=W/2-(WORLD_COUNT-1)*9 + i*18;
       const dot=this.add.graphics(); dot.fillStyle(i===w?wac.num:UI.lineN, i===w?1:0.5); dot.fillCircle(dx,108,4); }
 
+    // v4.6 世界難度選擇（跨趟記住）：普通×0.8／困難×1.0／煉獄×1.2；遺物品階＝通關難度，高難度可重打升級
+    const D=CFG.diff, dnow=worldDiff();
+    txt(this, W/2-240, 130, '難度', 13, UI.gold, 1, 0.5);
+    D.names.forEach((nm,i)=>{ const on=i===dnow;
+      button(this, W/2-158+i*112, 130, 102, 28, D.icons[i]+' '+nm, ()=>{ setWorldDiff(i); this.scene.restart(); },
+        {accent:on?(['teal','gold','red'][i]):'slate', size:12, color:on?undefined:UI.faint}); });
+    txt(this, W/2+240, 130, '遺物品階＝通關難度', 10.5, UI.dim, 0, 0.5);
     const rep=repEarned();
     const dests=destsOfWorld(w);   // 該世界的地城全域索引（0-3 或 4-7）
     dests.forEach((di,i)=>{
-      const d=DESTINATIONS[di], cy=150+i*92, ac=accent(tierAccentName(d.tier));
+      const d=DESTINATIONS[di], cy=184+i*84, ac=accent(tierAccentName(d.tier));   // v4.6.1：下移讓出難度列空間、行距壓縮
       const lockedRep=rep<d.repReq, ok=!lockedRep;
-      const L=W/2-380, ww=760, h=82, top=cy-h/2;
+      const L=W/2-380, ww=760, h=76, top=cy-h/2;
       const g=this.add.graphics();
       g.fillStyle(0x000000,0.34); g.fillRoundedRect(L,top+4,ww,h,12);
       g.fillStyle(ok?UI.raisedN:UI.panelN, ok?1:0.7); g.fillRoundedRect(L,top,ww,h,12);
@@ -78,6 +85,7 @@ class WorldMap extends Phaser.Scene {
   go(di){
     const d=DESTINATIONS[di];
     RUN.destTier = d.tier; RUN.destName = d.name; RUN.destIndex = di;
+    RUN.diff = worldDiff();   // v4.6：出發時鎖定本趟難度
     initExpedition();          // v1.0：單一戰鬥畫面的遠征，探險 % 推進
     this.scene.start('Battle');
   }

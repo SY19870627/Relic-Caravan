@@ -4,9 +4,12 @@
 // 點數成本：習得 = tier(1/2/3)；升級第 n 次 = n 點。可花總額 = classPointCap（基底＋活著回來累加）。
 class SkillTreeHall extends Phaser.Scene {
   constructor(){ super('SkillTreeHall'); }
+  // v4.2.1：「已招募」判定＝職業序位 < 隊伍格數（與招募所/試煉之間一致）
+  recruited(sp){ return CLASS_ORDER.indexOf(sp) < partySizeCap(); }
   create(data){
     this.from=(data&&data.from)||'GuildHall';
-    this.sprite=(data&&data.sprite)||'warrior';
+    const want=(data&&data.sprite)||'warrior';
+    this.sprite=this.recruited(want)? want : 'warrior';
     sceneBg(this,{glow:0xa98bff});
     sceneHeader(this,'職業規劃','選職業配技能 build：1 大招 + 3 主動小招 + 任意被動（升級照表自動發招）',{accent:'violet'});
     if(!GUILD.classPlans) GUILD.classPlans={};
@@ -28,6 +31,7 @@ class SkillTreeHall extends Phaser.Scene {
   spent(){ return planSpent(this.sprite); }
   // ---- 編輯動作（即時存檔）----
   addLearn(name){ const s=this.skillObj(name); if(!s) return;
+    if(typeof skillUnlocked==='function' && !skillUnlocked(this.sprite, s)){ this.flash('需晉升至「'+CFG.ranks.names[s.rank||0]+'」——前往試煉之間'); return; }   // v4.1 階級鎖
     if(this.learnedNames().indexOf(name)>=0){ this.flash('已習得'); return; }
     if(this.actions().length>=20){ this.flash('已達 Lv20 上限'); return; }
     const c=this.roleCounts();
@@ -51,14 +55,16 @@ class SkillTreeHall extends Phaser.Scene {
     const add=o=>{ this._ui.push(o); return o; };
     const cap=this.cap(), spent=this.spent(), c=this.roleCounts(), valid=planValid(this.sprite);
 
-    // ===== 職業切換分頁（已解鎖職業）=====
+    // ===== 職業切換分頁（v4.2.1：未招募職業鎖住，與招募所/試煉之間同判定）=====
     const W=this.scale.width;
-    const unlocked=CLASS_ORDER.filter((sp,i)=>ROSTER[i]&&ROSTER[i].unlocked);
-    const tw=92, tg=8, ttot=unlocked.length*tw+(unlocked.length-1)*tg, tx=W/2-ttot/2+tw/2;
-    unlocked.forEach((sp,i)=>{ const on=sp===this.sprite;
-      add(button(this, tx+i*(tw+tg), 72, tw, 24, CLASS_LABEL[sp], ()=>{ this.sprite=sp;
+    const tw=92, tg=8, ttot=CLASS_ORDER.length*tw+(CLASS_ORDER.length-1)*tg, tx=W/2-ttot/2+tw/2;
+    CLASS_ORDER.forEach((sp,i)=>{ const on=sp===this.sprite, rec=this.recruited(sp);
+      add(button(this, tx+i*(tw+tg), 72, tw, 24, (rec?'':'🔒')+CLASS_LABEL[sp], ()=>{
+        if(!rec){ this.flash('尚未招募「'+CLASS_LABEL[sp]+'」——請先至招募所解鎖隊員'); return; }
+        this.sprite=sp;
         if(!GUILD.classPlans[sp]||!Array.isArray(GUILD.classPlans[sp].slots)) GUILD.classPlans[sp]={slots:[]};
-        this.render(); }, {accent: on?'violet':'slate', size:12})); });
+        this.render(); }, {accent: on?'violet':'slate', size:12, color:rec?undefined:UI.faint})); });
+    add(txt(this, W/2, 96, '職業階級：'+classRankName(this.sprite)+'（R'+classRankOf(this.sprite)+'）　·　🔒 技能於「試煉之間」晉升解鎖', 10.5, UI.dim));   // v4.1
 
     // ===== 左：技能池 =====
     add(panel(this, 238, 314, 452, 456, {accent:'violet', title:'技能池（點選加入配置）', icon:'sparkle', titleSize:14}));
@@ -94,16 +100,18 @@ class SkillTreeHall extends Phaser.Scene {
     });
   }
   poolRow(add, y, s){
+    // v4.1 職業階級鎖：未達階技能灰階顯示所需階級（看得到吃不到＝晉升動力）
+    const locked = typeof skillUnlocked==='function' && !skillUnlocked(this.sprite, s);
     const learned=this.learnedNames().indexOf(s.name)>=0, rank=this.rankOf(s.name), ac=accent(this.ROLE_ACC[s.role]);
-    const rect=this.add.rectangle(238, y, 436, 21, learned?ac.deep:UI.panelHiN, learned?0.6:0.95).setStrokeStyle(1.2, ac.num, learned?1:0.55).setInteractive({useHandCursor:true});
+    const rect=this.add.rectangle(238, y, 436, 21, locked?UI.panelN:(learned?ac.deep:UI.panelHiN), locked?0.5:(learned?0.6:0.95)).setStrokeStyle(1.2, locked?UI.lineN:ac.num, locked?0.3:(learned?1:0.55)).setInteractive({useHandCursor:true});
     add(rect);
-    add(icon(this, 26, y, skillVisual(s).icon, 16, ac.num));
-    add(txt(this, 42, y, s.name, 14, learned?ac.hex:UI.white, 0, 0.5));
+    add(icon(this, 26, y, skillVisual(s).icon, 16, locked?UI.lineN:ac.num));
+    add(txt(this, 42, y, s.name, 14, locked?UI.faint:(learned?ac.hex:UI.white), 0, 0.5));
     let d=s.desc||''; if(d.length>15) d=d.slice(0,14)+'…';
-    add(txt(this, 134, y, d, 11, UI.dim, 0, 0.5));
-    const right = learned ? ('Lv'+rank+' ▲升級') : ('費 '+(s.tier||1));
-    add(txt(this, 452, y, right, 11.5, learned?UI.green:UI.dim, 1, 0.5));
-    rect.on('pointerdown',()=>{ if(learned) this.addUpgrade(s.name); else this.addLearn(s.name); });
+    add(txt(this, 134, y, d, 11, locked?UI.faint:UI.dim, 0, 0.5));
+    const right = locked ? ('🔒 '+CFG.ranks.names[s.rank||0]) : (learned ? ('Lv'+rank+' ▲升級') : ('費 '+(s.tier||1)));
+    add(txt(this, 452, y, right, 11.5, locked?UI.faint:(learned?UI.green:UI.dim), 1, 0.5));
+    rect.on('pointerdown',()=>{ if(locked){ this.flash('需晉升至「'+CFG.ranks.names[s.rank||0]+'」——前往試煉之間'); return; } if(learned) this.addUpgrade(s.name); else this.addLearn(s.name); });
   }
   flash(msg, col){ if(this._f) this._f.destroy();
     this._f=txt(this, this.scale.width/2, 540, msg, 13, col||UI.red).setDepth(99).setStroke('#000',3);

@@ -50,7 +50,7 @@ class Result extends Phaser.Scene {
     button(this,W/2,524,240,42,'帶回公會',()=>{
       let newRelics=0;
       RUN.cargo.forEach(it=>{
-        if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
+        if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; }   // v4.6：入庫＋品階（高難度重打升級）
         else if(it.kind==='素材'){ addMaterial(it.matId); }
         else if(it.kind==='食材'){ /* 食材為每趟隨身消耗，不帶回公會 */ }
         else { discover(it.name); } });   // 其餘戰利品：本趟已可在地城商店變現為 💰，回會不再入庫
@@ -99,7 +99,7 @@ class Result extends Phaser.Scene {
   bankAndReturn(){
     let newRelics=0;
     RUN.cargo.forEach(it=>{
-      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } }
+      if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; }   // v4.6：入庫＋品階
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
     awardClassPoints();   // 大改版：活著回來 → 依各出戰職業當趟最終等級累加職業點數上限
@@ -110,7 +110,7 @@ class Result extends Phaser.Scene {
     let newRelics=0;
     // 續征：只把「遺物」先送回公會；裝備・道具・貴重物品暫留貨車供下一地城使用
     RUN.cargo.forEach(it=>{
-      if(it.kind==='遺物'){ if(it.relicId && !GUILD.relics.includes(it.relicId)){ GUILD.relics.push(it.relicId); newRelics++; } if(typeof logItem==='function') logItem('bank', it, '送回公會'); }
+      if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; if(typeof logItem==='function') logItem('bank', it, '送回公會'); }   // v4.6：入庫＋品階
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics);   // 續征：先給新遺物聲望；平安折返獎勵留到最終帶回公會時再給
     RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='素材' && it.kind!=='食材');   // 遺物已送回公會；其他物品只供續征使用

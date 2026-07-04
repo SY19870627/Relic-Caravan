@@ -22,6 +22,9 @@ Object.assign(SPRITES, {
   lavapool:["....KKKKKKKKKKKK....","..KKccFFAFFFFAcKK...",".KcFFAAYFAAFYAFFcK..","KcAFYYAFFAYYFAAFFcK.",".KcFAAFYAAAFYFAcK...","..KKcFFAAFFAAcKK....","....KKKKKKKKKK......"],
   pit:["....KKKKKKKKKK....","..KKnnnnnnnnnnKK..",".KnnKKKKKKKKKKnnK.","KnKKKKKKKKKKKKKKnK",".KnnKKKKKKKKKKnnK.","..KKnnnnnnnnnnKK..","....KKKKKKKKKK...."],
   bogpool:["....LLLLLLLLLLLL....","..LLeeggeeeeggeeLL..",".LegguegeeeguggeegL.","LeggeeuggeegguueggeL",".LeguggeeuggeguggeL.","..LLeeggeeeggeeLL...","....LLLLLLLLLL......"],
+  // v4.7 新互動物件：蜂巢（中立騷擾）／酒桶（紮營敵人會去喝）
+  beehive:["....BB......","...oooo.....","..oYooYo....","..oooooo....","..oYooYo....","...oooo.....","....oo......","...Y..Y....."],
+  aleKeg:["...BBBB.....","..BbbbbB....","..oBBBBo....","..BbbbbB....","..BbbbbB....","..oBBBBo....","..BbbbbB....","...BBBB....."],
 });
 
 // ---- 物件目錄（v3.1 定案：物件不承受攻擊）----
@@ -39,16 +42,19 @@ const BATTLE_OBJECTS = {
   lava:    { sprite:'lavapool', name:'岩漿', icon:'🌋', tags:['fire','hazard'],      dur:0, ground:true, scl:4, aura:'burn' },
   pit:     { sprite:'pit',      name:'地坑', icon:'🕳', tags:['pit','hazard'],       dur:2, ground:true, scl:4 },   // 每吹落一敵耗 1
   bog:     { sprite:'bogpool',  name:'毒沼', icon:'☣', tags:['poison','hazard'],    dur:0, ground:true, scl:4, aura:'poison' },
+  // v4.7 新互動物件
+  hive:    { sprite:'beehive',  name:'蜂巢', icon:'🐝', tags:['hive'],               dur:2, scl:4, aura:'sting' },   // 中立：週期螫刺隨機單位（敵我皆然），螫兩次後墜落
+  keg:     { sprite:'aleKeg',   name:'酒桶', icon:'🍺', tags:['keg'],                dur:2, scl:4 },                 // 受傷的紮營敵人會去暢飲：回血但爛醉降速
 };
 // 目的地 → 可能出現的物件（重複＝權重）。王戰另外固定出「祭壇」。
 const OBJECTS_BY_DEST = [
-  ['statue','fence','tree','campfire','statue'],          // 0 近郊遺跡
-  ['fence','pit','campfire','tree','pit'],                // 1 枯骨峽谷
+  ['statue','fence','tree','campfire','statue','keg'],    // 0 近郊遺跡
+  ['fence','pit','campfire','tree','pit','keg'],          // 1 枯骨峽谷
   ['pool','statue','campfire','pool'],                    // 2 沉沒神城（水坑）
   ['rift','lava','statue','rift','pit'],                  // 3 虛空裂隙（空間裂縫）
-  ['pit','lava','campfire','pit'],                        // 4 燔流沙漠
-  ['pool','bog','tree','pool'],                           // 5 綠洲水澤
-  ['tree','bog','statue','tree'],                         // 6 翠冠叢林
+  ['pit','lava','campfire','pit','pool'],                 // 4 燔流沙漠（沙漠水坑＝野獸綠洲）
+  ['pool','bog','tree','pool','hive'],                    // 5 綠洲水澤
+  ['tree','bog','statue','tree','hive'],                  // 6 翠冠叢林
   ['bog','lava','tree','pit','bog'],                      // 7 蝕心雨林
 ];
 
@@ -59,6 +65,7 @@ const ENV_GHOSTS  = (typeof Q_UNDEAD!=='undefined')? Q_UNDEAD.slice() : ['necrom
 const ENV_SEA     = (typeof Q_SEA   !=='undefined')? Q_SEA.slice()   : ['drowned','drownedArcher','tidePriest'];     // 自水坑湧出的深水族
 const ENV_VOID    = (typeof Q_VOID  !=='undefined')? Q_VOID.slice()  : ['voidling','voidArcher','voidSeer'];         // 自空間裂縫竄出的虛空族
 const ENV_GROVE_DESTS = [0,5,6,7];   // 有林相的目的地：巨木穿插於兩軍之間（近郊遺跡/綠洲/叢林/雨林）
+const ENV_BEASTS = ['jackal','vulture','crocodile','cobra','jaguar','jungleApe','marshHippo','dartFrog','sandScorpion','hornViper','sandWyrm','dragonfly','mantis'];   // v4.7 野獸族：低血會跑去水坑喝水
 
 // ---- 天氣擴充：新增 強風/雪；補全既有 雨/霧 的環境註記（數值效果照舊由 eff 提供）----
 WEATHERS.push(
@@ -91,9 +98,9 @@ const WEATHER_DEITY = {
 
 // ---- 技能擴充：新主動技（牧師・祈禱／遊俠・回風）＋ 既有技能掛上環境/天氣親和 ----
 (function(){
-  SKILLS.priest.push({ name:'祈禱', role:'active', type:'pray', cd:16000, uses:1, tier:2, icon:'sparkle',
+  SKILLS.priest.push({ name:'祈禱', rank:2, role:'active', type:'pray', cd:16000, uses:1, tier:2, icon:'sparkle',
     desc:'向當前天氣的神祉祈禱，降下神蹟（每場 1 次；場上有神聖物件時神蹟升階）' });
-  SKILLS.ranger.push({ name:'回風', role:'active', type:'gale', cd:9000, uses:2, dur:3000, tier:2, icon:'arrows',
+  SKILLS.ranger.push({ name:'回風', rank:2, role:'active', type:'gale', cd:9000, uses:2, dur:3000, tier:2, icon:'arrows',
     desc:'颳起回風：全體敵人降速數秒；瀕死的敵人會被吹入地坑（若場上有地坑）' });
   const aff=(pool,name,o)=>{ const s=pool.find(x=>x.name===name); if(s) Object.assign(s,o); };
   aff(SKILLS.mage,  '火球', { affinity:['fire'] });          // 場上有火源 → 引燃連鎖
@@ -103,6 +110,6 @@ const WEATHER_DEITY = {
   aff(SKILLS.mage,  '連環施法', { weatherAffinity:'rain' });  // 雨天：雨水導電，追加段數 +1（每場一次）
   aff(SKILLS.mage,  '靈魂震爆', { affinity:['void'] });        // v3.3 空間裂縫：空間魔法增幅（傷害↑，裂縫耐久 −1）
   aff(SKILLS.mage,  '隕石術',   { affinity:['void'] });        // v3.3 空間裂縫：暈眩時間延長（裂縫耐久 −1）
-  SKILLS.rogue.push({ name:'移形換位', role:'passive', type:'treeSwap', tier:2, icon:'sparkle',
+  SKILLS.rogue.push({ name:'移形換位', rank:2, role:'passive', type:'treeSwap', tier:2, icon:'sparkle',
     desc:'受攻擊瞬間與場上巨木換位——攻擊落空（MISS），巨木代承一擊、耐久 −1' });   // v3.3 盜賊新被動
 })();

@@ -60,7 +60,8 @@ Object.assign(Battle.prototype, {
     let cx=fresh.reduce((a,b)=>a+b.baseX,0)/fresh.length, cy=fresh.reduce((a,b)=>a+b.baseY,0)/fresh.length;
     cx=Phaser.Math.Clamp(cx,575,760); cy=Phaser.Math.Clamp(cy,255,420);
     const fire=this.makeEnvObject('campfire', cx, cy);
-    this.makeEnvObject('roast', Phaser.Math.Clamp(cx+48,540,860), Phaser.Math.Clamp(cy+18,200,500));   // v3.3 烤肉：受傷的紮營敵人會跑去吃
+    // v4.7：營地隨機擺烤肉或酒桶（吃肉回血／灌酒回血但爛醉）
+    this.makeEnvObject(Math.random()<0.55?'roast':'keg', Phaser.Math.Clamp(cx+48,540,860), Phaser.Math.Clamp(cy+18,200,500));
     const n=fresh.length, r=V.campRadius;
     fresh.forEach((c,i)=>{ const ang=(-0.5+ i/Math.max(1,n-1))*Math.PI*1.5 - Math.PI/2;   // 繞火半圈偏右
       let px=Phaser.Math.Clamp(Math.round(cx+Math.cos(ang)*r), 505, 856);
@@ -239,7 +240,33 @@ Object.assign(Battle.prototype, {
     if(o.pipG){ this.tweens.add({targets:o.pipG, alpha:0.2, yoyo:true, duration:90, repeat:1 }); }
     if(label) this.floatLabel(o.x, o.y-52, label, '#ffd27a');
     this.spark(o.x, o.y-10, 0xffd27a);
-    if(o.dur<=0) this.crumbleObject(o);
+    if(o.dur<=0){
+      // v4.5 可再生物件（祈願燭台）：耗盡＝儀式完成 → 觸發效果後重燃，不碎裂
+      if(o.def.renew==='candle'){ this.candleMiracle(o); o.dur=o.maxDur; this.drawDurPips(o); return; }
+      this.crumbleObject(o);
+    }
+  }
+,
+  // v4.5 祈願燭台・小神蹟：三燭點滿 → 全隊回復 12% 並解除暈眩，燭台重燃
+  candleMiracle(o){
+    this.floatLabel(o.x, o.y-58, '三燭俱燃・小神蹟!', '#ffe27a');
+    this.screenFlash(0xffe27a, 0.16, 260); this.holyLight({container:o.container, baseY:o.y}, 0xffe27a);
+    (this.heroes||[]).forEach(h=>{ if(!h.alive) return;
+      const amt=Math.max(2,Math.round(h.maxHp*0.12)); h.hp=Math.min(h.maxHp,h.hp+amt); this.bar(h);
+      pixelNum(this,h.container.x,h.container.y-34,'+'+amt,0x7dff9a);
+      if(h.stunned){ h.stunUntil=0; h.stunned=false; if(h.stunStar){h.stunStar.destroy(); h.stunStar=null;} if(h.stunLabel){h.stunLabel.destroy(); h.stunLabel=null;} if(h.spr) h.spr.clearTint(); } });
+  }
+,
+  // v4.5 盜賊・吹燈：滅掉石燈籠 → 全場入暗數秒，暗中暴擊率大增（damage() 讀 _darkUntil）
+  snuffLantern(c, o){
+    this.useObject(o, 1, '吹燈');
+    this._darkUntil=(this.gnow||0)+6000;
+    if(this._darkFx){ this._darkFx.destroy(); }
+    const W=this.scale.width, H=this.scale.height;
+    const d=this.add.rectangle(0,0,W,H,0x060410,0).setOrigin(0).setDepth(44); this._darkFx=d;
+    this.tweens.add({targets:d, fillAlpha:0.34, duration:400});
+    this.tweens.add({targets:d, fillAlpha:0, delay:5400, duration:800, onComplete:()=>{ if(this._darkFx===d){ this._darkFx=null; } d.destroy(); }});
+    this.floatLabel(c.baseX, c.baseY-58, '燈滅・影襲時刻!', '#a98bff');
   }
 ,
   crumbleObject(o){
@@ -403,6 +430,100 @@ Object.assign(Battle.prototype, {
     return true;
   }
 ,
+  // ---- v4.7 敵人用物件通用骨架：跑過去 → onArrive 演出 → 跑回原位（消耗一次行動）----
+  enemyGoUse(c, o, onArrive){
+    const bx=c.container.x, by=c.container.y;
+    this.tweens.add({targets:c.container, x:o.x-26, y:o.y-4, duration:300, ease:'Quad.out',
+      onComplete:()=>{ if(!c.alive) return;
+        onArrive();
+        this.time.delayedCall(360, ()=>{ if(!c.alive) return;
+          this.tweens.add({targets:c.container, x:bx, y:by, duration:300, ease:'Quad.in',
+            onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }); }});
+  }
+,
+  // v4.7 野獸喝水坑：低血野獸跑去埋頭喝水（回血 15%、水坑耐久 −1）——跟法師的水源共鳴搶同一池水
+  tryDrinkPool(c){
+    if(!c || c.side!=='enemy' || c.isSummon || !c.alive || c.boss) return false;
+    if(typeof ENV_BEASTS==='undefined' || ENV_BEASTS.indexOf(c.sprite)<0) return false;
+    if(c.maxHp<=0 || c.hp/c.maxHp>=0.5 || this.gnow<(c._drinkCd||0)) return false;
+    const po=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='pool'&&o.dur>0); if(!po) return false;
+    c._drinkCd=this.gnow+7000;
+    this.floatLabel(c.container.x, c.baseY-58, '跑去喝水!', '#6fd0e0');
+    this.enemyGoUse(c, po, ()=>{
+      if(c.spr) this.tweens.add({targets:c.spr, scaleY:(c.baseScale||SCALE)*0.78, yoyo:true, duration:150, repeat:2});   // 埋頭牛飲
+      this.fxSplash(po.x, po.y); this.fxRipple(po.x, po.y);
+      const amt=Math.round(c.maxHp*0.15); c.hp=Math.min(c.maxHp, c.hp+amt); this.bar(c);
+      pixelNum(this, c.container.x, c.container.y-34, '+'+amt, 0x7dff9a);
+      this.useObject(po, 1, '被喝了一口'); });
+    return true;
+  }
+,
+  // v4.7 哥布林踢營火：受傷的紮營敵人一腳踢翻火堆——火星飛向隨機隊員（小傷＋灼燒），營火耐久 −1
+  tryKickFire(c){
+    if(!c || c.side!=='enemy' || c.isSummon || !c.alive || c.boss) return false;
+    if(typeof ENV_CAMPERS==='undefined' || ENV_CAMPERS.indexOf(c.sprite)<0) return false;
+    if(c.maxHp<=0 || c.hp/c.maxHp>=0.6 || c._kicked) return false;
+    const cf=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='campfire'&&o.dur>0); if(!cf) return false;
+    c._kicked=true;
+    this.floatLabel(c.container.x, c.baseY-58, '狗急跳牆!', '#ff9a3a');
+    this.enemyGoUse(c, cf, ()=>{
+      if(c.spr) this.tweens.add({targets:c.spr, angle:-24, yoyo:true, duration:130});   // 起腳
+      if(cf.spr){ const s=cf.def.scl||4; this.tweens.add({targets:cf.spr, angle:30, scaleY:s*0.8, yoyo:true, duration:200}); }
+      this.shake(120,0.006);
+      const hs=this.aliveOf('hero');
+      if(hs.length){ const h=hs[Math.floor(Math.random()*hs.length)];
+        this.fxEmberArc(cf.x, cf.y-8, h, ()=>{ if(!h.alive) return;
+          this.rawHit(h, 6, 0xff9a3a); if(this.addPoison) this.addPoison(h, 1, 'burn'); if(h.hp<=0) this.die(h); }, 0); }
+      this.useObject(cf, 1, '被踢翻'); });
+    return true;
+  }
+,
+  // v4.7 紮營敵人暢飲酒桶：回血 10% 但爛醉（降速 4 秒）——回血給敵人、節奏還給你
+  tryDrinkKeg(c){
+    if(!c || c.side!=='enemy' || c.isSummon || !c.alive || c.boss) return false;
+    if(typeof ENV_CAMPERS==='undefined' || ENV_CAMPERS.indexOf(c.sprite)<0) return false;
+    if(c.maxHp<=0 || c.hp/c.maxHp>=0.55 || this.gnow<(c._kegCd||0)) return false;
+    const kg=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='keg'&&o.dur>0); if(!kg) return false;
+    c._kegCd=this.gnow+8000;
+    this.floatLabel(c.container.x, c.baseY-58, '跑去灌酒!', '#ffd27a');
+    this.enemyGoUse(c, kg, ()=>{
+      if(c.spr) this.tweens.add({targets:c.spr, angle:14, yoyo:true, duration:200, repeat:1});   // 仰頭灌
+      const amt=Math.round(c.maxHp*0.10); c.hp=Math.min(c.maxHp, c.hp+amt); this.bar(c);
+      pixelNum(this, c.container.x, c.container.y-34, '+'+amt, 0x7dff9a);
+      c.slowUntil=this.gnow+4000; c.slowMul=1.5;   // 爛醉：出手大幅變慢
+      this.floatLabel(c.container.x, c.baseY-70, '爛醉…', '#c9a86a');
+      if(c.spr){ c.spr.setTint(0xd0a0ff); this.time.delayedCall(4000, ()=>{ if(c.alive&&c.spr&&!c.stunned) c.spr.clearTint(); }); }
+      this.useObject(kg, 1, '被灌了一輪'); });
+    return true;
+  }
+,
+  // v4.7 骸骨地坑重生：骸骨死亡且地坑有耐久 → 沉入地面，3 秒後自坑中半血爬回（每坑限耐久次數）
+  // 回傳 true＝接管死亡流程（die() 不再走一般結算；勝負判定以 _pendingRebirth 防止提早結束）
+  pitRebirth(c){
+    if(!c || c.side!=='enemy' || c.boss || c.isSummon || c._reborn) return false;
+    if(typeof ENV_BONES==='undefined' || ENV_BONES.indexOf(c.sprite)<0) return false;
+    const pit=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='pit'&&o.dur>0); if(!pit) return false;
+    c._reborn=true; c.alive=false; c.hp=0;
+    this._pendingRebirth=(this._pendingRebirth||0)+1;
+    this.useObject(pit, 1, '骸骨再起…');
+    if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
+    if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
+    this.floatLabel(c.container.x, c.baseY-58, '沉入地底…', '#b0a890');
+    this.tweens.add({targets:c.container, x:pit.x, y:pit.y, scaleX:0.2, scaleY:0.2, alpha:0.25, duration:420, ease:'Quad.in'});
+    this.time.delayedCall(3000, ()=>{
+      this._pendingRebirth=Math.max(0,(this._pendingRebirth||0)-1);
+      if(this.over || !c.container){ return; }
+      c.alive=true; c.hp=Math.max(1,Math.round(c.maxHp*0.5)); c.lastAttack=(this.gnow||0)+600;
+      this.fxDust(pit.x, pit.y);
+      this.floatLabel(pit.x, pit.y-56, '骸骨再起!', '#ffd24a');
+      this.tweens.add({targets:c.container, y:pit.y-26, scaleX:1, scaleY:1, alpha:1, duration:320, ease:'Back.out',
+        onComplete:()=>{ this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:340, ease:'Quad.out',
+          onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }});
+      this.bar(c);
+    });
+    return true;
+  }
+,
   // ---- v3.3 盜賊・移形換位：受擊瞬間與巨木換位（MISS）；巨木代承這一擊、耐久 −1（樹耐久 1 ＝ 一棵樹擋一次）----
   swapWithTree(rogue, tr){
     const rx=rogue.baseX, ry=rogue.baseY, tx=tr.x, ty=tr.y;
@@ -450,12 +571,13 @@ Object.assign(Battle.prototype, {
   }
 ,
   // ---- 毒 DoT（毒沼／未來盜賊毒共用堆疊）----
-  addPoison(u, n){
+  addPoison(u, n, kind){
     if(!u || !u.alive) return;
     if(!u._poison) u._poison={s:0, next:(this.gnow||0)+CFG.env.poisonTickMs};
     u._poison.s=Math.min(CFG.env.poisonMaxStacks, u._poison.s+(n||1));
-    this.fxBubbles(u.container.x, u.container.y+16);
-    this.floatLabel(u.container.x, u.baseY-52, '中毒×'+u._poison.s, '#9adf6a');
+    const burn=(kind==='burn');   // v4.3 灼燒（炎爆）：與毒共用堆疊，僅視覺/文字不同
+    if(burn) this.fxFirePuff(u.container.x, u.container.y+10); else this.fxBubbles(u.container.x, u.container.y+16);
+    this.floatLabel(u.container.x, u.baseY-52, (burn?'灼燒×':'中毒×')+u._poison.s, burn?'#ff9a3a':'#9adf6a');
   }
 ,
   // ---- 環境 tick：地形光環（岩漿灼燒/毒沼疊毒，屬地形不耗耐久）＋毒 DoT ----
@@ -474,12 +596,35 @@ Object.assign(Battle.prototype, {
         this.fxBubbles(o.x+(Math.random()-0.5)*40, o.y-4);
         const pool=this.all.filter(u=>u.alive && !u.isSummon);
         if(pool.length) this.addPoison(pool[Math.floor(Math.random()*pool.length)], 1); }
+      // v4.5 奧術水晶塔：週期電擊隨機敵人（每擊耗 1 耐久）
+      else if(o.def.aura==='zap'){ o._nextAura=g+5000;
+        if(o.dur>0){ const foes=this.aliveOf('enemy');
+          if(foes.length){ const f=foes[Math.floor(Math.random()*foes.length)];
+            this.fxEmberArc(o.x, o.y-20, f, ()=>{ if(!f.alive) return; this.rawHit(f, 9, 0xa98bff); this.spark(f.container.x,f.container.y,0xa98bff); if(f.hp<=0) this.die(f); }, 0);
+            this.floatLabel(o.x, o.y-52, '魔力協奏', '#a98bff');
+            this.useObject(o, 1); } } }
+      // v4.7 蜂巢：中立騷擾——週期螫刺隨機單位（敵我皆然，小傷＋中毒 1 層），螫完耐久墜落
+      else if(o.def.aura==='sting'){ o._nextAura=g+6000;
+        if(o.dur>0){ const pool=this.all.filter(u=>u.alive && !u.isSummon);
+          if(pool.length){ const u=pool[Math.floor(Math.random()*pool.length)];
+            if(o.spr){ const s=o.def.scl||4; this.tweens.add({targets:o.spr, angle:14, yoyo:true, duration:120, repeat:2}); }
+            this.floatLabel(o.x, o.y-40, '蜂群出動!', '#ffd24a');
+            this.fxEmberArc(o.x, o.y, u, ()=>{ if(!u.alive) return;
+              this.rawHit(u, 3, 0xffd24a); if(this.addPoison) this.addPoison(u, 1); if(u.hp<=0) this.die(u); }, 0);
+            this.useObject(o, 1); } } }
+      // v4.5 獵風圖騰：週期順風脈衝——我方全體（含精靈）短暫加速（每次耗 1 耐久）
+      else if(o.def.aura==='hastePulse'){ o._nextAura=g+4200;
+        if(o.dur>0){ let n=0;
+          (this.all||[]).forEach(u=>{ if(u.alive && u.side==='hero'){ u.hasteUntil=g+2200; u.hasteMul=0.8; n++; } });
+          if(n){ this.fxRipple(o.x, o.y+6); this.floatLabel(o.x, o.y-52, '順風!', '#9fe8ff'); this.useObject(o, 1); } } }
     });
     for(const u of (this.all||[])){
+      // v4.4 燃燒狂徒：自燃維持 3 層（永遠在燒，考驗對手能不能撐過去）
+      if(u.selfBurn && u.alive){ if(!u._poison) u._poison={s:3, next:g+E.poisonTickMs}; else if(u._poison.s<3) u._poison.s=3; }
       const p=u._poison; if(!u.alive || !p || p.s<=0 || g<p.next) continue;
       p.next=g+E.poisonTickMs;
-      this.rawHit(u, p.s*E.poisonDmgPerStack, 0x9adf6a);
-      this.fxBubbles(u.container.x, u.container.y+10);
+      this.rawHit(u, p.s*E.poisonDmgPerStack, u.selfBurn?0xff9a3a:0x9adf6a);
+      if(u.selfBurn) this.fxFirePuff(u.container.x, u.container.y+6); else this.fxBubbles(u.container.x, u.container.y+10);
       p.s--; if(u.hp<=0) this.die(u);
     }
   }
@@ -490,6 +635,8 @@ Object.assign(Battle.prototype, {
     if(this._wxId==='snow') iv*=CFG.env.snowIntervalMul;
     if(c.slowUntil && this.gnow<c.slowUntil) iv*=(c.slowMul||1.3);
     if(c.hasteUntil && this.gnow<c.hasteUntil) iv*=(c.hasteMul||0.85);
+    // v4.0 遊俠・精靈羈絆：召喚精靈在場時出手加速 15%
+    if(c.side==='hero' && (c.skills||[]).some(s=>s.type==='spiritBond') && (this.summons||[]).some(sp=>sp && !sp._removed)) iv*=0.85;
     return iv;
   }
 ,

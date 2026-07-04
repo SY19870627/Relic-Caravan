@@ -20,11 +20,12 @@
   <!-- 多檔架構：依相依順序以傳統 script 載入（仍可 file:// 直接開啟）。
        v2.4：統一版本號 APP_VER —— 改版只要把下面這一個數字 +1，所有檔案的快取一起失效。 -->
   <script>
-    const APP_VER = 78;
+    const APP_VER = 90;
     [
       'js/config.js',                 // 平衡設定：所有可調數值集中於此
       'js/data.js',                   // 純資料：調色盤、精靈、裝備、職業、技能
       'js/envdata.js',                // v3.0 戰場環境系統：物件/天氣/神祉/技能親和（資料）
+      'js/trialdata.js',              // v4.1 單人晉升試煉：五職業×4 關卡定義（資料）
       'js/state.js',                  // 全域狀態、存檔、設施/祝福/聲望、職業數值
       'js/ui.js',                     // 共用繪圖工具：貼圖、文字、跳數字、按鈕
       'js/scenes/boot.js',
@@ -35,6 +36,7 @@
       'js/scenes/formationhall.js',   // 隊形：選擇陣形
       'js/scenes/recruithall.js',     // 招募所：第四職業法師
       'js/scenes/skilltreehall.js',   // 職業規劃器：配置技能 build（大改版）
+      'js/scenes/trialhall.js',       // v4.1 試煉之間：單人晉升試煉（簡報/關卡選擇）
       'js/scenes/outfit.js',
       'js/scenes/worldmap.js',        // 世界地圖：選目的地
       'js/scenes/map.js',             // 含地圖場景與探險邏輯（掉落、遭遇、換裝）

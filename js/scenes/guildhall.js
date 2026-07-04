@@ -62,15 +62,17 @@ class GuildHall extends Phaser.Scene {
     this.rdetY=P.bodyTop+126; this._rdet=[];
     this.showRelicDetail(null);
 
-    // ====== 導覽卡（3 欄：新增「任務/懸賞」入口）======
-    const cw=270, ch=58, gp=14, cxL=W/2-(cw+gp), cxM=W/2, cxR=W/2+(cw+gp), row1=372, row2=438;
+    // ====== 導覽卡（v4.1：4+3 欄，新增「試煉之間」入口）======
+    const cw=205, ch=58, gp=12, row1=372, row2=438;
+    const x4=(i)=>W/2+(i-1.5)*(cw+gp), x3=(i)=>W/2+(i-1)*(cw+gp);
     const cards=[
-      {x:cxL, y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'解鎖出戰隊員、聘僱後勤', s:'RecruitHall'},
-      {x:cxM, y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'選擇站位與前後排加成', s:'FormationHall'},
-      {x:cxR, y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'達成條件領聲望與稱號', s:'QuestHall'},
-      {x:cxL, y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
-      {x:cxM, y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build：大招／小招／被動', s:'SkillTreeHall'},
-      {x:cxR, y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'收藏：武器／防具／道具', s:'WarehouseHall'},
+      {x:x4(0), y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'出戰隊員、後勤', s:'RecruitHall'},
+      {x:x4(1), y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'站位與加成', s:'FormationHall'},
+      {x:x4(2), y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'領聲望與稱號', s:'QuestHall'},
+      {x:x4(3), y:row1, accent:'red', icon:'flame', title:'試煉之間', desc:'單人晉升、解鎖技能', s:'TrialHall'},
+      {x:x3(0), y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
+      {x:x3(1), y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build', s:'SkillTreeHall'},
+      {x:x3(2), y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'武器／防具／道具', s:'WarehouseHall'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 
@@ -98,8 +100,9 @@ class GuildHall extends Phaser.Scene {
     const got=relicCollected(r.id), ac=got?accent('violet'):accent('slate'), d=DESTINATIONS[r.dest];
     add(this.add.graphics().fillStyle(ac.deep,0.5).fillRoundedRect(24,y-2,44,44,9));
     add(txt(this, 46, y+20, got?r.icon:'?', got?24:22, got?'#fff':UI.faint));
-    add(txt(this, 80, y+8, got?r.name:'？？？', 15, ac.hex, 0, 0.5));
-    add(txt(this, 80, y+28, (got?'':'尚未尋得 ・ ')+'產地：'+(d?d.name:'')+' '+'★'.repeat(r.dest+1), 11, UI.dim, 0, 0.5));
+    const _g=got?relicGradeOf(r.id):null, _gn=(CFG.diff&&CFG.diff.gradeNames)||['粗劣','完好','完美'];
+    add(txt(this, 80, y+8, (got?r.name+'【'+_gn[_g]+'】':'？？？'), 15, got?(['#9b93b8','#a98bff','#f2c14e'][_g]):ac.hex, 0, 0.5));   // v4.6 品階顯示
+    add(txt(this, 80, y+28, (got?'':'尚未尋得 ・ ')+'產地：'+(d?d.name:'')+' '+'★'.repeat(r.dest+1)+(got&&_g<2?' ・ 更高難度通關可升級品階':''), 11, UI.dim, 0, 0.5));
     add(txt(this, 250, y+8, got? r.desc : '在「'+(d?d.name:'')+'」探索取得、帶回收藏後永久生效。', 11.5, got?UI.text:UI.faint, 0).setWordWrapWidth(W-250-30));
   }
   flash(msg){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,486,msg,14,UI.red).setDepth(99);
