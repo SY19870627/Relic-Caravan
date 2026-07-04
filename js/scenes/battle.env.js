@@ -27,6 +27,9 @@ Object.assign(Battle.prototype, {
       const lk=(typeof leaderObjType==='function')? leaderObjType() : 'campfire';
       this.time.delayedCall(80, ()=>{ if(!this.over) this.makeEnvObject(lk, 348, 238); });
     }
+    // v8.3 商隊補給架（預設配備）：每波自篷車拋出「玩家所選的職業代表物件」（1 件；擴充後 2 件）
+    if(!(RUN&&RUN.trial) && this._wagon)
+      this.time.delayedCall(620, ()=>{ if(!this.over) this.wagonThrow(); });
     const V=CFG.env.vig, stype=(RUN&&RUN.node&&RUN.node.type)||'battle', di=(RUN&&RUN.destIndex)||0;
     const sprites=(fresh||[]).map(e=>e.sprite);
     const share=(list)=> sprites.length? sprites.filter(s=>list.indexOf(s)>=0).length/sprites.length : 0;
@@ -57,6 +60,33 @@ Object.assign(Battle.prototype, {
     this._stageType='walk';
     this.rollScatterObjects(fresh);   // 一般配置：0–2 個目的地物件（依站位避讓）
     this.enterWalk(fresh);
+  }
+,
+  // ---- v8.3 商隊補給架：拋出「玩家挑選的職業代表物件」（銅鑼/圖騰/燭台/水晶/燈籠；場上已有同款則略過）----
+  wagonThrow(){
+    if(this.over || (RUN&&RUN.trial) || !this._wagon) return;
+    const picks=(typeof supplyPicks==='function' ? supplyPicks() : [])
+      .filter(t=> BATTLE_OBJECTS[t] && !(this.envObjs||[]).some(o=>o&&!o.dead&&o.type===t));
+    if(!picks.length) return;
+    const spots=[{x:252,y:214},{x:214,y:462},{x:334,y:448},{x:428,y:238},{x:452,y:430},{x:308,y:318}];
+    const occ=(this.heroes||[]).map(h=>({x:h.baseX,y:h.baseY}));
+    const free=p=> occ.every(q=> Math.abs(p.x-q.x)>62 || Math.abs(p.y-q.y)>56)
+      && (this.envObjs||[]).every(o=>!o||o.dead||Math.abs(o.x-p.x)>70||Math.abs(o.y-p.y)>60);
+    const wx=this._wagon.x+8, wy=this._wagon.y-30;
+    picks.forEach((t,i)=>{
+      const cand=spots.filter(free); if(!cand.length) return;
+      const p=cand[Math.floor(Math.random()*cand.length)]; occ.push(p);
+      this.time.delayedCall(120+i*280, ()=>{ if(this.over) return;
+        const def=BATTLE_OBJECTS[t]; if(!def || !this.textures.exists(def.sprite)) return;
+        const fly=this.add.image(wx,wy,def.sprite).setScale(2.2).setDepth(80).setAngle(-18);
+        const mx=(wx+p.x)/2, my=Math.min(wy,p.y)-92;
+        this.tweens.add({targets:fly, x:mx, y:my, angle:150, duration:250, ease:'Quad.out',
+          onComplete:()=>this.tweens.add({targets:fly, x:p.x, y:p.y, angle:335, duration:250, ease:'Quad.in',
+            onComplete:()=>{ fly.destroy(); if(this.over) return;
+              this.fxDust(p.x,p.y+6); this.makeEnvObject(t,p.x,p.y);
+              this.floatLabel(wx,wy-18,'商隊補給!','#ffd27a'); }})});
+      });
+    });
   }
 ,
   // 預設進場：自畫面右側走入（原行為）

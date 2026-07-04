@@ -12,7 +12,7 @@ class Battle extends Phaser.Scene {
     this.envObjs=[]; this._stageType=null;   // 環境物件參照與場景型別同步重置（舊物件已隨場景銷毀）
     // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
-    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null;
+    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null; this._wagon=null;
     const W=this.scale.width, H=this.scale.height;
     // v1.1：依目的地切換戰鬥背景主題（牆／地板／火把色），各區視覺區隔
     const di=(RUN&&RUN.destIndex)||0;
@@ -125,6 +125,9 @@ class Battle extends Phaser.Scene {
     this._pendingGearGains=null;
     this.enemies=[]; this.summons=[]; this.all=[...this.heroes];
     this.updatePctBar(); this.updateGold(); this.updatePotions(); this.updateCargo();
+    this.spawnWagon();   // v8.0 商隊實體：篷車停靠我方左側（試煉除外）
+    if(combat){ this.disembarkHeroes(); this.spawnRelicSummons(); }
+    else if(this._wagon){ (this.heroes||[]).forEach(c=>{ if(c.container){ this.tweens.killTweensOf(c.container); c.container.setAlpha(0); } }); }   // v8.1 非戰鬥遭遇：全員留在車上不下車
     if(combat){ this.waves=(stype==='boss')?buildBoss():buildEncounter(node); this.totalWaves=this.waves.length; this.spawnWave(); if(RUN){ RUN.cookShield=0; RUN.cookFirstCrit=false; } }
     else { this.over=true; this.playEncounterIntro(stype, ()=>this.openEncounter(stype)); }
   }
@@ -156,7 +159,8 @@ class Battle extends Phaser.Scene {
       if(c.stunStar){ c.stunStar.destroy(); c.stunStar=null; }
       if(c.stunLabel){ c.stunLabel.destroy(); c.stunLabel=null; }
       c.skillCD={}; (c.skills||[]).forEach(sk=>{ if(sk.cd!==undefined) c.skillCD[sk.name]={last:-1e9,left:sk.uses+(c.useBonus||0)}; });
-      c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setDepth(fs.y/200).setAngle(0).setAlpha(c.alive?1:0.25);
+      this.tweens.killTweensOf(c.container);   // v8.0.1：殺掉殘留的上車 tween（時長>換場 0.7s，會把人拖回篷車旁）
+      c.baseX=fs.x; c.baseY=fs.y; c.row=fs.row; c.container.setPosition(fs.x,fs.y).setDepth(fs.y/200).setAngle(0).setAlpha(c.alive?1:0.25).setScale(1);   // v8.0：上車縮小過的容器復原
       c.spr.clearTint(); if(!c.alive) c.spr.setTint(0x555555);
       c.name=`${h.name} Lv${s.level}`; if(c.nameText) c.nameText.setText(c.name);   // v2.3：同步更新 c.name，讓上方卡片等級跟著升級
       this.bar(c);
@@ -228,6 +232,7 @@ class Battle extends Phaser.Scene {
     const barBg=this.add.rectangle(0,-42,52,7,0x000000,0.75).setStrokeStyle(1,0x000000);
     const barFill=this.add.rectangle(-25,-42,50,5,side==='hero'?0x5ad06a:0xd05a5a).setOrigin(0,0.5);
     const shieldFill=this.add.rectangle(-25,-42,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false);   // 護盾段（青色）：與 HP 同一條，緊接在 HP 之後
+    if(d.noBar){ barBg.setVisible(false); barFill.setVisible(false); }   // v8.0 遺物召喚獸：無血條
     cont.add([shadow,spr,nameText,barBg,barFill,shieldFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
     const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:(this.gnow||0)-Math.random()*800,atkI:0,shield:0,maxShield:0,baseScale:(scl||SCALE),_wxUsed:{}};
@@ -640,6 +645,59 @@ class Battle extends Phaser.Scene {
     const dur=sk.dur||8000;
     sp._dieTimer=this.time.delayedCall(dur, ()=>this.removeSummon(sp));
   }
+  // ---- v8.0 商隊實體：篷車停靠我方左側；戰鬥開始下車、戰勝上車；遺物召喚獸隨車出戰 ----
+  spawnWagon(){
+    if(this._wagon){ if(this._wagon.cont) this._wagon.cont.destroy(); this._wagon=null; }
+    if((RUN&&RUN.trial) || !this.textures.exists('wagonSpr')) return;
+    const wk=['wagonSpr','wagonSpr1','wagonSpr2'][GUILD.horse||0]||'wagonSpr';   // v8.2 車色依選用馬車
+    const x=58, y=452;
+    const c=this.add.container(x,y).setDepth(y/200);
+    c.add(this.add.ellipse(0,28,88,14,0x000000,0.35));
+    const spr=this.add.image(0,0,this.textures.exists(wk)?wk:'wagonSpr').setScale(4);
+    c.add(spr);
+    c.add(txt(this,0,36,'商隊篷車',10,UI.dim).setStroke('#000',3));
+    this.tweens.add({targets:spr, y:-2, duration:1100, yoyo:true, repeat:-1, ease:'Sine.inOut'});
+    this._wagon={x,y,cont:c};
+  }
+  // 下車：戰鬥開始，隊員自篷車跳下、跑向站位（走位期間不出手）
+  disembarkHeroes(){
+    if(!this._wagon) return;
+    const wx=this._wagon.x+14, wy=this._wagon.y-10;
+    (this.heroes||[]).forEach((c,i)=>{ if(!c.alive || !c.container) return;
+      const tx=c.baseX, ty=c.baseY;
+      this.tweens.killTweensOf(c.container);   // v8.0.1：下車前清掉舊 tween
+      c.container.setPosition(wx,wy).setAlpha(0).setScale(0.5).setDepth(this._wagon.y/200+0.01);
+      c.lastAttack=(this.gnow||0)+520+i*90;
+      this.tweens.add({targets:c.container, alpha:1, scaleX:1, scaleY:1, y:wy-16, duration:150, delay:i*90, ease:'Back.out',
+        onComplete:()=>{ this.tweens.add({targets:c.container, x:tx, y:ty, duration:330, ease:'Quad.out',
+          onComplete:()=>{ if(c.container) c.container.setDepth(ty/200); }}); }});
+    });
+  }
+  // 上車：本場清空後，存活隊員跑回篷車、跳上車廂收起
+  boardHeroes(){
+    if(!this._wagon) return;
+    const wx=this._wagon.x+10, wy=this._wagon.y-12;
+    (this.heroes||[]).forEach((c,i)=>{ if(!c.alive || !c.container) return;
+      this.tweens.add({targets:c.container, x:wx, y:wy, duration:340, delay:60+i*70, ease:'Quad.in',
+        onComplete:()=>{ if(c.container) this.tweens.add({targets:c.container, alpha:0, scaleX:0.5, scaleY:0.5, y:wy-8, duration:150, ease:'Quad.in'}); }});
+    });
+  }
+  // 遺物召喚獸：龕上遺物各化為一獸（無血條、不可被鎖定、只做額外攻擊；傷害隨地城階級與遺物品階）
+  spawnRelicSummons(){
+    if((RUN&&RUN.trial) || typeof wagonLoadedRelics!=='function' || typeof RELIC_SUMMONS==='undefined') return;
+    const list=wagonLoadedRelics(); if(!list.length) return;
+    const t=(RUN&&RUN.destTier)||1;
+    list.forEach((id,i)=>{
+      const sm=RELIC_SUMMONS[id]; if(!sm || !this.textures.exists(sm.sprite)) return;
+      const gm=((CFG.diff&&CFG.diff.relicMuls)||[0.7,1,1.4])[(typeof relicGradeOf==='function')?relicGradeOf(id):1]||1;
+      const base=Math.max(2, Math.round((5+2*t)*gm));
+      const sp=this.makeCombatant({sprite:sm.sprite, name:sm.name, maxHp:999999, hp:999999, atkSeq:[base,base+2], def:0, heal:0, interval:2100, ranged:true, healer:false, isSummon:true, noBar:true}, 'hero', 106, 318+i*86, 3);
+      sp.relicSummon=true;
+      sp.container.setAlpha(0).setScale(0.4);
+      this.tweens.add({targets:sp.container, alpha:1, scaleX:1, scaleY:1, duration:300, delay:220+i*140, ease:'Back.out'});
+      this.summons.push(sp); this.all.push(sp);
+    });
+  }
   removeSummon(sp){ if(!sp || sp._removed) return; sp._removed=true; sp.alive=false;
     const i=this.all?this.all.indexOf(sp):-1; if(i>=0) this.all.splice(i,1);
     const j=this.summons?this.summons.indexOf(sp):-1; if(j>=0) this.summons.splice(j,1);
@@ -791,6 +849,7 @@ class Battle extends Phaser.Scene {
     if(this.over) return; this.over=true;
     if(this.campfireRest) this.campfireRest();   // v3.0：營火存活 → 戰後小憩回血（先於 ref.hp 回寫）
     if(this.clearEnvObjects) this.clearEnvObjects(true);   // v3.3：戰鬥結束物件即刻消散（不等換場）
+    this.boardHeroes();   // v8.0：戰勝收隊——存活隊員跑回篷車上車
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
     const wasBoss=RUN.isBoss, node=RUN.node;
     this.time.delayedCall(700,()=>{

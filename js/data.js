@@ -260,6 +260,17 @@ const RELIC_CATALOG = [
   {id:'chimeragene',name:'異變基因', icon:'🧬', dest:7, desc:'蝕心雨林首領的遺物。全隊 ATK +4、DEF +4、HP +30。', effect:{atk:4, def:4, hp:30}},
 ];
 const RELIC_BY_ID={}; RELIC_CATALOG.forEach(r=>{ RELIC_BY_ID[r.id]=r; });
+// v8.0 遺物召喚獸：一遺物一獸（搬上馬車的遺物才生效，召喚獸隨車出戰、只做額外攻擊、無血條不可被鎖定）
+const RELIC_SUMMONS = {
+  idol:       {sprite:'sumIdol',    name:'石像之靈'},
+  candle:     {sprite:'sumCandle',  name:'燭火精魂'},
+  glass:      {sprite:'sumGlass',   name:'時砂之靈'},
+  wheel:      {sprite:'sumWheel',   name:'永輪之靈'},
+  venomfang:  {sprite:'sumVenom',   name:'毒牙之靈'},
+  croccrown:  {sprite:'sumCroc',    name:'鱷王之靈'},
+  apexfang:   {sprite:'sumApex',    name:'王獸之靈'},
+  chimeragene:{sprite:'sumChimera', name:'異變幼獸'},
+};
 const RELICS_BY_DEST=[]; RELIC_CATALOG.forEach(r=>{ (RELICS_BY_DEST[r.dest]=RELICS_BY_DEST[r.dest]||[]).push(r); });   // 動態：支援任意數量地城
 
 // ===== v2.1 任務 / 懸賞（分階段任務鏈）＋ 稱號（全開）=====
@@ -417,9 +428,9 @@ const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重
 // ===== 馬匹（單一馬車＋選馬）=====
 // 馬匹只決定「貨格」（後勤容量），不影響戰鬥。cost＝解鎖所需聲望（0＝免費）；index 0 為初始預設馬
 const HORSES = [
-  {name:'均衡馬', slots:6,  cost:0, desc:'標準商隊馬，貨格 6（初始預設）'},
-  {name:'耐力馬', slots:9,  cost:3, desc:'耐久善負重，貨格 9（解鎖 ⭐3）'},
-  {name:'力量馬', slots:12, cost:4, desc:'力大能拉重載，貨格 12（解鎖 ⭐4）'},
+  {name:'均衡馬', slots:6,  cost:0, desc:'標準商隊馬，貨格 6・無遺物龕（初始預設）'},
+  {name:'耐力馬', slots:9,  cost:3, desc:'耐久善負重，貨格 9・遺物龕 1 格（解鎖 ⭐3）'},
+  {name:'力量馬', slots:12, cost:4, desc:'力大能拉重載，貨格 12・遺物龕 2 格（解鎖 ⭐4）'},
 ];
 // ===== 素材（強化用）：特定關出特定素材 =====
 const MATERIALS = [
@@ -476,6 +487,7 @@ const UPGRADES = [
   {id:'rack1',    name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},           desc:'貨格 +2'},
   {id:'deck2',    name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},           desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
   {id:'campstove',name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}}, desc:'每次營火多採集 1 份食材'},
+  {id:'supply',   name:'補給架擴充', craftReq:2, effect:{feature:'supply'},   cost:{mats:{wood:2,iron:2}},    desc:'補給架可同時裝載 2 件職業代表物件（預設 1 件，每波戰鬥自篷車拋出）'},   // v8.3 擴充第二格
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
 // 每級：growthHp 加血、growthAtk 加攻擊（升級兼顧生存與輸出）；另由升級 perk（state.js heroPerks）給功能。

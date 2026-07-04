@@ -73,6 +73,8 @@ function loadGuild(){ try{
       if(GUILD.questStage[l.id]==null){ let n=0; for(const st of l.stages){ if(GUILD.titles[st.title.id]) n++; else break; } GUILD.questStage[l.id]=n; } });
     if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={};
     if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={};
+    if(!Array.isArray(GUILD.wagonRelics)) GUILD.wagonRelics=[];   // v8.0 遺物龕（馬車上生效的遺物）
+    if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=['gong'];   // v8.3 補給架選件（預設戰士銅鑼）
     if(!GUILD.settings) GUILD.settings={autoSipFrac:0.30};
     if(GUILD.horse==null||GUILD.horse>=HORSES.length) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
@@ -192,12 +194,36 @@ function relicEffects(){
   const e={atk:0,def:0,hp:0,heal:0,drop:0,extraLoot:0, firstHitCrit:false, reviveOnce:false, fullHealAfterBattle:false,
     // v0.8 規則型旗標
     splash:false, startShield:0, regen:0, killCrit:false, healToShield:false, lastStand:false, firstDeathHeal:0, firstStrikeAoe:false, soloBoost:false, lifesteal:0, firstHitBlock:false};
-  (GUILD.relics||[]).forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
+  // v8.0 遺物龕：只有「搬上馬車」的遺物生效（收藏不再全域疊加——遺物化身召喚獸隨車出戰）
+  wagonLoadedRelics().forEach(id=>{ const r=RELIC_BY_ID[id]; if(!r) return; const ef=r.effect||{};
     const gm=((CFG.diff&&CFG.diff.relicMuls)||[0.7,1,1.4])[relicGradeOf(id)]||1;   // v4.6 品階乘數（數值效果）
     for(const k in ef){ if(typeof ef[k]==='boolean'){ e[k]=e[k]||ef[k]; }
       else { const v=ef[k]*gm; e[k]=(e[k]||0)+(Number.isInteger(ef[k])? Math.round(v) : v); } } });
   return e;
 }
+// v8.0 遺物龕：容量依馬車（均衡馬 0＝無法喚出遺物守護靈、耐力馬 1、力量馬 2）；上/卸即存檔
+function wagonRelicCap(){ const h=GUILD.horse||0; return h>=2?2:(h>=1?1:0); }
+function wagonLoadedRelics(){ if(!Array.isArray(GUILD.wagonRelics)) GUILD.wagonRelics=[];
+  GUILD.wagonRelics=GUILD.wagonRelics.filter(id=>(GUILD.relics||[]).includes(id)).slice(0, wagonRelicCap());
+  return GUILD.wagonRelics; }
+function toggleWagonRelic(id){ if(!(GUILD.relics||[]).includes(id)) return false;
+  const l=wagonLoadedRelics(), i=l.indexOf(id);
+  if(i>=0){ l.splice(i,1); saveGuild(); return true; }
+  if(l.length>=wagonRelicCap()) return false;
+  l.push(id); saveGuild(); return true; }
+// v8.3 商隊補給架：玩家挑選「職業代表物件」每波自篷車拋出——預設可帶 1 件；工坊「補給架擴充」後可帶 2 件
+const SUPPLY_OBJECTS=[{type:'gong',cls:'warrior'},{type:'totem',cls:'ranger'},{type:'candles',cls:'priest'},{type:'crystal',cls:'mage'},{type:'lantern',cls:'rogue'}];
+function supplyCap(){ return upgradeOwned('supply') ? 2 : 1; }
+function supplyPicks(){ if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=['gong'];
+  GUILD.supplyPicks=GUILD.supplyPicks.filter(t=>SUPPLY_OBJECTS.some(s=>s.type===t)).slice(0, supplyCap());
+  if(!GUILD.supplyPicks.length) GUILD.supplyPicks=['gong'];
+  return GUILD.supplyPicks; }
+function toggleSupplyPick(t){ if(!SUPPLY_OBJECTS.some(s=>s.type===t)) return false;
+  const l=supplyPicks(), i=l.indexOf(t);
+  if(i>=0){ if(l.length<=1) return false;   // 至少保留 1 件（預設配給）
+    l.splice(i,1); saveGuild(); return true; }
+  if(l.length>=supplyCap()) l.shift();   // 架滿→自動替換最舊的一件（容量 1 也能直接換選）
+  l.push(t); saveGuild(); return true; }
 // 遺物效果摘要（數值＋規則名稱），給大廳/整備顯示
 function relicCollected(id){ return (GUILD.relics||[]).includes(id); }
 function relicTotalCount(){ return RELIC_CATALOG.length; }

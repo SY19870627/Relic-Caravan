@@ -60,7 +60,18 @@ class WagonHall extends Phaser.Scene {
         },{size:11, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));
       }
     });
+    // ===== v8.3 商隊補給架：挑選職業代表物件（每波戰鬥自篷車拋出；預設 1 件、「補給架擴充」後 2 件）=====
+    const sCap=supplyCap(), sPicks=supplyPicks();
+    add(txt(this,W/2,508,`── 商隊補給架（${sPicks.length}/${sCap}）：每波戰鬥拋出所選職業代表物件 ──`,12,TH.gold));
+    const SUP_LABEL={gong:'🔔 銅鑼・戰士', totem:'🌀 圖騰・遊俠', candles:'🕯 燭台・牧師', crystal:'🔮 水晶・法師', lantern:'🏮 燈籠・盜賊'};
+    const sp=172, sx0=W/2-2*sp;
+    SUPPLY_OBJECTS.forEach((s,i)=>{ const on=sPicks.indexOf(s.type)>=0;
+      add(button(this, sx0+i*sp, 536, 162, 28, (on?'✓ ':'')+SUP_LABEL[s.type], ()=>{
+        if(!toggleSupplyPick(s.type)){ this.flash('至少保留 1 件補給'); return; }   // 架滿改選＝自動替換最舊一件
+        this.render();
+      },{size:11, fill:on?0x3a6b3a:0x33323a, stroke:on?0x5ad06a:0x55555f, hover:on?0x4c8c4c:0x44424e}));
+    });
   }
-  flash(msg,col){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,540,msg,14,col||TH.red).setDepth(99);
+  flash(msg,col){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,96,msg,14,col||TH.red).setDepth(99);   // v8.3 移到上方，避開補給架列
     this.tweens.add({targets:this._f,alpha:0,delay:1000,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }
 }

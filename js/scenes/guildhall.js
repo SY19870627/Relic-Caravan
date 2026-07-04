@@ -44,7 +44,7 @@ class GuildHall extends Phaser.Scene {
     // ====== 遺物收藏（v2.3：每地城 1 件首領遺物，一次顯示 8 格、依世界分組）======
     const P=add(panel(this, W/2, 213, 868, 246, {accent:'violet', title:'遺物收藏', icon:'relic', titleSize:16}));
     const banked=GUILD.relics.filter(id=>RELIC_BY_ID[id]).length;
-    add(txt(this, P.left+22, P.bodyTop+6, '每個地城擊敗首領可獲得 1 件專屬遺物　·　已收集 '+banked+' / '+relicTotalCount()+'　·　收進收藏後每趟永久生效', 11.5, UI.dim, 0, 0.5));
+    add(txt(this, P.left+22, P.bodyTop+6, '已收集 '+banked+' / '+relicTotalCount()+'　·　遺物龕 '+wagonLoadedRelics().length+' / '+wagonRelicCap()+'（點擊已收藏遺物＝上車/卸下；龕上遺物才生效，並化為遺物守護靈隨車出戰）', 11.5, UI.dim, 0, 0.5));
     const sz=48, slotGap=14, groupGap=46, slotY=P.bodyTop+72;
     const groups=[]; for(let w=0;w<WORLD_COUNT;w++) groups.push(destsOfWorld(w));
     const gW=g=>g.length*sz+(g.length-1)*slotGap;
@@ -82,16 +82,23 @@ class GuildHall extends Phaser.Scene {
     add(button(this, W/2, 510, 330, 46, '前往整備出發', ()=>this.scene.start('Outfit'), {variant:'go', size:18, icon:'play', iconSize:18}));
   }
   relicSlot(x,y,sz,r){
-    const got=relicCollected(r.id), ac=got?accent('violet'):accent('slate');
+    const got=relicCollected(r.id), on=got && wagonLoadedRelics().indexOf(r.id)>=0;
+    const ac=on?accent('gold'):(got?accent('violet'):accent('slate'));   // v8.1 龕上遺物金框
     const g=this._ui[this._ui.length]=this.add.graphics(); // track
     g.fillStyle(0x000000,0.3); g.fillRoundedRect(x-sz/2,y-sz/2+3,sz,sz,9);
     g.fillStyle(got?UI.raisedN:UI.panelN, got?1:0.55); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
     if(got){ g.fillStyle(ac.deep,0.4); g.fillRoundedRect(x-sz/2,y-sz/2,sz,sz*0.5,9); }
-    g.lineStyle(2, got?ac.num:UI.lineN, got?0.95:0.35); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
+    g.lineStyle(on?3:2, got?ac.num:UI.lineN, got?0.95:0.35); g.strokeRoundedRect(x-sz/2,y-sz/2,sz,sz,9);
     if(got) this._ui.push(txt(this, x, y, r.icon, sz*0.5, '#fff'));
     else this._ui.push(txt(this, x, y, '?', sz*0.42, UI.faint));
+    if(on) this._ui.push(txt(this, x+sz/2-6, y-sz/2+6, '⚔', 11, UI.gold).setStroke('#000',3));   // 上車徽章
     const hit=this.add.rectangle(x,y,sz,sz,0xffffff,0.001).setInteractive({useHandCursor:true}); this._ui.push(hit);
     hit.on('pointerover',()=>this.showRelicDetail(r)); hit.on('pointerout',()=>this.showRelicDetail(null));
+    hit.on('pointerdown',()=>{ if(!got) return;   // v8.1 點擊＝上車/卸下（單一管理入口）
+      if(!toggleWagonRelic(r.id)){
+        this.flash(wagonRelicCap()===0 ? '均衡馬沒有遺物龕——到商隊工坊換耐力馬（1 格）或力量馬（2 格）'
+                                       : '遺物龕已滿（'+wagonRelicCap()+' 格）——先點擊金框遺物卸下'); return; }
+      this.render(); });
   }
   showRelicDetail(r){
     if(this._rdet) this._rdet.forEach(o=>o.destroy()); this._rdet=[];
@@ -106,7 +113,9 @@ class GuildHall extends Phaser.Scene {
     const _g=got?relicGradeOf(r.id):null, _gn=(CFG.diff&&CFG.diff.gradeNames)||['粗劣','完好','完美'];
     add(txt(this, 80, y+8, (got?r.name+'【'+_gn[_g]+'】':'？？？'), 15, got?(['#9b93b8','#a98bff','#f2c14e'][_g]):ac.hex, 0, 0.5));   // v4.6 品階顯示
     add(txt(this, 80, y+28, (got?'':'尚未尋得 ・ ')+'產地：'+(d?d.name:'')+' '+'★'.repeat(r.dest+1)+(got&&_g<2?' ・ 更高難度通關可升級品階':''), 11, UI.dim, 0, 0.5));
-    add(txt(this, 250, y+8, got? r.desc : '在「'+(d?d.name:'')+'」探索取得、帶回收藏後永久生效。', 11.5, got?UI.text:UI.faint, 0).setWordWrapWidth(W-250-30));
+    add(txt(this, 250, y+8, got? r.desc : '在「'+(d?d.name:'')+'」探索取得、帶回收藏後可搬上馬車。', 11.5, got?UI.text:UI.faint, 0).setWordWrapWidth(W-250-30));
+    if(got){ const on=wagonLoadedRelics().indexOf(r.id)>=0, sm=(typeof RELIC_SUMMONS!=='undefined')?RELIC_SUMMONS[r.id]:null;
+      add(txt(this, W-30, y+30, on?('⚔ 已上車・守護靈：'+(sm?sm.name:'')):'點擊格子＝搬上馬車', 11, on?UI.gold:UI.dim, 1, 0.5)); }
   }
   flash(msg){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,486,msg,14,UI.red).setDepth(99);
     this.tweens.add({targets:this._f,alpha:0,delay:800,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }

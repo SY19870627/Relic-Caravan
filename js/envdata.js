@@ -31,6 +31,19 @@ Object.assign(SPRITES, {
   // v6.0 水澤生態：澤獸屍體（澤馬/澤鱷）＋寄生蟲
   marshCarcassSpr:["..............","..............","....HH........","..HHHHHHHg....",".HgHHHHHHHHg..","..HHHHHHHHH...","...HH..HH.....",".............."],
   parasiteSpr:["............","...ee.......","..eLee......",".eeKLee.....","..eLeeee....",".ee.ee.ee...","..e..e..e...","............"],
+  // v8.0 商隊實體：篷車（停靠戰場我方左側）；v8.2 依馬車換色——均衡米黃 / 耐力青藍 / 力量緋紅金窗
+  wagonSpr:["................","....KKKKKKKK....","...KRRRRRRRRK...","..KRRiRRRRiRRK..","..KRRRRRRRRRRK..","..KRRiRRRRiRRK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
+  wagonSpr1:["................","....KKKKKKKK....","...KvvvvvvvvK...","..KvvIvvvvIvvK..","..KvvvvvvvvvvK..","..KvvIvvvvIvvK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
+  wagonSpr2:["................","....KKKKKKKK....","...KCCCCCCCCK...","..KCCGCCCCGCCK..","..KCCCCCCCCCCK..","..KCCGCCCCGCCK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
+  // v8.0 遺物召喚獸（一遺物一獸；無血條、只做額外攻擊）
+  sumIdol:   ["............","...KKKKKK...","..KttttttK..",".KttTttTttK.",".KttttttttK.",".KtAttttAtK.",".KttttttttK.","..KttttttK..","...KttttK...","....KttK....",".....KK.....","............"],
+  sumCandle: ["............",".....YY.....","....YFFY....","...YFAAFY...","...FFAAFF...","..YFFAAFFY..","..FFYAAYFF..","..KFFYYFFK..","...KFFFFK...","....KFFK....",".....KK.....","............"],
+  sumGlass:  ["............","...KKKKKK...","..KWaaaaWK..","...KaaaaK...","....KaaK....",".....KK.....","....KaaK....","...KaaaaK...","..KWaaaaWK..","...KKKKKK...","............","............"],
+  sumWheel:  ["............","....KKKK....","...KGGGGK...","..KGYKKYGK..",".KGYK..KYGK.",".KGK....KGK.",".KGYK..KYGK.","..KGYKKYGK..","...KGGGGK...","....KKKK....","............","............"],
+  sumVenom:  ["............","..K......K..",".KyK....KyK.","..KyKKKKyK..","...KyyyyK...","..KyeyyeyK..","..KyyyyyyK..","...KyyyyK...","....KyyK....",".....KyK....","......K.....","............"],
+  sumCroc:   ["............","...KKKKK....","..KHHHHHK...",".KHAHHHAHK..",".KHHHHHHHK..",".KHWKWKWHKK.",".KHHHHHHHHK.","..KhhhhhhK..","...KhhhhK...","....KhhK....",".....KK.....","............"],
+  sumApex:   ["............","...KK..KK...","..KOOKKOOK..",".KOOOOOOOOK.",".KOAOOOOAOK.",".KOOOKKOOOK.","..KOOOOOOK..","..KOKOOKOK..","...KOOOOK...","....KOOK....",".....KK.....","............"],
+  sumChimera:["............","...KK..KK...","..KXXKKXXK..",".KXPXXXXPXK.",".KXAXXXXAXK.",".KXXPXXPXXK.","..KXXXXXXK..",".KXPXXXXPXK.","..KXXXXXXK..","...KXXXXK...","....KKKK....","............"],
   deadTree:["....b..b....",".b..B..b....","..b.B.b.....","...bBb..B...","....BB.b....","....BBb.....","....BB......","....BB......","....BB......","...bBBb.....","..bbBBbb...."],
   sandPit:["....DDDDDDDDDD....","..DDaammmmaaDD....",".DaammmmmmmaaD....","DaammmmmmmmaaD....",".DaammmmmmaaD.....","..DDaaaaaaDD......","....DDDDDD........"],
   // v5.0 武器架／防具架／幽焰營火
