@@ -67,7 +67,10 @@ class GuildHall extends Phaser.Scene {
     const x4=(i)=>W/2+(i-1.5)*(cw+gp), x3=(i)=>W/2+(i-1)*(cw+gp);
     const cards=[
       {x:x4(0), y:row1, accent:'teal', icon:'recruit', title:'招募所', desc:'出戰隊員、後勤', s:'RecruitHall'},
-      {x:x4(1), y:row1, accent:'violet', icon:'formation', title:'隊形', desc:'站位與加成', s:'FormationHall'},
+      {x:x4(1), y:row1, accent:(partySizeCap()>=5?'violet':'slate'), icon:'formation',
+        title:(partySizeCap()>=5?'隊形':'🔒 隊形'), desc:(partySizeCap()>=5?'站位與加成':'5 名隊員到齊後開放'),
+        onClick:()=>{ if(partySizeCap()>=5) this.scene.start('FormationHall');
+          else this.flash('隊形需 5 名隊員全數到齊後開放——先到招募所擴編'); } },   // v4.8.3：隊形鎖定至滿編
       {x:x4(2), y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'領聲望與稱號', s:'QuestHall'},
       {x:x4(3), y:row1, accent:'red', icon:'flame', title:'試煉之間', desc:'單人晉升、解鎖技能', s:'TrialHall'},
       {x:x3(0), y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},

@@ -7,7 +7,10 @@ class Result extends Phaser.Scene {
     let title,acc,note,keep;
     if(o==='clear'){ title='完整通關！'; acc='gold'; note='擊敗守護者，僅將遺物帶回公會'; keep=true; }
     else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，僅將已取得遺物帶回公會'; keep=true; }
-    else { title='全員倒下'; acc='red'; note='傳送卷軸啟動 — 平安歸來，但本趟收穫全失'; keep=false; }
+    else { const _l3=(typeof leaderTier==='function'&&leaderTier()>=3);   // v5.5.1 傳奇領隊斷後：保的是「歷練與名聲」（職業點數＋聲望），不是實體戰利品
+      title=_l3?'全員倒下・領隊斷後':'全員倒下'; acc='red';
+      note=_l3?'貨車留在了地城深處……但領隊護送眾人歸來——歷練與名聲不失':'傳送卷軸啟動 — 平安歸來，但本趟收穫全失';
+      keep=false; this._leaderSaved=_l3; }
     const A=accent(acc);
     sceneBg(this,{glow:A.num});
     const t=txt(this,W/2,72,title,38,A.hex).setStroke('#07060f',6).setShadow(0,3,'#000',8,false,true);
@@ -17,8 +20,13 @@ class Result extends Phaser.Scene {
       const p=panel(this,W/2,300,560,150,{accent:'red',title:'貨車戰利品全失',icon:'skull',titleSize:15});
       txt(this,W/2,p.bodyTop+18,'貨車與身上裝備都留在了地城深處…',15,UI.red);
       txt(this,W/2,p.bodyTop+44,'本趟不帶回遺物。',12,UI.dim);
-      txt(this,W/2,p.bodyTop+74,'全員倒下不獲得職業點數。',13,UI.text);
-      button(this,W/2,470,240,46,'回公會大廳',()=>{ initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
+      if(this._leaderSaved){   // v5.5.1 傳奇領隊：職業點數照常結算＋平安折返聲望
+        const awards=(typeof classPointAwards==='function')?classPointAwards():[];
+        txt(this,W/2,p.bodyTop+74,'🧭 領隊斷後：職業點數 +'+awards.reduce((a,b)=>a+b.points,0)+'、聲望 ⭐+'+(CFG.repEarn.perReturn||0)+' 保住了',13,'#9fe8a0');
+      } else txt(this,W/2,p.bodyTop+74,'全員倒下不獲得職業點數。',13,UI.text);
+      button(this,W/2,470,240,46,'回公會大廳',()=>{
+        if(this._leaderSaved){ awardClassPoints(); addRep(CFG.repEarn.perReturn||0); saveGuild(); }   // v5.5.1
+        initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
       return;
     }
     if(o==='clear' || o==='retreat'){ this.renderClear(o, acc); return; }   // 完整通關／撤退：只看角色血量＋獲得遺物

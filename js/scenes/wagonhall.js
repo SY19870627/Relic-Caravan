@@ -20,16 +20,19 @@ class WagonHall extends Phaser.Scene {
     add(txt(this,W/2,92,`素材：${matStr}`,11,TH.cyan));
 
     // 選馬車：純貨格（後勤），不影響戰鬥
-    add(txt(this,W/2,116,'── 選擇馬車（決定貨格，🔒 需聲望解鎖）──',12,TH.gold));
+    add(txt(this,W/2,116,'── 選擇馬車（決定貨格，🔒 由左至右依序解鎖）──',12,TH.gold));
     const pitch=222, x0=W/2-(HORSES.length-1)/2*pitch;
     HORSES.forEach((h,i)=>{
       const cx=x0+i*pitch, cy=192, sel=(GUILD.horse||0)===i, unlocked=horseUnlocked(i);
+      const isNext=!unlocked && horseUnlocked(i-1);   // v5.5：只有「下一輛」可購買
       const c=this.add.container(cx,cy); add(c);
-      c.add(this.add.rectangle(0,0,210,120,TH.panel, unlocked?1:0.7).setStrokeStyle(sel?3:2, !unlocked?0x8a7a3a:(sel?0xe7c14a:0x5a8cd0)));
-      c.add(txt(this,0,-44,unlocked?h.name:`🔒 ${h.name}`,15,TH.gold));
-      c.add(txt(this,0,-18,`📦 貨格 ${h.slots}`,16,TH.text));
+      c.add(this.add.rectangle(0,0,210,120,TH.panel, unlocked?1:(isNext?0.7:0.45)).setStrokeStyle(sel?3:2, !unlocked?(isNext?0x8a7a3a:0x4a4658):(sel?0xe7c14a:0x5a8cd0)));
+      c.add(txt(this,0,-44,unlocked?h.name:`🔒 ${h.name}`,15, (!unlocked&&!isNext)?TH.dim:TH.gold));
+      c.add(txt(this,0,-18,`📦 貨格 ${h.slots}`,16, (!unlocked&&!isNext)?TH.dim:TH.text));
       c.add(txt(this,0,8,h.desc,10,TH.dim).setWordWrapWidth(192).setAlign('center'));
-      if(!unlocked){ const ok=canUnlockHorse(i);
+      if(!unlocked && !isNext){
+        c.add(txt(this,0,45,'需先解鎖前一輛',11,TH.dim));
+      } else if(!unlocked){ const ok=canUnlockHorse(i);
         c.add(button(this,0,45,154,26,`解鎖 ⭐${horseCost(i)}`,()=>{
           if(!canUnlockHorse(i)){ this.flash(`聲望不足，需 ⭐${horseCost(i)}`); return; }
           unlockHorse(i); this.flash(`已解鎖 ${h.name}`,TH.green); this.render();

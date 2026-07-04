@@ -22,6 +22,11 @@ Object.assign(Battle.prototype, {
   // 哥布林圍營火被驚動／骷髏自地坑爬出／幽魂繞石像盤旋／巨木穿插兩軍之間。由 spawnWave 呼叫。
   stageWave(fresh, wi){
     this.clearEnvObjects(true);   // 舊波物件隨波次更替退場
+    // v5.2 資深領隊（Lv2+）：每波在我方側佈置一件隨行物件（試煉除外——試煉有招牌物件）
+    if(!(RUN&&RUN.trial) && typeof leaderTier==='function' && leaderTier()>=2){
+      const lk=(typeof leaderObjType==='function')? leaderObjType() : 'campfire';
+      this.time.delayedCall(80, ()=>{ if(!this.over) this.makeEnvObject(lk, 348, 238); });
+    }
     const V=CFG.env.vig, stype=(RUN&&RUN.node&&RUN.node.type)||'battle', di=(RUN&&RUN.destIndex)||0;
     const sprites=(fresh||[]).map(e=>e.sprite);
     const share=(list)=> sprites.length? sprites.filter(s=>list.indexOf(s)>=0).length/sprites.length : 0;
@@ -34,6 +39,14 @@ Object.assign(Battle.prototype, {
       if(wi===this.totalWaves-1) this.makeEnvObject('altar', 468, 224);
       this._stageType='walk'; this.enterWalk(fresh); return;
     }
+    // v5.6 沙漠棲地湧現（dest 4 專屬，最優先）：胡狼出遺骨、禿鷹出枯樹、沙蟲/沙蠍出沙坑
+    const _DSRC={ jackal:'bonepile', vulture:'deadtree', sandWyrm:'sandpit', sandScorpion:'sandpit' };
+    if(((RUN&&RUN.destIndex)||0)===4 && !RUN.trial && (fresh||[]).some(e=>_DSRC[e.sprite])){
+      this._stageType='desert'; this.stageDesert(fresh, _DSRC); return; }
+    // v6.0 水澤棲地湧現（dest 5 專屬）：澤鱷/澤馬自水坑破面、眼鏡蛇/沼澤九頭/沼澤巨獸自沼澤竄出（蜻蜓照常飛入）
+    const _OSRC={ crocodile:'pool', marshHippo:'pool', cobra:'bog', swampHydra:'bog', bogBehemoth:'bog' };
+    if(((RUN&&RUN.destIndex)||0)===5 && !RUN.trial && (fresh||[]).some(e=>_OSRC[e.sprite])){
+      this._stageType='oasis'; this.stageOasis(fresh, _OSRC); return; }
     // 依敵人組成挑演出（骸骨爬坑 > 水坑湧出 > 裂縫竄出 > 圍火紮營 > 幽魂聚像 > 林間穿插 > 一般配置）
     if(share(ENV_BONES)>=0.5 && Math.random()<V.pitChance){ this._stageType='pit'; this.stagePit(fresh); return; }
     if(share(ENV_SEA)>=0.5 && Math.random()<V.poolChance){ this._stageType='pool'; this.stagePool(fresh); return; }
@@ -100,6 +113,59 @@ Object.assign(Battle.prototype, {
       });
     });
     this.time.delayedCall(200+fresh.length*170+660, ()=>{ this.entering=false; });
+  }
+,
+  // v5.6 場景・沙漠棲地：各物種從自己的巢穴現身（胡狼掘骨而出、禿鷹自枯樹撲下、沙蟲沙蠍破沙而出）；其餘照常走入
+  stageDesert(fresh, SRC){
+    const spots={ bonepile:{x:585,y:212}, deadtree:{x:706,y:248}, sandpit:{x:620,y:452} };
+    const need={}; (fresh||[]).forEach(e=>{ const k=SRC[e.sprite]; if(k) need[k]=true; });
+    const objs={};
+    Object.keys(need).forEach(k=>{ objs[k]=this.makeEnvObject(k, spots[k].x, spots[k].y); });
+    const W=this.scale.width;
+    (fresh||[]).forEach((c,i)=>{
+      const k=SRC[c.sprite], o=k?objs[k]:null;
+      if(!o){   // 非棲地物種照常走入
+        c.container.x=W+80+i*70;
+        this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:i*90});
+        return; }
+      const fly=(k==='deadtree');
+      c.container.setPosition(o.x, fly? o.y-48 : o.y+4).setAlpha(0).setScale(fly?0.6:0.25);
+      this.time.delayedCall(240+i*170, ()=>{ if(!c.container) return;
+        if(fly){   // 禿鷹：自樹頂現身 → 俯衝滑翔到定位
+          this.tweens.add({targets:c.container, alpha:1, scaleX:1, scaleY:1, duration:220, ease:'Quad.out',
+            onComplete:()=>{ this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:420, ease:'Sine.in',
+              onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }});
+        } else {   // 掘土/破沙而出 → 爬行到定位
+          this.fxDust(o.x, o.y+6);
+          this.tweens.add({targets:c.container, y:o.y-26, alpha:1, scaleX:1, scaleY:1, duration:300, ease:'Back.out',
+            onComplete:()=>{ this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:340, ease:'Sine.out',
+              onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }});
+        } });
+    });
+    this.time.delayedCall(240+(fresh||[]).length*170+720, ()=>{ this.entering=false; });
+  }
+,
+  // v6.0 場景・水澤棲地：各物種從水坑/沼澤現身（水花破面/泥泡竄出）；其餘（蜻蜓等）照常走入
+  stageOasis(fresh, SRC){
+    const spots={ pool:{x:585,y:445}, bog:{x:700,y:418} };
+    const need={}; (fresh||[]).forEach(e=>{ const k=SRC[e.sprite]; if(k) need[k]=true; });
+    const objs={};
+    Object.keys(need).forEach(k=>{ objs[k]=this.makeEnvObject(k, spots[k].x, spots[k].y); });
+    const W=this.scale.width;
+    (fresh||[]).forEach((c,i)=>{
+      const k=SRC[c.sprite], o=k?objs[k]:null;
+      if(!o){ c.container.x=W+80+i*70;
+        this.tweens.add({targets:c.container, x:c.baseX, duration:640, ease:'Quad.out', delay:i*90});
+        return; }
+      c.container.setPosition(o.x, o.y+6).setAlpha(0).setScale(0.25);
+      this.time.delayedCall(240+i*170, ()=>{ if(!c.container) return;
+        if(k==='pool'){ this.fxSplash(o.x, o.y); this.fxRipple(o.x, o.y); } else this.fxBubbles(o.x, o.y-4);
+        this.tweens.add({targets:c.container, y:o.y-28, alpha:1, scaleX:1, scaleY:1, duration:300, ease:'Back.out',
+          onComplete:()=>{ this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:340, ease:'Sine.out',
+            onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }});
+      });
+    });
+    this.time.delayedCall(240+(fresh||[]).length*170+720, ()=>{ this.entering=false; });
   }
 ,
   // 場景②b 水坑湧出：水坑設在敵群前緣，深水族自水中破面而出（水花＋漣漪），再游行至定位
@@ -285,6 +351,7 @@ Object.assign(Battle.prototype, {
     const src=this.objectWithTag('fire'); if(!src) return;
     const E=CFG.env.campfireChain, t=(RUN&&RUN.destTier)||1;
     let dmg=E.base + E.perTier*t;
+    if(src.type==='cyanfire') dmg=Math.round(dmg*1.5);   // v5.0 幽焰營火：魔力之火，引燃連鎖更猛
     if(this._wxId==='rain') dmg=Math.max(1, Math.round(dmg*E.rainMul));
     // 爆燃：本體竄高＋光柱＋擴張火環＋閃光
     if(src.spr){ const s=src.def.scl||4; this.tweens.add({targets:src.spr, scaleY:s*1.45, scaleX:s*1.1, yoyo:true, duration:150, ease:'Quad.out'}); }
@@ -338,16 +405,23 @@ Object.assign(Battle.prototype, {
 ,
   // ---- 招牌互動⑥：波次清空且營火有耐久 → 小憩回血（利用一次、耐久 −1）。動畫：暖光擴散到每人 ----
   campfireRest(){
-    const cf=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='campfire'&&o.dur>0); if(!cf) return;
+    const cf=(this.envObjs||[]).find(o=>o&&!o.dead&&(o.type==='campfire'||o.type==='cyanfire')&&o.dur>0); if(!cf) return;
+    const cyan=(cf.type==='cyanfire'), col=cyan?0x46ccc6:0xffb347;
     let n=0;
-    (this.heroes||[]).forEach(h=>{ if(!h.alive||h.hp<=0||h.hp>=h.maxHp) return;
-      const amt=Math.max(2,Math.round(h.maxHp*CFG.env.campfireRestFrac));
-      h.hp=Math.min(h.maxHp,h.hp+amt); this.bar(h); n++;
-      const warm=this.add.circle(cf.x, cf.y-8, 8, 0xffb347, 0.5).setDepth(69);
-      this.tweens.add({targets:warm, x:h.container.x, y:h.container.y, duration:340, ease:'Quad.out',
-        onComplete:()=>{ warm.destroy(); pixelNum(this,h.container.x,h.container.y-34,'+'+amt,0x7dff9a); this.holyLight(h,0xffb347); }});
+    (this.heroes||[]).forEach(h=>{ if(!h.alive||h.hp<=0) return;
+      if(cyan){ const amt=Math.max(4,Math.round(h.maxHp*0.10));   // v5.0 幽焰：小憩改給「護盾」
+        h.shield=(h.shield||0)+amt; h.maxShield=Math.max(h.maxShield||0,h.shield); this.bar(h); n++;
+        const warm=this.add.circle(cf.x, cf.y-8, 8, col, 0.5).setDepth(69);
+        this.tweens.add({targets:warm, x:h.container.x, y:h.container.y, duration:340, ease:'Quad.out',
+          onComplete:()=>{ warm.destroy(); pixelNum(this,h.container.x,h.container.y-34,'🛡+'+amt,0x9fd0ff); this.holyLight(h,col); }});
+      } else { if(h.hp>=h.maxHp) return;
+        const amt=Math.max(2,Math.round(h.maxHp*CFG.env.campfireRestFrac));
+        h.hp=Math.min(h.maxHp,h.hp+amt); this.bar(h); n++;
+        const warm=this.add.circle(cf.x, cf.y-8, 8, col, 0.5).setDepth(69);
+        this.tweens.add({targets:warm, x:h.container.x, y:h.container.y, duration:340, ease:'Quad.out',
+          onComplete:()=>{ warm.destroy(); pixelNum(this,h.container.x,h.container.y-34,'+'+amt,0x7dff9a); this.holyLight(h,col); }}); }
     });
-    if(n){ this.floatLabel(cf.x, cf.y-56, '營火小憩', '#f0975a'); this.useObject(cf, 1); }
+    if(n){ this.floatLabel(cf.x, cf.y-56, cyan?'幽焰凝盾':'營火小憩', cyan?'#46ccc6':'#f0975a'); this.useObject(cf, 1); }
   }
 ,
   // ---- 招牌互動④：遊俠・回風 → 全敵降速；瀕死雜兵吹入地坑（地坑耐久 −1/人）。動畫：風幕橫掃＋墜坑漩渦 ----
@@ -427,6 +501,69 @@ Object.assign(Battle.prototype, {
             onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }});
         });
       }});
+    return true;
+  }
+,
+  // ---- v5.0 武器架/防具架：我方行動時順手取用（不耗行動、每架 2 人份、每人各限一次）----
+  tryTakeRack(c){
+    if(!c || c.side!=='hero' || c.isSummon || !c.alive) return;
+    if(!c._tookW){ const rw=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='rackW'&&o.dur>0);
+      if(rw){ c._tookW=true; this.useObject(rw,1);
+        c.atkSeq=(c.atkSeq||[1]).map(a=>a+5);
+        this.floatLabel(c.container.x, c.baseY-58, '抄起利刃 ATK+5!', '#f2c14e');
+        this.spark(c.container.x, c.container.y-10, 0xf2c14e); return; } }
+    if(!c._tookA){ const ra=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='rackA'&&o.dur>0);
+      if(ra){ c._tookA=true; this.useObject(ra,1);
+        c.def=(c.def||0)+4; c.shield=(c.shield||0)+12; c.maxShield=Math.max(c.maxShield||0,c.shield); this.bar(c);
+        this.floatLabel(c.container.x, c.baseY-58, '披上備甲 DEF+4 盾+12!', '#6aa6f0');
+        this.spark(c.container.x, c.container.y-10, 0x6aa6f0); return; } }
+  }
+,
+  // ---- v5.7/v6.0 屍體系統：胡狼→胡狼屍體（禿鷹食腐）；澤馬/澤鱷→澤獸屍體（數秒後寄生蟲破體而出）----
+  dropCarcass(c){
+    const M={ jackal:'carcass', marshHippo:'marshcarcass', crocodile:'marshcarcass' };
+    const k=c? M[c.sprite] : null;
+    if(!k || (RUN&&RUN.trial)) return;
+    const x=Phaser.Math.Clamp(Math.round(c.container? c.container.x : c.baseX), 120, 860);
+    const y=Phaser.Math.Clamp(Math.round(c.baseY+14), 190, 500);
+    this.time.delayedCall(430, ()=>{ if(this.over) return;
+      const o=this.makeEnvObject(k, x, y);
+      if(o && k==='marshcarcass') this.hatchParasites(o);   // 屍體落地即開始孵化（每秒 1 隻）
+    });
+  }
+,
+  // v6.0 寄生蟲破體：澤獸屍體落地即孵化，每秒 1 隻寄生蟲加入敵方（每隻耗屍體耐久 1，耐久 3 耗盡即止）
+  hatchParasites(o){
+    if(this.over || !o || o.dead || o.dur<=0) return;
+    const dm=((CFG.diff&&CFG.diff.muls)||[0.8,1,1.2])[(RUN&&RUN.diff!=null)?RUN.diff:1]||1;
+    if(!o._hatched){ o._hatched=true; this.floatLabel(o.x, o.y-50, '寄生蟲破體而出!', '#9adf6a'); this.shake(110,0.005); }
+    this.fxBubbles(o.x, o.y-4);
+    const i=(o._hatchN=(o._hatchN||0)+1)-1;
+    const e=scaleEnemy(ENV_PARASITE, dm, dm);
+    const c=this.makeCombatant({sprite:e.sprite,name:e.name,maxHp:e.hp,hp:e.hp,atkSeq:e.atkSeq,def:e.def,heal:0,interval:e.interval,ranged:false,healer:false,row:e.row}, 'enemy', o.x+(i%2?18:-10), o.y-6, SCALE);
+    c.baseX=Phaser.Math.Clamp(o.x-44+(i%3)*54, 470, 850);
+    c.baseY=Phaser.Math.Clamp(o.y-26+(i%2)*44, 190, 500);
+    c.container.setAlpha(0).setScale(0.2);
+    this.enemies.push(c); this.all.push(c);
+    this.tweens.add({targets:c.container, alpha:1, scaleX:1, scaleY:1, duration:280, ease:'Back.out',
+      onComplete:()=>{ this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:300, ease:'Sine.out',
+        onComplete:()=>{ if(c.container) c.container.setDepth(c.baseY/200); }}); }});
+    this.useObject(o, 1);   // 每孵一隻啃穿一分耐久
+    if(!o.dead && o.dur>0) this.time.delayedCall(1000, ()=>this.hatchParasites(o));   // 1 秒後孵下一隻
+  }
+,
+  // ---- v5.7 禿鷹食腐：受傷的禿鷹撲向屍體大快朵頤 → 回滿血、屍體消失 ----
+  tryEatCarrion(c){
+    if(!c || c.side!=='enemy' || c.sprite!=='vulture' || !c.alive) return false;
+    if(c.maxHp<=0 || c.hp>=c.maxHp) return false;
+    const ca=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='carcass'&&o.dur>0); if(!ca) return false;
+    this.floatLabel(c.container.x, c.baseY-58, '撲向屍體!', '#ff8a3a');
+    this.enemyGoUse(c, ca, ()=>{
+      if(c.spr) this.tweens.add({targets:c.spr, scaleY:(c.baseScale||SCALE)*0.78, yoyo:true, duration:110, repeat:3});   // 啄食
+      const amt=c.maxHp-c.hp; c.hp=c.maxHp; this.bar(c);
+      pixelNum(this, c.container.x, c.container.y-34, '+'+amt, 0x7dff9a);
+      this.floatLabel(c.container.x, c.baseY-70, '飽餐一頓!', '#ff8a3a');
+      this.useObject(ca, 1); });
     return true;
   }
 ,

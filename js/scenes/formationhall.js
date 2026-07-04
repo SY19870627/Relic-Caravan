@@ -3,6 +3,7 @@ class FormationHall extends Phaser.Scene {
   constructor(){ super('FormationHall'); }
 
   create(data){
+    if(partySizeCap()<5){ this.scene.start('GuildHall'); return; }   // v4.8.3 防呆：未滿編一律彈回大廳
     this.from=(data&&data.from)||'GuildHall';
     this.listTop=122;
     this.listX=165;
@@ -55,7 +56,7 @@ class FormationHall extends Phaser.Scene {
     const cur=GUILD.formation||0;
     this.clampScroll();
 
-    if(this.repText) this.repText.setText('⭐ 聲望 '+reputation()+'（可花費）　·　🔒 隊形需用聲望解鎖');
+    if(this.repText) this.repText.setText('⭐ 聲望 '+reputation()+'（可花費）　·　🔒 隊形由上到下依序解鎖');
     this.renderList(add, cur);
     this.renderPreview(add);
   }
@@ -65,10 +66,12 @@ class FormationHall extends Phaser.Scene {
     const end=Math.min(FORMATIONS.length, this.scroll+this.visibleRows);
     for(let i=this.scroll;i<end;i++){
       const f=FORMATIONS[i], unlocked=formationUnlocked(i);
+      const isNext=!unlocked && formationUnlocked(i-1);   // v5.1：只有「下一個」可購買，其餘鎖住
       const y=this.listTop+(i-this.scroll)*pitch;
-      const label=unlocked?f.name:'🔒 '+f.name+'　⭐'+formationCost(i);
+      const label=unlocked? f.name : (isNext? ('🔒 '+f.name+'　⭐'+formationCost(i)) : ('🔒 '+f.name+'　（依序解鎖）'));
       const b=add(button(this, this.listX, y, this.listW, this.rowH, label, ()=>{
         if(!formationUnlocked(i)){
+          if(!isNext){ this.flash('需先解鎖上一個隊形（由上到下依序）'); return; }
           if(!canUnlockFormation(i)){ this.flash('聲望不足，需 ⭐'+formationCost(i)); return; }
           unlockFormation(i);
           this.flash('已解鎖隊形：'+f.name, TH.green);

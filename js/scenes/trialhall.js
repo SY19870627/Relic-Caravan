@@ -37,7 +37,7 @@ class TrialHall extends Phaser.Scene {
       const sk=trialStageSkills(this.sprite,st).map(s=>s.name).join('、');
       add(txt(this, L+24, top+44, '晉升「'+CFG.ranks.names[st]+'」　解鎖：'+(sk||'—'), 11.5, open?UI.text:UI.faint, 0).setWordWrapWidth(500));
       const wx=WEATHER_BY_ID[sd.weather];
-      add(txt(this, L+24, top+64, '環境 '+(wx?wx.icon+wx.name:'')+'　地物 '+[...new Set((sd.objs[0]||[]).map(o=>BATTLE_OBJECTS[o.type]?BATTLE_OBJECTS[o.type].icon:''))].join(' ')+'　敵人：'+(DESTINATIONS[def.dest]?DESTINATIONS[def.dest].name:''), 10.5, UI.dim, 0));
+      add(txt(this, L+24, top+64, '環境 '+(wx?wx.icon+wx.name:'')+'　·　場上有什麼？親自去看看', 10.5, UI.dim, 0));   // v5.0：物件不預告
       if(open) add(button(this, L+ww-84, y, 136, 42, cleared?'再次挑戰':'查看簡報', ()=>this.brief(st), {variant:cleared?'info':'go', size:14}));
       else { const cc=chip(this, 0, y, {label:'🔒 需先通過關卡'+'ⅠⅡⅢ'[i-1], accent:'red', size:11, h:26}); cc.setX(L+ww-84-cc.w/2); add(cc); }
     });
@@ -58,7 +58,7 @@ class TrialHall extends Phaser.Scene {
     o.add(txt(this, W/2, y, '✨ 該職業 HP +'+((CFG.ranks.perks.hp||[])[st]||0)+(pts?('　·　職業點數上限 +'+pts):'')+(first?('　·　首通 ⭐聲望 +'+CFG.trial.firstClearRep):''), 11, '#ffe08a')); y+=30;
     const wx=WEATHER_BY_ID[sd.weather];
     o.add(txt(this, W/2, y, '── 試煉環境 ──', 12, UI.gold)); y+=24;
-    o.add(txt(this, W/2, y, '天氣 '+(wx?wx.icon+wx.name:'')+'（整場固定）　·　地物 '+[...new Set((sd.objs[0]||[]).map(x=>BATTLE_OBJECTS[x.type]?(BATTLE_OBJECTS[x.type].icon+BATTLE_OBJECTS[x.type].name):''))].join('、')+'　·　敵人來自：'+(DESTINATIONS[def.dest]?DESTINATIONS[def.dest].name:''), 11, UI.text).setWordWrapWidth(600)); y+=26;
+    o.add(txt(this, W/2, y, '天氣 '+(wx?wx.icon+wx.name:'')+'（整場固定）　·　試煉幻影傀儡出沒　·　戰場佈置請親自探索', 11, UI.text).setWordWrapWidth(600)); y+=26;   // v5.0：物件不預告
     o.add(txt(this, W/2, y, '本關環境是為這批新技能佈置的舞台——通關後到「職業規劃」自行配置 build。', 10.5, UI.dim)); y+=28;
     o.add(txt(this, W/2, y, '【規則】單人出戰・每趟 Lv1 免洗・戰利品不帶回・失敗無任何懲罰，可隨時再挑戰', 10.5, UI.cyan||'#56d6c6'));
     o.add(button(this, W/2-92, H/2+186, 160, 42, '⚔ 出發', ()=>{ initTrialRun(this.sprite, st); this.scene.start('Battle'); }, {variant:'go', size:15}));

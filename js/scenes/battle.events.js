@@ -61,10 +61,8 @@ Object.assign(Battle.prototype, {
     if(gainNotice) this.showGains([gainNotice]);
     this.time.delayedCall(1250,()=>this.advanceStep()); }
 ,
-  evCamp(){ let n=0; this._campShops={};   // 進新營火 → 重置商店快取（本營火內貨色固定，跨營火才換）
-    RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; const b=h.hp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.5)); if(h.hp>b)n++; } });
-    this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} });
-    this._campHealed=n;
+  evCamp(){ this._campShops={};   // 進新營火 → 重置商店快取（本營火內貨色固定，跨營火才換）
+    // v5.4：營火不再自動治療/復活——復原交給 料理（食材）與 許願池（金幣）
     const fN=2+(hasCampstove()?1:0), ing=forageIngredient(RUN.destIndex||0, fN); this._campForaged=fN;
     this._campAutoSold=this.autoSellAtCamp();
     this._renderCamp(); const nt=resourceGainNotice(ing,fN); if(nt) this.showGains([nt]); }
@@ -103,17 +101,22 @@ Object.assign(Battle.prototype, {
     const o=this.mkOverlay({accent:'ember',w:520,h:331,y:cy+8,dimTop:160});
     o.add(txt(this,W/2,cy-132,'🔥 營火休息',18,'#f0975a'));
     const sold=this._campAutoSold;
-    o.add(txt(this,W/2,cy-106,'回復 50% HP（'+(this._campHealed||0)+' 人）　·　採集到 '+(this._campForaged||0)+' 份食材',11,TH.text));
-    if(sold) o.add(txt(this,W/2,cy-88,'自動售出 '+sold.count+' 件（貴重 '+sold.valuable+' / 裝備 '+sold.gear+'）　+💰 '+sold.gold,11,'#ffe08a'));
-    const nItem=RUN.cargo.filter(it=>it.kind==='道具').length, nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
+    o.add(txt(this,W/2,cy-110,'營火不提供治療——復原靠 🍳 料理 與 ⛲ 許願池　·　採集 '+(this._campForaged||0)+' 份食材'+(sold?('　·　售出 '+sold.count+' 件 +💰'+sold.gold):''),10,TH.text));
+    // v5.4 許願池：投幣祈願（全隊生效）——需「牧師」在隊且存活主持儀式
+    const priestOk=(RUN.heroes||[]).some(h=>h.sprite==='priest'&&h.hp>0);
+    const wishes=(CFG.camp&&CFG.camp.wishes)||[];
+    o.add(txt(this,W/2,cy-92, priestOk?('⛲ 許願池（牧師主持・全隊生效）　·　💰 持有 '+(RUN.gold||0)):'⛲ 許願池靜默無聲……需「牧師」在隊（存活）才能主持祈願',10.5, priestOk?'#6fd0e0':TH.dim));
+    if(priestOk){ const wx0=W/2-177;
+      wishes.forEach((w,i)=>{ const ok=(RUN.gold||0)>=w.cost;
+        o.add(button(this, wx0+i*118, cy-64, 112, 30, w.label+' 💰'+w.cost, ()=>this.campWish(w), {variant:ok?'info':'slate', size:10.5, color:ok?undefined:UI.faint})); }); }
+    const nGear=RUN.cargo.filter(it=>it.kind==='武器'||it.kind==='防具').length;
     const nIng=ingTotal();
-    o.add(button(this,W/2,cy-60,300,34, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:13}));
-    o.add(txt(this,W/2,cy-26,'🛒 商店　·　💰 持有 '+(RUN.gold||0),11,TH.cyan));
+    o.add(button(this,W/2,cy-28,300,32, '🍳 料理（食材 '+nIng+'）',()=>this.evCook(),{variant:'go',size:13}));
     const sw=112, st=118, sx=W/2-177;   // 四間商店一排
-    o.add(button(this, sx,      cy+2, sw, 32, '🧪 藥水商',  ()=>this.openShop('potion'),  {variant:'gold',size:11}));
-    o.add(button(this, sx+st,   cy+2, sw, 32, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:11}));
-    o.add(button(this, sx+2*st, cy+2, sw, 32, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:11}));
-    o.add(button(this, sx+3*st, cy+2, sw, 32, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:11}));
+    o.add(button(this, sx,      cy+8, sw, 30, '🧪 藥水商',  ()=>this.openShop('potion'),  {variant:'gold',size:11}));
+    o.add(button(this, sx+st,   cy+8, sw, 30, '⚔ 武器商',  ()=>this.openShop('weapon'),  {variant:'gold',size:11}));
+    o.add(button(this, sx+2*st, cy+8, sw, 30, '🛡 防具商',  ()=>this.openShop('armor'),   {variant:'gold',size:11}));
+    o.add(button(this, sx+3*st, cy+8, sw, 30, '🧙 流浪商人',()=>this.openShop('merchant'),{variant:'gold',size:11}));
     o.add(button(this,W/2-82,cy+52,152,34,'🎒 整裝（'+nGear+'）',()=>{ this._gearFrom='camp'; this.evGear(); },{variant:'info',size:12}));
     o.add(button(this,W/2+82,cy+52,152,34,'📦 物品欄（'+RUN.cargo.length+'）',()=>this.evInventory('camp'),{variant:'go',size:12}));
     o.add(button(this,W/2-82,cy+94,152,34,'繼續前進',()=>this.advanceStep(),{variant:'go',size:13}));
@@ -124,6 +127,23 @@ Object.assign(Battle.prototype, {
     o.add(this.add.rectangle(W/2,by,bw,9,0x000000,0.55).setStrokeStyle(1,0x5a4a3a,0.8));
     const cbf=this.add.rectangle(W/2-bw/2+1,by,0,7,0xf0975a).setOrigin(0,0.5); o.add(cbf);
     this._campBar={fill:cbf, w:bw-2}; this._campIdle=0; this._campIdleOn=true; this._campPtr=null; }
+,
+  // v5.4 許願池：投幣 → 全隊治療（滿血+復活檔另喚醒陣亡者）。需牧師在隊存活（進入點已把關，此處防呆再驗一次）
+  campWish(w){
+    if(!(RUN.heroes||[]).some(h=>h.sprite==='priest'&&h.hp>0)){ this.showGains([{t:'⛲ 需牧師主持', c:'#ff8a8a'}]); return; }
+    if((RUN.gold||0) < w.cost){ this.showGains([{t:'💰 金幣不足（需 '+w.cost+'）', c:'#ff8a8a'}]); return; }
+    spendGold(w.cost);
+    let healed=0, revived=0;
+    RUN.heroes.forEach(h=>{ const mx=heroStat(h).maxHp;
+      if(h.hp<=0){ if(w.revive){ h.hp=Math.max(1,Math.round(mx*w.heal)); revived++; } }
+      else if(h.hp<mx){ h.hp=Math.min(mx, h.hp+Math.round(mx*w.heal)); healed++; } });
+    this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; c.alive=c.hp>0;
+      if(c.alive&&c.container){ c.container.setAlpha(1).setAngle(0).setPosition(c.baseX,c.baseY); if(c.spr)c.spr.clearTint(); }
+      this.bar(c); } });
+    this.refreshHud();
+    this.showGains([{t:'⛲ 願望成真：'+w.label+(revived?('・復活 '+revived+' 人'):''), c:'#6fd0e0'}]);
+    this._renderCamp();
+  }
 ,
   // 營火閒置倒數：滑鼠 5 秒沒動 → 自動「繼續前進」。用真實 delta（與戰鬥倍率無關）；逐幀比對指標位置判斷有無移動
   tickCampIdle(delta){
@@ -137,21 +157,41 @@ Object.assign(Battle.prototype, {
     if(frac>=1){ this._campIdleOn=false; this._campBar=null; this.advanceStep(); }
   }
 ,
-  evCook(){ this._cookMsg=null; this._renderCook(); }
+  evCook(){ this._cookMsg=null; this._cookScroll=0; this._renderCook(); }
 ,
+  // v5.9：食譜清單加入捲動（滾輪＋▲▼），避免菜單超出框外
   _renderCook(){ const W=this.scale.width,H=this.scale.height;
     const o=this.mkOverlay({accent:'ember', w:600, h:430});
     o.add(txt(this,W/2,H/2-184,'🍳 營火料理',20,'#f0975a'));
-    const enabled=true;
-    o.add(txt(this,W/2,H/2-156,'消耗食材庫存（跨趟持久），立即補血或下一場增益',12,TH.text));
-    o.add(txt(this,W/2,H/2-136,'庫存　'+INGREDIENTS.map(g=>g.icon+g.name+'×'+ingCount(g.id)).join('　'),11,TH.cyan));
-    RECIPES.forEach((r,i)=>{ const y=H/2-104+i*62, rx=W/2-250, have=enabled&&canCook(r);
-      o.add(this.add.rectangle(W/2,y,540,54,0x241a30,0.9).setStrokeStyle(2, have?0x5ad06a:0x3a3150));
-      o.add(txt(this,rx,y-12,r.name,14, enabled?TH.gold:TH.dim,0));
+    o.add(txt(this,W/2,H/2-158,'消耗食材庫存（跨趟持久），立即補血或下一場增益',12,TH.text));
+    // v5.9.2 庫存改自動換行（限寬 540、置中），清單整體下移，避免溢出框外
+    o.add(txt(this,W/2,H/2-140,'庫存　'+INGREDIENTS.map(g=>g.icon+g.name+'×'+ingCount(g.id)).join('　'),11,TH.cyan,0.5,0).setWordWrapWidth(540).setAlign('center'));
+    // v5.9.1 與「隊形」清單同款：滾輪捲動＋右側捲軸條（軌道深色圓角、金色滑塊）
+    const visible=4, rowH=54, rowGap=8, pitch=rowH+rowGap, listTop=H/2-82;
+    const maxScroll=Math.max(0, RECIPES.length-visible);
+    this._cookScroll=Math.max(0, Math.min(maxScroll, this._cookScroll||0));
+    const step=(d)=>{ const old=this._cookScroll; this._cookScroll=Math.max(0,Math.min(maxScroll,old+d)); if(this._cookScroll!==old) this._renderCook(); };
+    const wheelHit=this.add.rectangle(W/2, listTop+(visible-1)*pitch/2, 580, visible*pitch, 0xffffff, 0.001).setInteractive(); o.add(wheelHit);
+    wheelHit.on('wheel',(pointer,dx,dy)=>step(dy>0?1:-1));
+    RECIPES.slice(this._cookScroll, this._cookScroll+visible).forEach((r,i)=>{
+      const y=listTop+i*pitch, rx=W/2-250, have=canCook(r);
+      o.add(this.add.rectangle(W/2,y,540,rowH,0x241a30,0.9).setStrokeStyle(2, have?0x5ad06a:0x3a3150));
+      o.add(txt(this,rx,y-12,r.name,14,TH.gold,0));
       o.add(txt(this,rx,y+10, r.desc+'　·　需 '+recipeNeedText(r),10.5, have?'#cfe8c0':TH.text,0).setWordWrapWidth(360));
-      o.add(button(this,W/2+205,y,100,40, have?'料理':(enabled?'食材不足':'未解鎖'),()=>{ if(!have) return; const msg=cook(r); if(msg) this._cookMsg=msg; this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this._renderCook(); },{variant:have?'go':'info',size:11}));
+      const b=button(this,W/2+205,y,100,40, have?'料理':'食材不足',()=>{ if(!have) return; const msg=cook(r); if(msg) this._cookMsg=msg; this.heroes.forEach(c=>{ if(c.ref){ c.hp=c.ref.hp; this.bar(c);} }); this._renderCook(); },{variant:have?'go':'info',size:11});
+      o.add(b); if(b._hit) b._hit.on('wheel',(pointer,dx,dy)=>step(dy>0?1:-1));
     });
-    if(this._cookMsg) o.add(txt(this,W/2,H/2+150,this._cookMsg,12,'#9fe8a0').setWordWrapWidth(560));
+    // 捲軸條（同隊形 renderScrollbar 樣式）
+    if(maxScroll>0){
+      const trackX=W/2+282, trackTop=listTop-rowH/2, trackH=visible*pitch-rowGap;
+      const g=this.add.graphics(); o.add(g);
+      g.fillStyle(0x000000,0.35); g.fillRoundedRect(trackX-4, trackTop, 8, trackH, 4);
+      g.lineStyle(1,0x7a6f93,0.75); g.strokeRoundedRect(trackX-4, trackTop, 8, trackH, 4);
+      const thumbH=Math.max(34, trackH*(visible/RECIPES.length));
+      const thumbY=trackTop+(trackH-thumbH)*(this._cookScroll/maxScroll);
+      g.fillStyle(0xe7c14a,0.9); g.fillRoundedRect(trackX-4, thumbY, 8, thumbH, 4);
+    }
+    if(this._cookMsg) o.add(txt(this,W/2,H/2+150,this._cookMsg,12,'#9fe8a0').setWordWrapWidth(430));
     o.add(button(this,W/2,H/2+182,160,38,'返回營火',()=>this._renderCamp(),{variant:'info',size:14})); }
 ,
   evGear(){ this._gearHero=0; this._gearWSel=0; this._gearASel=0; this._renderGear(); }

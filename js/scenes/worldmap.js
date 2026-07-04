@@ -37,14 +37,24 @@ class WorldMap extends Phaser.Scene {
       g.fillStyle(ac.num, ok?1:0.4); g.fillRoundedRect(L,top,5,h,{tl:12,bl:12,tr:0,br:0});
       icon(this, L+34, cy, 'pin', 24, ok?ac.num:UI.lineN);
       txt(this, L+62, top+18, d.name, 17, ok?ac.hex:UI.faint, 0);
+      // v4.9 通關難度徽章：亮＝已在該難度通關（🌿⚔🔥），未通關顯示「未通關」
+      if(ok){ const cl=destClearLevel(di);
+        if(cl<0) txt(this, L+ww-180, top+20, '未通關', 10.5, UI.faint, 1, 0.5);
+        else txt(this, L+ww-180, top+20, '通關 '+CFG.diff.icons.map((ic,k)=> k<=cl? ic : '·').join(''), 11, ['#56d6c6','#f2c14e','#ff6f7a'][cl], 1, 0.5);
+      }
       txt(this, L+62, top+42, d.desc, 11, UI.dim, 0).setWordWrapWidth(440);
       txt(this, L+62, top+64, '危險/遺物', 10.5, UI.faint, 0);
       pips(this, L+140, top+64, d.tier, ac.num);
       // v3.0 出發前情報：天氣預報＋常見地物（天氣每場擲定、整場固定 → 配 build 前先看這裡賭一把）
-      if(typeof WEATHER_SETS!=='undefined' && ok){
-        const ws=[...new Set(WEATHER_SETS[di]||[])].map(id=>WEATHER_BY_ID[id]?WEATHER_BY_ID[id].icon:'').join(' ');
-        const os=[...new Set((typeof OBJECTS_BY_DEST!=='undefined'&&OBJECTS_BY_DEST[di])||[])].map(k=>BATTLE_OBJECTS[k]?BATTLE_OBJECTS[k].icon:'').join(' ');
-        txt(this, L+290, top+64, '天氣 '+ws+'　·　地物 '+os, 10.5, UI.dim, 0);
+      // v5.2：行前情報（天氣＋地物）是「領隊」的職能——聘僱後才顯示
+      if(ok){
+        if(typeof hasLeader==='function' && hasLeader() && typeof WEATHER_SETS!=='undefined'){
+          const ws=[...new Set(WEATHER_SETS[di]||[])].map(id=>WEATHER_BY_ID[id]?WEATHER_BY_ID[id].icon:'').join(' ');
+          const os=[...new Set((typeof OBJECTS_BY_DEST!=='undefined'&&OBJECTS_BY_DEST[di])||[])].map(k=>BATTLE_OBJECTS[k]?BATTLE_OBJECTS[k].icon:'').join(' ');
+          txt(this, L+290, top+64, '🧭 天氣 '+ws+'　·　地物 '+os, 10.5, UI.dim, 0);
+        } else {
+          txt(this, L+290, top+64, '🧭 聘僱領隊可獲得行前情報（天氣/地物）', 10, UI.faint, 0);
+        }
       }
       if(ok){
         button(this, L+ww-90, cy, 150, 44, '前 往', ()=>this.go(di), {variant:'go', size:16, icon:'play', iconSize:15});

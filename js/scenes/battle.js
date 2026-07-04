@@ -198,7 +198,7 @@ class Battle extends Phaser.Scene {
     if(this.totalWaves>1) this.waveText.setText(`第 ${this.waveIndex+1} / ${this.totalWaves} 波`);
     const isLast=this.waveIndex===this.totalWaves-1;
     // v3.2：橫幅依場景編排敘事變化
-    const _stageMsg={ camp:'驚動了紮營的敵人！', pit:'骸骨自地底爬出！', shrine:'幽魂在石像旁盤旋…' }[this._stageType];
+    const _stageMsg={ camp:'驚動了紮營的敵人！', pit:'骸骨自地底爬出！', shrine:'幽魂在石像旁盤旋…', pool:'水面泛起漣漪…', rift:'空間裂縫扭曲擴張！', desert:'沙漠的居民甦醒了！', oasis:'水澤的住民浮出水面…' }[this._stageType];
     const msg = this.waveIndex===0
       ? (RUN.isBoss ? (this.totalWaves>1?'遺物室守衛攔路！':'守護者現身！') : (_stageMsg||'遭遇敵人！'))
       : (RUN.isBoss&&isLast ? '守護者現身！' : (_stageMsg||`第 ${this.waveIndex+1} 波來襲！`));
@@ -231,6 +231,7 @@ class Battle extends Phaser.Scene {
     cont.add([shadow,spr,nameText,barBg,barFill,shieldFill]);
     this.tweens.add({targets:spr,y:-2,duration:550+Math.random()*250,yoyo:true,repeat:-1,ease:'Sine.inOut'});
     const obj={...d,side,container:cont,spr,barFill,shieldFill,nameText,alive:true,facing,baseX:x,baseY:y,lastAttack:(this.gnow||0)-Math.random()*800,atkI:0,shield:0,maxShield:0,baseScale:(scl||SCALE),_wxUsed:{}};
+    if(side==='enemy' && d.sprite==='vulture') obj.hoverUntil=(this.gnow||0)+3000;   // v5.8.4 禿鷹：盤旋守望——見屍即撲，最多等 3 秒才落地
     obj.skillCD={};
     (obj.skills||[]).forEach(s=>{ if(s.cd!==undefined) obj.skillCD[s.name]={last:-1e9,left:s.uses+(d.useBonus||0)}; });
     // v2.3：技能格不再畫在頭頂；由 buildPartyHud() 統一畫進上方隊員卡片
@@ -261,11 +262,15 @@ class Battle extends Phaser.Scene {
       card.add(this.add.rectangle(9,27,hbW,7,0x000000,0.6).setOrigin(0,0.5));
       const hpFill=this.add.rectangle(9,27,hbW,5,0x5ad06a).setOrigin(0,0.5); card.add(hpFill);
       const shFill=this.add.rectangle(9,27,0,5,0x6fd6ff).setOrigin(0,0.5).setVisible(false); card.add(shFill);
-      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, h:cardH, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:50};
+      c.card={cont:card, left, top:cardY, cx:left+cardW/2, w:cardW, h:cardH, hpFill, hpBarW:hbW, shFill, hpText, pipY:42, dpsZone:82};   // v4.8.2：三欄緊排
       this.setCardGear(c);   // 名稱與 HP 中間：當前裝備武器/防具的像素圖示（換裝會即時重畫）
-      // DPS（每秒平均傷害）：技能格左側挪出一塊，caption + 數字
+      // v4.8 底列三格：DPS ／ ATK ／ DEF（每 ~250ms 隨 buff/換裝/壁壘即時更新）
       card.add(txt(this,11,37,'DPS',8,'#8a7f9a',0,0.5));
-      const dpsText=txt(this,11,47,'0',12,'#ffd27a',0,0.5); card.add(dpsText); c.card.dpsText=dpsText;
+      const dpsText=txt(this,11,47,'0',11,'#ffd27a',0,0.5); card.add(dpsText); c.card.dpsText=dpsText;
+      card.add(txt(this,37,37,'ATK',8,'#8a7f9a',0,0.5));
+      const atkText=txt(this,37,47,''+((c.atkSeq&&c.atkSeq[0])||0),11,'#f2c14e',0,0.5); card.add(atkText); c.card.atkText=atkText;
+      card.add(txt(this,61,37,'DEF',8,'#8a7f9a',0,0.5));
+      const defText=txt(this,61,47,''+(c.def||0),11,'#6aa6f0',0,0.5); card.add(defText); c.card.defText=defText;
       this.buildSkillPips(c);
       this.bar(c);
     });
@@ -341,6 +346,11 @@ class Battle extends Phaser.Scene {
     if(now-(this._dpsTick||0) > 250){ this._dpsTick=now; const sec=((RUN&&RUN.combatMs)||0)/1000;
       this.heroes.forEach(c=>{ if(!c.card) return;
         if(c.card.dpsText){ const d=(c.ref&&c.ref.dmgDealt)||0; c.card.dpsText.setText(sec>0.2 ? ''+Math.round(d/sec) : '0'); }
+        // v4.8.1 ATK/DEF 顯示總數（含限時 buff 合計；受 buff 時僅變色提示，不拆項——避免技能格多時版面爆掉）
+        if(c.card.atkText){ const _b=((c.atkBuffUntil&&this.gnow<c.atkBuffUntil)?(c.atkBuffAmt||0):0)+((c.buffUntil&&this.gnow<c.buffUntil)?(c.buffAtk||0):0);
+          c.card.atkText.setText(''+(((c.atkSeq&&c.atkSeq[0])||0)+_b)); c.card.atkText.setColor(_b>0?'#ff9a3a':'#f2c14e'); }
+        if(c.card.defText){ const _bd=((c.buffUntil&&this.gnow<c.buffUntil)?(c.buffDef||0):0);
+          c.card.defText.setText(''+((c.def||0)+_bd)); c.card.defText.setColor(_bd>0?'#9fe8ff':'#6aa6f0'); }
         const wn=(c.ref&&c.ref.weapon&&c.ref.weapon.name)||'', an=(c.ref&&c.ref.armor&&c.ref.armor.name)||'';
         if(c.card.wName!==wn || c.card.aName!==an) this.setCardGear(c);
       }); }
@@ -411,7 +421,40 @@ class Battle extends Phaser.Scene {
     if(RUN && this.enemies && this.aliveOf('enemy').length){ RUN.combatMs=(RUN.combatMs||0)+(delta||16)*this.speed; }
     if(this.envTick) this.envTick();   // v3.0：物件光環（岩漿/毒沼）＋毒 DoT
     this.autoSip();
-    for(const c of this.all){ if(!c.alive) continue; if(this.gnow < (c.stunUntil||0)) continue;
+    for(const c of this.all){ if(!c.alive) continue;
+      // v5.8.4 盤旋守望（禿鷹）：空中不參戰、不可被鎖定；看到屍體立即俯衝搶食，最多等 3 秒才悻悻落地
+      if(c.hoverUntil){
+        const _ca=(this.envObjs||[]).find(o=>o&&!o.dead&&o.type==='carcass'&&o.dur>0);
+        if(!_ca && this.gnow < c.hoverUntil){
+          if(!c._hovFx){ c._hovFx=true; c.container.setAlpha(0.85);
+            this.floatLabel(c.container.x, c.baseY-84, '盤旋守望…', '#d8e8e0');
+            this.tweens.add({targets:c.container, y:c.baseY-64, duration:300, ease:'Sine.out'}); }
+          c.lastAttack=this.gnow; continue;
+        }
+        // 落地（見屍或逾時）：無論動畫狀態如何一律收尾
+        c.hoverUntil=0; c._hovFx=false;
+        this.tweens.killTweensOf(c.container);
+        c.container.setAlpha(1);
+        if(c.spr && !c.stunned) c.spr.clearTint();
+        if(_ca){   // 俯衝搶食：直撲屍體 → 吞食回滿 → 歸位
+          this.floatLabel(c.container.x, c.baseY-84, '俯衝搶食!', '#ff8a3a');
+          const _vc=c;
+          this.tweens.add({targets:_vc.container, x:_ca.x-20, y:_ca.y-10, duration:300, ease:'Quad.in',
+            onComplete:()=>{ if(!_vc.alive) return;
+              if(_vc.spr) this.tweens.add({targets:_vc.spr, scaleY:(_vc.baseScale||SCALE)*0.78, yoyo:true, duration:110, repeat:3});
+              const amt=_vc.maxHp-_vc.hp;
+              if(amt>0){ _vc.hp=_vc.maxHp; this.bar(_vc); pixelNum(this,_vc.container.x,_vc.container.y-34,'+'+amt,0x7dff9a); }
+              if(this.useObject) this.useObject(_ca, 1);
+              this.time.delayedCall(360, ()=>{ if(_vc.alive) this.tweens.add({targets:_vc.container, x:_vc.baseX, y:_vc.baseY, duration:300, ease:'Quad.out',
+                onComplete:()=>{ if(_vc.container) _vc.container.setDepth(_vc.baseY/200); }}); }); }});
+          c.lastAttack=this.gnow;   // 搶食耗掉這一手
+        } else {
+          this.tweens.add({targets:c.container, x:c.baseX, y:c.baseY, duration:300, ease:'Quad.in'});
+          this.floatLabel(c.baseX, c.baseY-70, '俯衝!', '#ff8a3a');
+          c.lastAttack=this.gnow - Math.round((c.interval||1200)*0.6);   // 空等落地：很快出手
+        }
+      }
+      if(this.gnow < (c.stunUntil||0)) continue;
       const iv=this.effInterval? this.effInterval(c) : c.interval;   // v3.0：含雪天/降速/加速
       if(this.gnow>c.lastAttack+iv){
         // v3.4 行動節拍器（可開關）：全場兩次起手強制隔 beatMs，準備好的單位排隊——同一瞬間只有一人出手
@@ -441,7 +484,8 @@ class Battle extends Phaser.Scene {
     this.updatePotions();
     target._sipUntil=this.gnow+cd;   // v2.4：gnow 遊戲時間，天然隨倍率
   }
-  aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side&&!c.isSummon); }   // 召喚精靈不算「存活成員」：不被鎖定、不影響勝負判定
+  aliveOf(side){ return this.all.filter(c=>c.alive&&c.side===side&&!c.isSummon&&!(c.hoverUntil&&this.gnow<c.hoverUntil)); }   // 召喚精靈與盤旋中單位不列入（不被鎖定/AoE；勝負判定另用 rawAlive）
+  rawAlive(side){ return this.all.filter(c=>c.alive&&c.side===side&&!c.isSummon).length; }   // v5.8 勝負判定用：盤旋中也算活著
   // 防溢殺：估算「即將落在某敵人身上、尚未結算」的我方傷害（排除自己）
   _incoming(f, exclude){ let s=0; const now=this.gnow||0;
     for(const h of (this.heroes||[])){ if(!h.alive||h===exclude) continue;
@@ -657,6 +701,7 @@ class Battle extends Phaser.Scene {
       if(c.aoe){ this.aoeCast(c); } else { this.ranged(c, this.pickTarget(c,foes), false); } return; }
     // v3.3/v4.7 敵人物件互動（各自消耗一次行動）：吃烤肉／喝水坑／灌酒桶／踢營火
     if(c.side==='enemy'){
+      if(this.tryEatCarrion && this.tryEatCarrion(c)) return;   // v5.7 禿鷹食腐（最優先——滿血誘惑）
       if(this.tryEatRoast && this.tryEatRoast(c)) return;
       if(this.tryDrinkPool && this.tryDrinkPool(c)) return;
       if(this.tryDrinkKeg && this.tryDrinkKeg(c)) return;
@@ -674,6 +719,7 @@ class Battle extends Phaser.Scene {
       const ln=this.objectWithTag('lantern');
       if(ln && this.snuffLantern){ c._lampDone=true; this.snuffLantern(c, ln); }
     }
+    if(c.side==='hero' && this.tryTakeRack) this.tryTakeRack(c);   // v5.0 武器架/防具架：順手取用（不耗行動）
     if(c.side==='hero') this.tryActiveBuffs(c);   // 大改版：主動大招/buff（變身/戰吼/挑釁/大吼）自動觸發
     if(c.healer){ const al=this.aliveOf(c.side); const low=al.reduce((a,b)=>(b.hp/b.maxHp<a.hp/a.maxHp?b:a),al[0]);
       if(low&&low.hp/low.maxHp<CFG.battle.healThreshold){ this.heal(c,low); return; } }
@@ -747,6 +793,7 @@ class Battle extends Phaser.Scene {
         else { h.hp = h.hp>0? Math.min(mx,h.hp+Math.round(mx*CFG.battle.postHealAlive)) : Math.round(mx*CFG.battle.postHealRevive); } });
       if(wasBoss){
         if(RUN&&RUN.trial){ this.trialEnd(true); return; }   // v4.1 試煉通關：晉升結算（不走 Result、不掉遺物）
+        if(typeof recordDestClear==='function'){ recordDestClear(RUN.destIndex||0, (RUN.diff!=null)?RUN.diff:1); saveGuild(); }   // v4.9 記錄通關難度
         const rel=rollRelicForDest(RUN.destIndex||0);
         const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};
         if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(drop); if(drop.kind!=='遺物') discover(drop.name); logItem('gain', drop, '王戰掉落'); }

@@ -75,20 +75,28 @@ class RecruitHall extends Phaser.Scene {
       },{size:14, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));
       if(!ok) add(txt(this,W/2-225,456,`🔒 需聲望 ⭐${cCost}`,11,TH.red));
     } else add(txt(this,W/2-225,425,'★ 已是大師工匠',15,'#5ad06a'));
-    // 領隊
+    // 領隊（v5.2 三級制）
     add(this.add.rectangle(W/2+225,330,400,330,TH.panel).setStrokeStyle(2,0x6fae6f));
     add(txt(this,W/2+225,190,'🧭 領 隊',18,'#9fe8a0'));
-    add(txt(this,W/2+225,222, hasLeader()?'狀態：已聘僱':'狀態：尚未聘僱',14, hasLeader()?TH.green:TH.dim));
-    add(txt(this,W/2+225,250,'沿途採集：每場一般戰鬥也採到 1 份當地食材',11,TH.dim));
-    add(txt(this,W/2+225,272,'（料理在營火一律可進行，不需領隊）',11,TH.dim));
-    const lCost=CFG.repCost.leader||0;
-    if(!hasLeader()){ const ok=canHireLeader();
-      add(button(this,W/2+225,420,300,46,`聘僱領隊 ⭐${lCost}`,()=>{
-        if(!canHireLeader()){ this.flash(`聲望不足，需 ⭐${lCost}`); return; }
-        hireLeader(); this.flash('領隊已加入後勤！',TH.green); this.render();
+    const lt=leaderTier(), lnames=['（尚未聘僱）','領隊','資深領隊','傳奇領隊'];
+    add(txt(this,W/2+225,216,`目前：${lnames[lt]}`,14, lt?TH.green:TH.dim));
+    add(txt(this,W/2+225,244,'Lv1 沿途採集＋行前情報（地圖顯示天氣/地物）',10.5, lt>=1?'#9fe8a0':TH.dim));
+    add(txt(this,W/2+225,264,'Lv2 隨行物件：每波戰鬥為我方佈置一件',10.5, lt>=2?'#9fe8a0':TH.dim));
+    add(txt(this,W/2+225,284,'Lv3 全滅斷後：隊伍倒下仍保住職業點數與聲望',10.5, lt>=3?'#9fe8a0':TH.dim));
+    if(lt>=2){   // 隨行物件選擇
+      add(txt(this,W/2+225,314,'隨行物件：',11,TH.cyan));
+      const opts=[['campfire','🔥營火'],['rackW','⚔武器架'],['rackA','🛡防具架']];
+      opts.forEach((op,i)=>{ const on=leaderObjType()===op[0];
+        add(button(this, W/2+105+i*120, 344, 110, 30, op[1], ()=>{ setLeaderObj(op[0]); this.flash('隨行物件：'+op[1], TH.green); this.render(); },
+          {size:11, fill:on?0x3a6b3a:0x33323a, stroke:on?0x5ad06a:0x55555f, hover:0x4c8c4c})); });
+    }
+    if(lt<3){ const lCost=leaderNextCost(), ok=canUpgradeLeader();
+      add(button(this,W/2+225,420,300,46,`${lt?'升級為':'聘僱'} ${lnames[lt+1]} ⭐${lCost}`,()=>{
+        if(!canUpgradeLeader()){ this.flash(`聲望不足，需 ⭐${lCost}`); return; }
+        upgradeLeader(); this.flash(`領隊 → ${lnames[leaderTier()]}`,TH.green); this.render();
       },{size:14, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));
       if(!ok) add(txt(this,W/2+225,456,`🔒 需聲望 ⭐${lCost}`,11,TH.red));
-    } else add(txt(this,W/2+225,425,'✓ 領隊已就位',15,'#5ad06a'));
+    } else add(txt(this,W/2+225,425,'★ 傳奇領隊坐鎮',15,'#5ad06a'));
   }
   flash(msg,col){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,524,msg,15,col||TH.red).setDepth(99);
     this.tweens.add({targets:this._f,alpha:0,delay:1000,duration:500,onComplete:()=>{ if(this._f){this._f.destroy(); this._f=null;} }}); }

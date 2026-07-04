@@ -21,8 +21,8 @@ const CFG = {
 
   // 戰鬥
   battle: {
-    postHealAlive:0.10,    // 戰後：存活者回復的最大 HP 比例
-    postHealRevive:0.15,   // 戰後：陣亡者以此比例復活
+    postHealAlive:0,       // v5.3：戰後不再自動回血——續航交給 牧師/藥水/料理/營火物件（原 0.10）
+    postHealRevive:0,      // v5.3：戰後不再自動復活——復活只剩 營火事件/復活之種/復活神諭/遺物/料理充能（原 0.15）
     healThreshold:0.75,    // 牧師：隊友血量低於此比例才補
     healVariance:6,        // 治療量隨機上浮 (heal ~ heal+N)
     bossRelicValue:500,    // 王戰固定掉落遺物的價值
@@ -49,10 +49,18 @@ const CFG = {
   enemy: { depthScale:0.9, tierScale:0.40, bossTierScale:0.50 },   // depthScale：探險 0→100% 額外強度（1.2→0.9 收斂後段）
 
 
+  // v5.4 營火事件＝休整節點：完全不自動治療。復原管道＝料理（食材）與「許願池」（投金幣，全隊生效）
+  camp: { wishes:[
+    { label:'恢復 30%',  heal:0.30, cost:10 },
+    { label:'恢復 50%',  heal:0.50, cost:15 },
+    { label:'恢復 100%', heal:1.00, cost:20 },
+    { label:'滿血＋復活', heal:1.00, revive:true, cost:30 },
+  ] },
+
   // v0.9 雙軌經濟（數值為架構草案，平衡期再調）
   gold: { stipendBase:40, stipendPerParty:20, sellRate:0.7, battleBase:16, battlePerRisk:12 },   // 出發補給金＋一般戰鬥掉金=（battleBase+風險*perRisk）×目的地階級
   autoSip: { hpFrac:0.30, cooldownMs:2500 },   // 戰鬥中最低血隊員 < hpFrac 時自動喝最弱的補血藥水（冷卻 cooldownMs）
-  repCost: { partySlot:[3,5,8,12], craftsman:[2,4,6], leader:3, upgradeBase:2, upgradePerCraft:2 },
+  repCost: { partySlot:[3,5,8,12], craftsman:[2,4,6], leader:3, leaderTiers:[3,5,8], upgradeBase:2, upgradePerCraft:2 },   // v5.2 領隊三級聘僱/升級費
   repEarn: { perRelic:3, perReturn:1 },   // 帶回新遺物 +3、平安折返 +1
 
   // ===== v4.0 職業階級制（見習/正式/精銳/菁英/大師）=====

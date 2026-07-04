@@ -109,6 +109,15 @@ function rankHpBonus(sprite){ const arr=(CFG.ranks&&CFG.ranks.perks&&CFG.ranks.p
 function worldDiff(){ const s=GUILD.settings||{}; return (s.worldDiff!=null)? s.worldDiff : 0; }   // 預設普通
 function setWorldDiff(d){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.worldDiff=Math.max(0,Math.min(2,d|0)); saveGuild(); return GUILD.settings.worldDiff; }
 function relicGradeOf(id){ return (GUILD.relicGrades&&GUILD.relicGrades[id]!=null)? GUILD.relicGrades[id] : 1; }   // 舊存檔預設「完好」
+// v4.9 地城通關紀錄（依難度取最高）：-1＝未通關；舊存檔以「該地遺物品階」回推
+function destClearLevel(di){
+  let lv=(GUILD.destClears&&GUILD.destClears[di]!=null)? GUILD.destClears[di] : -1;
+  const r=(RELICS_BY_DEST[di]||[])[0];
+  if(r && (GUILD.relics||[]).includes(r.id)) lv=Math.max(lv, relicGradeOf(r.id));
+  return lv;
+}
+function recordDestClear(di, diff){ if(!GUILD.destClears) GUILD.destClears={};
+  const cur=GUILD.destClears[di]; if(cur==null || diff>cur) GUILD.destClears[di]=diff; }
 // 遺物入庫（三個結算點共用）：新遺物 push；品階取歷史最高（高難度重打＝升級）。回傳是否為新遺物
 function bankRelic(it){ if(!it||!it.relicId) return false;
   if(!GUILD.relicGrades) GUILD.relicGrades={};
@@ -257,13 +266,15 @@ function canUnlockPartySlot(){ const cur=GUILD.partySize||1; if(cur>=5) return f
 function unlockPartySlot(){ if(!canUnlockPartySlot()) return false; spendRep(partySlotCost()); GUILD.partySize=(GUILD.partySize||1)+1; saveGuild(); return true; }
 // ---- 隊形解鎖（除基礎三角 cost0 外，其餘用聲望買斷）----
 function formationCost(i){ const f=FORMATIONS[i]; return (f&&f.cost)||0; }
-function formationUnlocked(i){ if(formationCost(i)<=0) return true; return !!(GUILD.formationsUnlocked&&GUILD.formationsUnlocked[i]); }
-function canUnlockFormation(i){ return !formationUnlocked(i) && canSpendRep(formationCost(i)); }
+// v5.1 隊形改「由上到下依序解鎖」：只有第一個天生可用，其餘必須先解鎖上一個才能買下一個
+function formationUnlocked(i){ if(i===0) return true; return !!(GUILD.formationsUnlocked&&GUILD.formationsUnlocked[i]); }
+function canUnlockFormation(i){ return i>0 && !formationUnlocked(i) && formationUnlocked(i-1) && canSpendRep(formationCost(i)); }
 function unlockFormation(i){ if(!canUnlockFormation(i)) return false; spendRep(formationCost(i)); if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={}; GUILD.formationsUnlocked[i]=true; saveGuild(); return true; }
 // ---- 馬匹解鎖（普通馬／均衡馬 cost0 免費，耐力/力量用聲望買斷）----
 function horseCost(i){ const h=HORSES[i]; return (h&&h.cost)||0; }
-function horseUnlocked(i){ if(horseCost(i)<=0) return true; return !!(GUILD.horsesUnlocked&&GUILD.horsesUnlocked[i]); }
-function canUnlockHorse(i){ return !horseUnlocked(i) && canSpendRep(horseCost(i)); }
+// v5.5 馬車改「漸進式解鎖」：只有第一輛天生可用，必須依序購入、不能跳買最好的
+function horseUnlocked(i){ if(i===0) return true; return !!(GUILD.horsesUnlocked&&GUILD.horsesUnlocked[i]); }
+function canUnlockHorse(i){ return i>0 && !horseUnlocked(i) && horseUnlocked(i-1) && canSpendRep(horseCost(i)); }
 function unlockHorse(i){ if(!canUnlockHorse(i)) return false; spendRep(horseCost(i)); if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={}; GUILD.horsesUnlocked[i]=true; saveGuild(); return true; }
 
 // 某羈絆觸發（healInvuln/stunMark/killCdCut）是否生效：兩名成員都在出戰名單
@@ -317,6 +328,14 @@ function craftsmanNextDef(){ const t=craftsmanTier(); return CFG.staff.craftsman
 function canUpgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; const c=(CFG.repCost.craftsman||[])[craftsmanTier()]; return c!=null && canSpendRep(c); }
 function upgradeCraftsman(){ const d=craftsmanNextDef(); if(!d) return false; const c=(CFG.repCost.craftsman||[])[craftsmanTier()]; if(c==null||!spendRep(c)) return false; GUILD.staff.craftsman=craftsmanTier()+1; saveGuild(); return true; }
 function hasLeader(){ return (GUILD.staff.leader||0)>0; }
+// v5.2 領隊三級制：Lv1 沿途採集＋行前情報（天氣/地物預報）｜Lv2 隨行物件（每波佈置一件）｜Lv3 全滅斷後（戰利品不損失）
+function leaderTier(){ return (GUILD.staff&&GUILD.staff.leader)||0; }
+function leaderNextCost(){ const arr=(CFG.repCost.leaderTiers)||[3,5,8]; return arr[leaderTier()]; }
+function canUpgradeLeader(){ const c=leaderNextCost(); return leaderTier()<3 && c!=null && canSpendRep(c); }
+function upgradeLeader(){ if(leaderTier()>=3) return false; const c=leaderNextCost(); if(c==null||!spendRep(c)) return false; GUILD.staff.leader=leaderTier()+1; saveGuild(); return true; }
+function leaderObjType(){ return (GUILD.leaderObj&&typeof BATTLE_OBJECTS!=='undefined'&&BATTLE_OBJECTS[GUILD.leaderObj])? GUILD.leaderObj : 'campfire'; }
+function setLeaderObj(k){ GUILD.leaderObj=k; saveGuild(); }
+// 相容舊呼叫
 function canHireLeader(){ if(hasLeader()) return false; return canSpendRep(CFG.repCost.leader); }
 function hireLeader(){ if(hasLeader()) return false; if(!spendRep(CFG.repCost.leader)) return false; GUILD.staff.leader=1; saveGuild(); return true; }
 

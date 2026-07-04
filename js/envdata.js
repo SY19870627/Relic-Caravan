@@ -25,6 +25,18 @@ Object.assign(SPRITES, {
   // v4.7 新互動物件：蜂巢（中立騷擾）／酒桶（紮營敵人會去喝）
   beehive:["....BB......","...oooo.....","..oYooYo....","..oooooo....","..oYooYo....","...oooo.....","....oo......","...Y..Y....."],
   aleKeg:["...BBBB.....","..BbbbbB....","..oBBBBo....","..BbbbbB....","..BbbbbB....","..oBBBBo....","..BbbbbB....","...BBBB....."],
+  // v5.6 沙漠棲地：動物遺骨（胡狼窩）／枯樹（禿鷹巢）／沙坑（沙蟲・沙蠍穴）
+  bonePile:["............","....j..M....","..Mjjjj.j...",".jMjMMjjM...","..jjMjjjj...",".Mjjjjj.M...","..j.Mjj.....","...jjj......"],
+  carcassSpr:["............","............","....ss......","..sssssss...",".sDsssssss..","..ssssssss..","...ss..ss...","............"],
+  // v6.0 水澤生態：澤獸屍體（澤馬/澤鱷）＋寄生蟲
+  marshCarcassSpr:["..............","..............","....HH........","..HHHHHHHg....",".HgHHHHHHHHg..","..HHHHHHHHH...","...HH..HH.....",".............."],
+  parasiteSpr:["............","...ee.......","..eLee......",".eeKLee.....","..eLeeee....",".ee.ee.ee...","..e..e..e...","............"],
+  deadTree:["....b..b....",".b..B..b....","..b.B.b.....","...bBb..B...","....BB.b....","....BBb.....","....BB......","....BB......","....BB......","...bBBb.....","..bbBBbb...."],
+  sandPit:["....DDDDDDDDDD....","..DDaammmmaaDD....",".DaammmmmmmaaD....","DaammmmmmmmaaD....",".DaammmmmmaaD.....","..DDaaaaaaDD......","....DDDDDD........"],
+  // v5.0 武器架／防具架／幽焰營火
+  weaponRack:["..B......B..","..B.W..t.B..","..BWW..ttB..","..B.W..t.B..","..B.W..t.B..","..BWWW.ttB..","..BBBBBBBB..","..B......B..","..Bb....bB.."],
+  armorRack:["....BB......","...jjjj.....","..jwwwwj....","..jwjjwj....","..jwwwwj....","...jwwj.....","....BB......","....BB......","...bBBb....."],
+  cyanFire:["............","......I.....",".....IZI....",".....ZqZ....","....IZqZI...","....ZZqZZ...","...IZZqZZI..","...ZZZZZZZ..","....ZZZZZ...","..K......K..",".bBBBBBBBBb.","..bBBBBBBb..","...KK..KK...","............"],
 });
 
 // ---- 物件目錄（v3.1 定案：物件不承受攻擊）----
@@ -45,14 +57,24 @@ const BATTLE_OBJECTS = {
   // v4.7 新互動物件
   hive:    { sprite:'beehive',  name:'蜂巢', icon:'🐝', tags:['hive'],               dur:2, scl:4, aura:'sting' },   // 中立：週期螫刺隨機單位（敵我皆然），螫兩次後墜落
   keg:     { sprite:'aleKeg',   name:'酒桶', icon:'🍺', tags:['keg'],                dur:2, scl:4 },                 // 受傷的紮營敵人會去暢飲：回血但爛醉降速
+  // v5.6 沙漠棲地物件（湧現巢穴；沙坑兼具地坑功能——回風可把敵人吹回去）
+  carcass: { sprite:'carcassSpr', name:'胡狼屍體', icon:'💀', tags:['carrion'],     dur:1, scl:4 },   // v5.7 胡狼死後留下；禿鷹食之回滿血
+  marshcarcass:{ sprite:'marshCarcassSpr', name:'澤獸屍體', icon:'💀', tags:['carrion'], dur:3, scl:4 },   // v6.0 澤馬/澤鱷死後留下；孵化開始後每秒 1 隻寄生蟲（耐久 3＝共 3 隻）
+  bonepile:{ sprite:'bonePile', name:'動物遺骨', icon:'🦴', tags:['bones'],          dur:0, scl:4 },
+  deadtree:{ sprite:'deadTree', name:'枯樹',     icon:'🌵', tags:['cover'],          dur:2, scl:4 },   // 兼掩體：盜賊可藉其背刺
+  sandpit: { sprite:'sandPit',  name:'沙坑',     icon:'🕳', tags:['pit','hazard'],   dur:2, ground:true, scl:4 },
+  // v5.0 新物件（不在地圖預告——留給玩家自己發現）
+  rackW:   { sprite:'weaponRack', name:'武器架', icon:'⚔', tags:['rackW'],           dur:2, scl:4 },   // 我方行動時順手抄起利刃：本場 ATK +5（每架限 2 人份）
+  rackA:   { sprite:'armorRack',  name:'防具架', icon:'🛡', tags:['rackA'],          dur:2, scl:4 },   // 我方行動時披上備用甲：本場 DEF +4、護盾 +12（限 2 人份）
+  cyanfire:{ sprite:'cyanFire',   name:'幽焰營火', icon:'🔵', tags:['fire'],         dur:3, scl:4 },   // 魔力之火：引燃連鎖傷害 ×1.5；波次小憩改回「護盾」
 };
 // 目的地 → 可能出現的物件（重複＝權重）。王戰另外固定出「祭壇」。
 const OBJECTS_BY_DEST = [
-  ['statue','fence','tree','campfire','statue','keg'],    // 0 近郊遺跡
-  ['fence','pit','campfire','tree','pit','keg'],          // 1 枯骨峽谷
-  ['pool','statue','campfire','pool'],                    // 2 沉沒神城（水坑）
-  ['rift','lava','statue','rift','pit'],                  // 3 虛空裂隙（空間裂縫）
-  ['pit','lava','campfire','pit','pool'],                 // 4 燔流沙漠（沙漠水坑＝野獸綠洲）
+  ['statue','fence','tree','campfire','statue','keg','rackW'],    // 0 近郊遺跡
+  ['fence','pit','campfire','tree','pit','keg','rackA'],          // 1 枯骨峽谷
+  ['pool','statue','campfire','pool','cyanfire','rackA'],         // 2 沉沒神城（水坑/幽焰）
+  ['rift','lava','statue','rift','pit','cyanfire'],               // 3 虛空裂隙（空間裂縫/幽焰）
+  ['sandpit','lava','campfire','deadtree','pool','bonepile'],   // 4 燔流沙漠（v5.6 棲地物件；沙坑取代地坑）
   ['pool','bog','tree','pool','hive'],                    // 5 綠洲水澤
   ['tree','bog','statue','tree','hive'],                  // 6 翠冠叢林
   ['bog','lava','tree','pit','bog'],                      // 7 蝕心雨林
@@ -66,6 +88,8 @@ const ENV_SEA     = (typeof Q_SEA   !=='undefined')? Q_SEA.slice()   : ['drowned
 const ENV_VOID    = (typeof Q_VOID  !=='undefined')? Q_VOID.slice()  : ['voidling','voidArcher','voidSeer'];         // 自空間裂縫竄出的虛空族
 const ENV_GROVE_DESTS = [0,5,6,7];   // 有林相的目的地：巨木穿插於兩軍之間（近郊遺跡/綠洲/叢林/雨林）
 const ENV_BEASTS = ['jackal','vulture','crocodile','cobra','jaguar','jungleApe','marshHippo','dartFrog','sandScorpion','hornViper','sandWyrm','dragonfly','mantis'];   // v4.7 野獸族：低血會跑去水坑喝水
+// v6.0 澤生寄生蟲（動態生成的新怪：自澤獸屍體破體而出）
+const ENV_PARASITE = { sprite:'parasiteSpr', name:'澤生寄生蟲', hp:18, atkSeq:[5,7], def:0, interval:1100, row:'mid' };
 
 // ---- 天氣擴充：新增 強風/雪；補全既有 雨/霧 的環境註記（數值效果照舊由 eff 提供）----
 WEATHERS.push(

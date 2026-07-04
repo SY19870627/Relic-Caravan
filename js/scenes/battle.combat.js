@@ -295,6 +295,7 @@ Object.assign(Battle.prototype, {
     if(c.side==='enemy' && this.pitRebirth && this.pitRebirth(c)) return;
     c.alive=false;
     if(c.side==='enemy') creditEnemyKill(c);   // v2.0：敵人死亡 → 累計任務擊殺數
+    if(c.side==='enemy' && this.dropCarcass) this.dropCarcass(c);   // v5.7 胡狼死後留屍（禿鷹的補給）
     // 遺物・失落聖徽（聖庇）：每場首位成員陣亡 → 全隊回援
     if(c.side==='hero' && this._firstDeathHeal>0 && !this._firstDeathDone){ this._firstDeathDone=true;
       this.aliveOf('hero').forEach(a=>{ const h=Math.round(a.maxHp*this._firstDeathHeal); a.hp=Math.min(a.maxHp,a.hp+h); this.bar(a); pixelNum(this,a.container.x,a.container.y-34,'+'+h,0x7dff9a); });
@@ -305,8 +306,8 @@ Object.assign(Battle.prototype, {
     this.burst(c.container.x,c.container.y, c.side==='hero'?0xff6b6b:0x9adf6a);
     this.shake(150,0.009);
     this.tweens.add({targets:c.container,alpha:0,angle:c.facing*80,y:c.baseY+16,duration:420,ease:'Quad.in'});
-    if(this.aliveOf('hero').length===0){ this.finish(false); return; }
-    if(this.aliveOf('enemy').length===0 && !(this._pendingRebirth>0)){   // v4.7：有骸骨待重生時不提早判定勝利
+    if(this.rawAlive? this.rawAlive('hero')===0 : this.aliveOf('hero').length===0){ this.finish(false); return; }
+    if((this.rawAlive? this.rawAlive('enemy')===0 : this.aliveOf('enemy').length===0) && !(this._pendingRebirth>0)){   // v4.7/v5.8：骸骨待重生或禿鷹盤旋中都不算清場
       if(this.waveIndex < this.totalWaves-1){       // 還有下一波
         if(this.waveClearing) return;
         this.waveClearing=true;
