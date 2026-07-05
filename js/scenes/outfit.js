@@ -2,7 +2,7 @@
 class Outfit extends Phaser.Scene {
   constructor(){ super('Outfit'); }
   create(){
-    if(!RUN || RUN.trial) initRun();   // v4.2.2 修正：試煉殘留的 RUN（帶 trial 旗標）必須重建，否則世界關卡會變成試煉模式
+    if(!RUN || RUN.trial || RUN.sim) initRun();   // v4.2.2/v10.0 修正：試煉/模擬殘留的 RUN 必須重建，否則世界關卡會被污染
     const W=this.scale.width;
     sceneBg(this,{glow:0x6ee29a});
     sceneHeader(this,'出 發 整 備','',{accent:'green'});

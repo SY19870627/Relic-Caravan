@@ -23,12 +23,12 @@ Object.assign(Battle.prototype, {
   stageWave(fresh, wi){
     this.clearEnvObjects(true);   // 舊波物件隨波次更替退場
     // v5.2 資深領隊（Lv2+）：每波在我方側佈置一件隨行物件（試煉除外——試煉有招牌物件）
-    if(!(RUN&&RUN.trial) && typeof leaderTier==='function' && leaderTier()>=2){
+    if(!(RUN&&(RUN.trial||RUN.sim)) && typeof leaderTier==='function' && leaderTier()>=2){   // v10.0 模擬：環境全由玩家指定
       const lk=(typeof leaderObjType==='function')? leaderObjType() : 'campfire';
       this.time.delayedCall(80, ()=>{ if(!this.over) this.makeEnvObject(lk, 348, 238); });
     }
     // v8.3 商隊補給架（預設配備）：每波自篷車拋出「玩家所選的職業代表物件」（1 件；擴充後 2 件）
-    if(!(RUN&&RUN.trial) && this._wagon)
+    if(!(RUN&&(RUN.trial||RUN.sim)) && this._wagon)
       this.time.delayedCall(620, ()=>{ if(!this.over) this.wagonThrow(); });
     // v9.1 守護靈 × 石像/祭壇：場上有神聖物件時，守護靈前往受祝福（每場每靈一次）
     if(!(RUN&&RUN.trial))

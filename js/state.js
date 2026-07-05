@@ -152,6 +152,38 @@ function initTrialRun(sprite, stage){
   RUN.exped={ pct:0, plan:sd.plan.slice(), i:0 };
 }
 
+// v10.0 模擬實驗室：無後果沙盒——不給經驗/掉落/聲望、不存檔、全滅不痛；等級/天氣/物件/對手全可控
+function initSimRun(cfg){
+  RUN=null;
+  cfg=cfg||{};
+  const lvl=Math.max(1, Math.min(20, cfg.level||1));
+  RUN={ sim:cfg, wagon:null,
+    heroes: activeRoster().map(idx=>{ const h=HERO_BASE[idx];
+      ROSTER[idx].level=lvl; ROSTER[idx].xp=0; ROSTER[idx].skills=[]; ROSTER[idx].skillPlus={};
+      syncPlannedSkills(idx);
+      // 裝備配到「該等級可達的最高階」——DPS 測試不被 1 階起始裝失真
+      const top=(kind)=>{ const pool=(kind==='武器'?WEAPONS:ARMORS)
+          .filter(g=>(kind==='武器'?weaponClassOK(h.sprite,g):armorClassOK(h.sprite,g)) && (g.lvReq||1)<=lvl)
+          .sort((a,b)=>((b.lvReq||1)-(a.lvReq||1)) || (gearScore(kind,b)-gearScore(kind,a)));
+        return pool[0]||null; };
+      const weapon=top('武器')||startKitWeapon(idx), armor=top('防具')||startKitArmor(idx);
+      ROSTER[idx].weapon=weapon.name; ROSTER[idx].armor=armor.name;
+      const hobj={...h, idx, weapon, armor, hp:0};
+      hobj.hp=heroStat(hobj).maxHp;
+      return hobj; }),
+    cargo:[], slots:6, gold:0, isBoss:false, gotGear:{}, itemLog:[],
+    cookShield:0, reviveCharge:0, cookFirstCrit:false, pendingLevelups:[], _lvChoices:null, _lvReplace:null,
+    deckExpanded:false, combatMs:0,
+    diff:1, destTier:(cfg.foe==='group' && DESTINATIONS[cfg.region||0])? DESTINATIONS[cfg.region||0].tier : 1,
+    destName:'模擬實驗室', destIndex:(cfg.foe==='group')? (cfg.region||0) : 0,
+    simWeather:cfg.weather||'clear',
+    exped:{ pct:0, plan:['battle'], i:0 } };
+  if(cfg.objs && cfg.objs.length){   // 玩家勾選的物件：每波固定於三個預設點生成
+    const spots=[{x:348,y:238},{x:452,y:430},{x:262,y:210}];
+    const l=cfg.objs.slice(0,3).map((t,i)=>({type:t, x:spots[i].x, y:spots[i].y}));
+    RUN.simObjs=[l,l,l,l,l,l];
+  }
+}
 // v3.4 清晰節奏模式（行動節拍器＋大招定格＋視覺降噪）：預設開，可於暫停選單切換
 function pacingOn(){ const s=GUILD.settings||{}; return s.pacing!==false; }
 function togglePacing(){ if(!GUILD.settings) GUILD.settings={}; GUILD.settings.pacing=!pacingOn(); saveGuild(); return GUILD.settings.pacing; }

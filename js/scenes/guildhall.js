@@ -73,9 +73,10 @@ class GuildHall extends Phaser.Scene {
           else this.flash('隊形需 5 名隊員全數到齊後開放——先到招募所擴編'); } },   // v4.8.3：隊形鎖定至滿編
       {x:x4(2), y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'領聲望與稱號', s:'QuestHall'},
       {x:x4(3), y:row1, accent:'red', icon:'flame', title:'試煉之間', desc:'單人晉升、解鎖技能', s:'TrialHall'},
-      {x:x3(0), y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
-      {x:x3(1), y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build', s:'SkillTreeHall'},
-      {x:x3(2), y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'武器／防具／道具', s:'WarehouseHall'},
+      {x:x4(0), y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
+      {x:x4(1), y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build', s:'SkillTreeHall'},
+      {x:x4(2), y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'武器／防具／道具', s:'WarehouseHall'},
+      {x:x4(3), y:row2, accent:'teal', icon:'target', title:'模擬實驗室', desc:'無後果試招', s:'SimLab'},
     ];
     cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 

@@ -83,6 +83,21 @@ function buildEncounter(n){
     RUN.nodeObjs=sd.objs||null;
     return sd.fights[fi].map(w=>w.map(id=>scaleEnemy(TRIAL_MOBS[id], sd.mul||0.8)));
   }
+  // v10.0 模擬實驗室：木樁 or 指定地城怪組（原始基礎值 dm=1，不做深度/人數縮放——與圖鑑數值一致）
+  if(RUN&&RUN.sim){
+    RUN.nodeObjs=RUN.simObjs||null;
+    const s=RUN.sim;
+    if(s.foe!=='group'){
+      const D={ soft:   {sprite:'dummySpr',    name:'草靶木樁', hp:6000, atkSeq:[1], def:0,  interval:9e9},
+                armored:{sprite:'dummyIronSpr',name:'鐵甲木樁', hp:6000, atkSeq:[1], def:30, interval:9e9},
+                regen:  {sprite:'dummyHealSpr',name:'回復木樁', hp:6000, atkSeq:[1], def:8,  interval:2200, healer:true, heal:45} }[s.dummy||'soft'];
+      return [[Object.assign({ranged:false, heal:0, boss:false, skills:null, x:660, y:330, row:'front'}, D)]];
+    }
+    const pool=MONSTER_GROUPS.filter(g=>g.region===(s.region||0) && g.kind===(s.kind||'normal'));
+    const g=pool.length? Phaser.Utils.Array.GetRandom(pool) : null;
+    if(g && g.objs && !RUN.simObjs) RUN.nodeObjs=g.objs;
+    return g ? g.waves.map(w=>w.map(e=>scaleEnemy(e,1,1))) : [];
+  }
   const dm=((CFG.diff&&CFG.diff.muls)||[0.8,1,1.2])[(RUN.diff!=null)?RUN.diff:1]||1;   // v4.6 世界難度：血/攻/防 全乘
   const scale=(1+prog*CFG.enemy.depthScale)*(1+(t-1)*CFG.enemy.tierScale)*partyMul*dm;
   const g=pickGroup(n.type==='elite'?'elite':'normal');

@@ -35,6 +35,10 @@ Object.assign(SPRITES, {
   wagonSpr:["................","....KKKKKKKK....","...KRRRRRRRRK...","..KRRiRRRRiRRK..","..KRRRRRRRRRRK..","..KRRiRRRRiRRK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
   wagonSpr1:["................","....KKKKKKKK....","...KvvvvvvvvK...","..KvvIvvvvIvvK..","..KvvvvvvvvvvK..","..KvvIvvvvIvvK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
   wagonSpr2:["................","....KKKKKKKK....","...KCCCCCCCCK...","..KCCGCCCCGCCK..","..KCCCCCCCCCCK..","..KCCGCCCCGCCK..","..KKKKKKKKKKKK..","..KBBBBBBBBBBK..","..KBbBBBBbBBBK..","..KKKKKKKKKKKK..","...KttK..KttK...","..KtKKtKKtKKtK..","...KttK..KttK..."],
+  // v10.0 模擬實驗室木樁（草靶/鐵甲/回復）
+  dummySpr:    ["............","....KKKK....","...KRrrRK...","...KrRRrK...","...KRrrRK...","....KKKK....",".....BB.....","....KBBK....","...KBBBBK...","..KBBBBBBK..","..KKKKKKKK..","............"],
+  dummyIronSpr:["............","....KKKK....","...KtTTtK...","...KTttTK...","...KtTTtK...","....KKKK....",".....BB.....","....KBBK....","...KTTTTK...","..KTTTTTTK..","..KKKKKKKK..","............"],
+  dummyHealSpr:["............","....KKKK....","...KggggK...","...KgWWgK...","...KgWWgK...","...KggggK...",".....BB.....","....KBBK....","...KgggGK...","..KggggggK..","..KKKKKKKK..","............"],
   // v8.0 遺物召喚獸（一遺物一獸；無血條、只做額外攻擊）
   sumIdol:   ["............","...KKKKKK...","..KttttttK..",".KttTttTttK.",".KttttttttK.",".KtAttttAtK.",".KttttttttK.","..KttttttK..","...KttttK...","....KttK....",".....KK.....","............"],
   sumCandle: ["............",".....YY.....","....YFFY....","...YFAAFY...","...FFAAFF...","..YFFAAFFY..","..FFYAAYFF..","..KFFYYFFK..","...KFFFFK...","....KFFK....",".....KK.....","............"],

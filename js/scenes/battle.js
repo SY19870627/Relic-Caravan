@@ -12,7 +12,7 @@ class Battle extends Phaser.Scene {
     this.envObjs=[]; this._stageType=null;   // 環境物件參照與場景型別同步重置（舊物件已隨場景銷毀）
     // 場景重啟（第二趟遠征）沿用同一 scene 實例：清掉上一趟殘留(已銷毀)的戰鬥物件參照，
     // 否則 beginStep 會誤判 this.heroes 還在而走 refreshHeroes() 去動已銷毀精靈 → null frame 'cut' 崩潰。
-    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null; this._wagon=null;
+    this.heroes=null; this.enemies=null; this.all=null; this.overlay=null; this.encIntro=null; this.encCap=null; this._sipUntil=0; this._menuPaused=false; this.pauseUI=null; this._gearFrom=null; this.partyHud=null; this._wagon=null; this._simUI=null; this.paused=false;   // v10.0.1 模擬重開場景：結算面板參照與暫停旗標必須歸零
     const W=this.scale.width, H=this.scale.height;
     // v1.1：依目的地切換戰鬥背景主題（牆／地板／火把色），各區視覺區隔
     const di=(RUN&&RUN.destIndex)||0;
@@ -49,6 +49,7 @@ class Battle extends Phaser.Scene {
     this.targetBtn.setDepth(60);
     this.sipBtn = button(this, W-64, 50, 100, 26, '💧 喝水 '+autoSipLabel(), ()=>{ cycleAutoSip(); this.sipBtn.label.setText('💧 喝水 '+autoSipLabel()); }, {size:11,fill:0x2f5a6b,stroke:0x5ab0d0,hover:0x40788c});
     this.sipBtn.setDepth(60);
+    if(RUN&&RUN.sim){ const eb=button(this, W-286, 20, 104, 28, '⏹ 結束模擬', ()=>this.simEnd(true), {size:11,fill:0x5a3a3a,stroke:0xd06a6a,hover:0x7a4c4c}); eb.setDepth(60); }   // v10.0 木樁打不完可隨時收
     if(this.input&&this.input.keyboard){ this.input.keyboard.on('keydown-ESC',()=>this.togglePause()); this.input.keyboard.on('keydown-P',()=>this.togglePause()); }
     // v2.3：探險%／錢／藥水 同列靠左（接在進度條下方）
     this.goldText = txt(this, 104, 50, '💰 '+((RUN&&RUN.gold)||0), 12, '#ffe08a', 0, 0.5).setDepth(62);
@@ -99,7 +100,7 @@ class Battle extends Phaser.Scene {
     RUN.isBoss=(stype==='boss');
     RUN.node = combat
       ? {type:stype, risk:(stype==='boss'?4:stype==='elite'?3:Math.min(3,1+Math.floor(ex.i/2))), layer:ex.i,
-         weather:(RUN.trial? (RUN.trialWeather||'clear') : (ex.i===0?'clear':(typeof rollWeather==='function'?rollWeather(RUN.destIndex||0):'clear'))), done:false}   // v4.1 試煉：天氣整場固定（技能秀場）
+         weather:(RUN.trial? (RUN.trialWeather||'clear') : (RUN.sim? (RUN.simWeather||'clear') : (ex.i===0?'clear':(typeof rollWeather==='function'?rollWeather(RUN.destIndex||0):'clear')))), done:false}   // v4.1 試煉／v10.0 模擬：天氣整場固定
       : {type:stype, risk:0, layer:ex.i, weather:'clear', done:false};
     const W=this.scale.width; const node=RUN.node; const wx=WEATHER_BY_ID[node.weather];
     this._wxId=node.weather;   // v3.0 環境系統：本場天氣 tag（整場固定、不可改變）
@@ -829,9 +830,30 @@ class Battle extends Phaser.Scene {
     if(this.over) return; this.over=true;
     if(this.clearEnvObjects) this.clearEnvObjects(true);   // v3.3：戰鬥結束物件即刻消散
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
+    if(RUN&&RUN.sim){ this.time.delayedCall(700,()=>this.simEnd(false)); return; }   // v10.0 模擬全滅：無任何損失（不落盤）
     saveGuild();   // v2.4：擊殺進度改批次存檔 → 全滅前在此落盤（勝利路徑由 clearStep 的 saveGuild 涵蓋）
     if(RUN&&RUN.trial){ this.time.delayedCall(700,()=>this.trialEnd(false)); return; }   // v4.1 試煉失敗：無懲罰、回試煉之間
     this.time.delayedCall(700,()=>{ RUN.wiped=true; this.scene.start('Result',{outcome:'wipe'}); });
+  }
+  // v10.0 模擬結算：交戰時間＋各員總傷/DPS；可重打、調條件、回大廳（全程無任何持久影響）
+  simEnd(win){
+    if(this._simUI) return;
+    this.over=true; this.paused=true;
+    const W=this.scale.width, H=this.scale.height;
+    const ui=this.add.container(0,0).setDepth(140); this._simUI=ui;
+    ui.add(this.add.rectangle(0,0,W,H,0x000000,0.62).setOrigin(0).setInteractive());
+    ui.add(panel(this, W/2, H/2, 540, 372, {accent:win?'green':'red', title:'模擬結果', icon:'sparkle', titleSize:15}));
+    ui.add(txt(this, W/2, H/2-124, win?'✓ 模擬結束':'✗ 全滅（模擬無任何損失）', 19, win?'#5ad06a':'#ff8a8a'));
+    const sec=Math.max(0.1, ((RUN&&RUN.combatMs)||0)/1000);
+    ui.add(txt(this, W/2, H/2-98, '交戰時間 '+sec.toFixed(1)+' 秒　·　條件：Lv'+((RUN.sim&&RUN.sim.level)||1)+'／'+((WEATHER_BY_ID[RUN.simWeather]||{}).name||'晴'), 12, UI.dim));
+    let y=H/2-66;
+    (RUN.heroes||[]).forEach(h=>{ const d=h.dmgDealt||0;
+      ui.add(txt(this, W/2-230, y, HERO_BASE[h.idx].name, 13, UI.text, 0));
+      ui.add(txt(this, W/2+230, y, '總傷 '+Math.round(d)+'　DPS '+(d/sec).toFixed(1), 13, '#ffd27a', 1));
+      y+=26; });
+    ui.add(button(this, W/2-160, H/2+138, 170, 44, '🔁 再模擬一次', ()=>{ initSimRun(RUN.sim); this.scene.restart(); }, {variant:'go', size:14}));
+    ui.add(button(this, W/2+14,  H/2+138, 140, 44, '⚙ 調整條件', ()=>{ this.scene.start('SimLab'); }, {variant:'info', size:13}));
+    ui.add(button(this, W/2+164, H/2+138, 130, 44, '返回大廳', ()=>{ initRun(); this.scene.start('GuildHall'); }, {size:12, fill:0x4a3f63, stroke:0x7a6f93, hover:0x5d5080}));
   }
   // 升級獲得 perk（疾行/護身/熟練）浮字提示：把原本被丟棄的 gainXP 回傳接回來顯示
   _showPerkGains(msgs){ if(!msgs||!msgs.length) return; const W=this.scale.width;
@@ -853,6 +875,7 @@ class Battle extends Phaser.Scene {
     if(this.clearEnvObjects) this.clearEnvObjects(true);   // v3.3：戰鬥結束物件即刻消散（不等換場）
     this.boardHeroes();   // v8.0：戰勝收隊——存活隊員跑回篷車上車
     this.heroes.forEach(c=>{ c.ref.hp = c.alive? c.hp : 0; });
+    if(RUN&&RUN.sim){ this.time.delayedCall(650, ()=>this.simEnd(true)); return; }   // v10.0 模擬：不給經驗/掉落、不存檔，直接結算面板
     const wasBoss=RUN.isBoss, node=RUN.node;
     this.time.delayedCall(700,()=>{
       const xp = wasBoss?CFG.battleXp.boss:(CFG.battleXp.base+(node?node.risk:1)*CFG.battleXp.perRisk);
