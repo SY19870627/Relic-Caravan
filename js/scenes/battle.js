@@ -690,8 +690,10 @@ class Battle extends Phaser.Scene {
     list.forEach((id,i)=>{
       const sm=RELIC_SUMMONS[id]; if(!sm || !this.textures.exists(sm.sprite)) return;
       const gm=((CFG.diff&&CFG.diff.relicMuls)||[0.7,1,1.4])[(typeof relicGradeOf==='function')?relicGradeOf(id):1]||1;
-      const base=Math.max(2, Math.round((5+2*t)*gm));
-      const sp=this.makeCombatant({sprite:sm.sprite, name:sm.name, maxHp:999999, hp:999999, atkSeq:[base,base+2], def:0, heal:0, interval:2100, ranged:true, healer:false, isSummon:true, noBar:true}, 'hero', 106, 318+i*86, 3);
+      const dmul=(typeof spiritDmgMul==='function')?spiritDmgMul(list.length):1;   // v9.0 聖髑匣＋雙靈共鳴
+      const ivl=Math.round(2100*((typeof spiritIntervalMul==='function')?spiritIntervalMul():1));   // v9.0 龕位鍍金
+      const base=Math.max(2, Math.round((5+2*t)*gm*dmul));
+      const sp=this.makeCombatant({sprite:sm.sprite, name:sm.name, maxHp:999999, hp:999999, atkSeq:[base,base+2], def:0, heal:0, interval:ivl, ranged:true, healer:false, isSummon:true, noBar:true}, 'hero', 106, 318+i*86, 3);
       sp.relicSummon=true;
       sp.container.setAlpha(0).setScale(0.4);
       this.tweens.add({targets:sp.container, alpha:1, scaleX:1, scaleY:1, duration:300, delay:220+i*140, ease:'Back.out'});
@@ -863,6 +865,7 @@ class Battle extends Phaser.Scene {
       if(wasBoss){
         if(RUN&&RUN.trial){ this.trialEnd(true); return; }   // v4.1 試煉通關：晉升結算（不走 Result、不掉遺物）
         if(typeof recordDestClear==='function'){ recordDestClear(RUN.destIndex||0, (RUN.diff!=null)?RUN.diff:1); saveGuild(); }   // v4.9 記錄通關難度
+        if(typeof upgradeLv==='function' && upgradeLv('deck2')>=2 && !RUN.deck3Expanded){ RUN.slots+=2; RUN.deck3Expanded=true; }   // v9.0 貨車樓層 Lv2：清首領戰再 +2 格
         const rel=rollRelicForDest(RUN.destIndex||0);
         const drop = rel || {kind:'貴重物品',name:'守護者寶藏',icon:'💎',value:CFG.battle.bossRelicValue};
         if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(drop); if(drop.kind!=='遺物') discover(drop.name); logItem('gain', drop, '王戰掉落'); }

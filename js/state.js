@@ -64,6 +64,7 @@ function loadGuild(){ try{
   if(s&&s.GUILD){
     GUILD=Object.assign(defaultGuild(), s.GUILD);    if(!GUILD.materials) GUILD.materials={};    if(!GUILD.ingredients) GUILD.ingredients={};    if(!GUILD.staff) GUILD.staff={craftsman:0,leader:0};
     if(!GUILD.upgrades) GUILD.upgrades={};
+    for(const k in GUILD.upgrades){ if(GUILD.upgrades[k]===true) GUILD.upgrades[k]=1; }   // v9.0 遷移：一次性 → 等級制
     if(!GUILD.discovered) GUILD.discovered={};
     if(!GUILD.owned) GUILD.owned={};
     if(!GUILD.titles) GUILD.titles={}; if(!GUILD.questKills) GUILD.questKills={}; if(!GUILD.questStage) GUILD.questStage={};   // v2.1
@@ -160,15 +161,28 @@ function autoSipLabel(){ const f=autoSipFrac(); return f<=0?'關':('<'+Math.roun
 function cycleAutoSip(){ if(!GUILD.settings) GUILD.settings={}; const order=[0.30,0.50,1.00,0], cur=autoSipFrac(); let i=order.indexOf(cur); if(i<0)i=0; GUILD.settings.autoSipFrac=order[(i+1)%order.length]; saveGuild(); return GUILD.settings.autoSipFrac; }
 
 // ---- 馬匹（單馬車＋選馬）＋ 工匠項目化強化：最終食物/貨格 ----
-function upgradeEffectTotal(){ let slots=0; UPGRADES.forEach(u=>{ if(GUILD.upgrades&&GUILD.upgrades[u.id]){ slots+=u.effect.slots||0; } }); return {slots}; }
+function upgradeEffectTotal(){ let slots=0; UPGRADES.forEach(u=>{ const lv=upgradeLv(u.id); if(!lv) return;
+  slots+=(u.effect&&u.effect.slotsPerLv||0)*lv + (u.effect&&u.effect.slots||0); }); return {slots}; }
 function wagonStats(){ const h=HORSES[GUILD.horse]||HORSES[0]; const up=upgradeEffectTotal();
   return { name:'探險馬車', horse:h.name, horseDesc:h.desc, slots:h.slots+up.slots, upSlots:up.slots }; }
-function upgradeOwned(id){ return !!(GUILD.upgrades&&GUILD.upgrades[id]); }
-function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0); }
-function canBuyUpgrade(u){ if(upgradeOwned(u.id)) return false; if(craftsmanTier()<u.craftReq) return false; if(!canSpendRep(upgradeRepCost(u))) return false;
-  const m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]) return false; } return true; }
-function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; spendRep(upgradeRepCost(u)); const m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]; } GUILD.upgrades[u.id]=true; saveGuild(); return true; }
-function upgradeCostText(u){ const parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]}`); } return parts.join(' '); }
+// v9.0 等級化：upgradeLv 取當前等級（相容舊存檔 true=1）；素材成本 ×目標等級、聲望隨等級 +1
+function upgradeLv(id){ const v=GUILD.upgrades&&GUILD.upgrades[id]; return v===true?1:(v||0); }
+function upgradeOwned(id){ return upgradeLv(id)>0; }
+function upgradeMaxed(u){ return upgradeLv(u.id)>=(u.maxLv||1); }
+function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0) + upgradeLv(u.id); }
+function canBuyUpgrade(u){ if(upgradeMaxed(u)) return false; if(craftsmanTier()<u.craftReq) return false; if(!canSpendRep(upgradeRepCost(u))) return false;
+  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]*nl) return false; } return true; }
+function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; spendRep(upgradeRepCost(u));
+  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]*nl; }
+  GUILD.upgrades[u.id]=nl; saveGuild(); return true; }
+function upgradeCostText(u){ const nl=upgradeLv(u.id)+1, parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]*nl}`); } return parts.join(' '); }
+// v9.0 等級化強化效果（集中取值，戰鬥/商店/事件端讀這裡）
+function badEventMul(){ return Math.max(0, 1-0.10*upgradeLv('bell')); }
+function valuableSellMul(){ return 1+0.04*upgradeLv('spring'); }
+function shopPriceMul(){ return 1-0.02*upgradeLv('flag'); }
+function spiritIntervalMul(){ return 1-0.03*upgradeLv('gild'); }
+function spiritDmgMul(n){ let m=1+0.06*upgradeLv('holy'); if((n||0)>=2) m*=1+0.03*upgradeLv('reso'); return m; }
+function supplyDurBonus(){ return upgradeLv('arm'); }
 // 掉落物件（探險中入貨車）。素材：結算自動入庫；食材：每趟隨身、料理消耗、不入庫；全滅則失
 function makeMaterialItem(di){ const m=MATERIAL_BY_DEST[di]; if(!m) return null; return {kind:'素材', matId:m.id, name:m.name, icon:m.icon, value:20}; }
 function forageIngredient(di,n){ const g=INGREDIENT_BY_DEST[di]; if(g){ addIngredient(g.id,n||1); saveGuild(); } return g; }
@@ -639,6 +653,7 @@ function syncEquippedGearCargo(){ if(typeof RUN==='undefined'||!RUN||!Array.isAr
 // v7.0 掉落改「階梯制」：隨機選一名活著的隊員，固定給他「當前該部位裝備的下一階」（不跳級、不重複）
 // 「當前」＝身上穿的與貨車裡他可用的取最高階，避免同一場連掉兩件同階；全員到頂 → 回 null（改給貴重物品）
 function nextGearFor(sprite, kind, curLv){
+  if(typeof RUN!=='undefined' && RUN && RUN.trial) return null;   // v9.2 試煉不掉/不賣裝備——難度以起始裝為準（掉落自動改給貴重物品、商店退回藥水商）
   const pool=(kind==='武器')?WEAPONS:ARMORS;
   const ok=g=> kind==='武器'? weaponClassOK(sprite,g) : armorClassOK(sprite,g);
   const ups=pool.filter(g=>ok(g) && (g.lvReq||1)>curLv).sort((a,b)=>(a.lvReq||1)-(b.lvReq||1));

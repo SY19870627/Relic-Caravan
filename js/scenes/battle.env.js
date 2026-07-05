@@ -30,6 +30,9 @@ Object.assign(Battle.prototype, {
     // v8.3 商隊補給架（預設配備）：每波自篷車拋出「玩家所選的職業代表物件」（1 件；擴充後 2 件）
     if(!(RUN&&RUN.trial) && this._wagon)
       this.time.delayedCall(620, ()=>{ if(!this.over) this.wagonThrow(); });
+    // v9.1 守護靈 × 石像/祭壇：場上有神聖物件時，守護靈前往受祝福（每場每靈一次）
+    if(!(RUN&&RUN.trial))
+      this.time.delayedCall(980, ()=>{ if(!this.over && this.spiritCommune) this.spiritCommune(); });
     const V=CFG.env.vig, stype=(RUN&&RUN.node&&RUN.node.type)||'battle', di=(RUN&&RUN.destIndex)||0;
     const sprites=(fresh||[]).map(e=>e.sprite);
     const share=(list)=> sprites.length? sprites.filter(s=>list.indexOf(s)>=0).length/sprites.length : 0;
@@ -62,6 +65,35 @@ Object.assign(Battle.prototype, {
     this.enterWalk(fresh);
   }
 ,
+  // ---- v9.1 靈石共鳴：遺物守護靈（靈體）× 神聖石像/祭壇——靈飄至像前受祝福，該場攻擊 ×1.5，耐久 −1 ----
+  // 每場每靈一次；與牧師「祈禱升階」搶同一份神聖耐久（3 格石像 / 2 格祭壇），自動觸發、玩家不介入
+  spiritCommune(){
+    if(this.over) return;
+    (this.summons||[]).forEach((sp,i)=>{
+      if(!sp || sp._removed || !sp.relicSummon || sp._blessed) return;
+      const st=this.objectWithTag('sacred'); if(!st || st.dead || st.dur<=0) return;
+      sp._blessed=true;   // 先佔位：同幀兩靈不會重複判定失敗
+      const bx=sp.container.x, by=sp.container.y;
+      sp.lastAttack=(this.gnow||0)+1400;   // 飄行期間不出手
+      this.time.delayedCall(i*300, ()=>{ if(this.over || sp._removed || !sp.container) return;
+        const cur=this.objectWithTag('sacred');
+        if(!cur || cur.dead || cur.dur<=0){ sp._blessed=false; return; }   // 途中被耗盡 → 放棄（下波可再試）
+        this.tweens.add({targets:sp.container, x:cur.x-32, y:cur.y-24, duration:420, ease:'Sine.inOut',
+          onComplete:()=>{ if(this.over || sp._removed || !sp.container) return;
+            if(cur.dead || cur.dur<=0){ sp._blessed=false;
+              this.tweens.add({targets:sp.container, x:bx, y:by, duration:380, ease:'Sine.inOut'}); return; }
+            this.useObject(cur, 1, '靈石共鳴');
+            this.fxWisp(cur.x, cur.y-10);
+            this.holyLight({container:sp.container, baseY:cur.y-24}, 0xffe27a);
+            sp.atkSeq=(sp.atkSeq||[2]).map(a=>Math.round(a*1.5));
+            if(sp.spr) sp.spr.setTint(0xffe8a0);   // 受祝福的靈泛金光（整場）
+            this.floatLabel(cur.x, cur.y-58, (sp.name||'守護靈')+'・受祝福!', '#ffe27a');
+            this.tweens.add({targets:sp.container, x:bx, y:by, duration:420, delay:300, ease:'Sine.inOut'});
+          }});
+      });
+    });
+  }
+,
   // ---- v8.3 商隊補給架：拋出「玩家挑選的職業代表物件」（銅鑼/圖騰/燭台/水晶/燈籠；場上已有同款則略過）----
   wagonThrow(){
     if(this.over || (RUN&&RUN.trial) || !this._wagon) return;
@@ -83,7 +115,10 @@ Object.assign(Battle.prototype, {
         this.tweens.add({targets:fly, x:mx, y:my, angle:150, duration:250, ease:'Quad.out',
           onComplete:()=>this.tweens.add({targets:fly, x:p.x, y:p.y, angle:335, duration:250, ease:'Quad.in',
             onComplete:()=>{ fly.destroy(); if(this.over) return;
-              this.fxDust(p.x,p.y+6); this.makeEnvObject(t,p.x,p.y);
+              this.fxDust(p.x,p.y+6);
+              const o=this.makeEnvObject(t,p.x,p.y);
+              const ex=(typeof supplyDurBonus==='function')?supplyDurBonus():0;   // v9.0 精工投擲臂：耐久 +1／級
+              if(o && ex>0 && o.def.dur>0){ o.dur+=ex; o.maxDur+=ex; this.drawDurPips(o); }
               this.floatLabel(wx,wy-18,'商隊補給!','#ffd27a'); }})});
       });
     });

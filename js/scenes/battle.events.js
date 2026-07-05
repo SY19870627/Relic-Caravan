@@ -90,7 +90,7 @@ Object.assign(Battle.prototype, {
     });
     if(!sold.length) return null;
     RUN.cargo=keep;
-    const gold=sold.reduce((sum,it)=>sum+Math.max(1,Math.round((it.value||25)*rate)),0);
+    const gold=sold.reduce((sum,it)=>sum+Math.max(1,Math.round((it.value||25)*rate*(it.kind==='貴重物品'&&typeof valuableSellMul==='function'?valuableSellMul():1))),0);   // v9.0 彈簧懸吊
     addGold(gold);
     sold.forEach(it=>logItem('sell', it, '營火自動售出'));
     this.refreshHud();
@@ -302,7 +302,8 @@ Object.assign(Battle.prototype, {
 ,
   openShop(type){
     if(this._campShops && this._campShops[type]){ const s=this._campShops[type]; this._shopTitle=s.title; this._shopHint=s.hint; this._shopGoods=s.goods; this._shopMsg=''; this._shopMsgC='#9fe8a0'; this._renderShop(); return; }   // 同一營火內貨色固定，不重抽
-    const price=g=>30+((g.lvReq||1)*15);   // 商店改由營火選單開啟，指定類型
+    const _pm=(typeof shopPriceMul==='function')?shopPriceMul():1;   // v9.0 商隊旗幟折扣
+    const price=g=>Math.max(1,Math.round((30+((g.lvReq||1)*15))*_pm));   // 商店改由營火選單開啟，指定類型
     // v7.0 商店同步階梯制：只賣「各隊員當前裝備的下一階」（每人至多貢獻一件候選），與掉落同一條階梯
     const nextPool=(kind)=>{ const out=[], seen={};
       (RUN.heroes||[]).forEach(h=>{ if(!h) return;
@@ -319,8 +320,8 @@ Object.assign(Battle.prototype, {
     if(type==='potion'){
       this._shopTitle='🧪 藥水商'; this._shopHint='販售補給藥水（可重複購買）';
       this._shopGoods=[
-        {kind:'道具',name:'治療藥水',tag:'藥水',cost:20,value:30,lines:['戰鬥外使用','回復全隊 30% HP']},
-        {kind:'道具',name:'聖水',    tag:'藥水',cost:40,value:60,lines:['戰鬥外使用','回復全隊 50% HP']},
+        {kind:'道具',name:'治療藥水',tag:'藥水',cost:Math.max(1,Math.round(20*_pm)),value:30,lines:['戰鬥外使用','回復全隊 30% HP']},
+        {kind:'道具',name:'聖水',    tag:'藥水',cost:Math.max(1,Math.round(40*_pm)),value:60,lines:['戰鬥外使用','回復全隊 50% HP']},
       ];
     } else if(type==='weapon'){
       this._shopTitle='⚔ 武器商'; this._shopHint='隊員的下一階武器（與掉落同一條階梯）';
@@ -331,7 +332,7 @@ Object.assign(Battle.prototype, {
     } else if(type==='merchant'){
       // v1.7 流浪商人（綜合商）：道具＋武器＋防具 各一件，同一畫面選購
       this._shopTitle='🧙 流浪商人'; this._shopHint='綜合商 — 道具・武器・防具 各一件';
-      const gd=[{kind:'道具',name:'治療藥水',tag:'道具',cost:20,value:30,lines:['戰鬥外使用','回復全隊 30% HP']}];
+      const gd=[{kind:'道具',name:'治療藥水',tag:'道具',cost:Math.max(1,Math.round(20*_pm)),value:30,lines:['戰鬥外使用','回復全隊 30% HP']}];
       if(wPool.length){ Phaser.Utils.Array.Shuffle(wPool); const w=wPool[0];
         gd.push({kind:'武器',name:w.name,tag:'武器',cost:price(w),value:60,gear:w,
           req:'限 '+weaponClassLabel(w)+' · 階'+(w.lvReq||1)+'・'+gearRarity(w).name,
@@ -422,10 +423,10 @@ Object.assign(Battle.prototype, {
       {t:'🔮 神秘符文',d:'符文閃過微光，賜下祝福',auto:true,r:'回復 15% 體力並拾得 💰50',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ const mx=heroStat(h).maxHp; h.hp=Math.min(mx,h.hp+Math.round(mx*0.15)); } }); addGold(50); }},
       {t:'🗡 廢棄武器架',d:'架上還掛著堪用的裝備',auto:true,cond:()=>RUN.cargo.length<RUN.slots,r:'拾得一件裝備',act:()=>{ const it=rollItem(2, Math.random()<0.5?'武器':'防具'); if(it){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '撿拾'); } }},
       // —— 負面事件（自動結算、紅框；扣血保底 1 HP，不會在事件中打死人）——
-      {t:'🕳 隱藏陷阱',d:'踩中暗藏的陷阱',auto:true,bad:true,r:'全隊損失 15% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.15)); } }); }},
-      {t:'☠ 毒瘴瀰漫',d:'吸入瀰漫的毒瘴',auto:true,bad:true,r:'全隊損失 20% 體力',act:()=>{ RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.20)); } }); }},
-      {t:'🪨 落石坍方',d:'通道突然坍方落石',auto:true,bad:true,r:'一名隊員受到重創',act:()=>{ const al=RUN.heroes.filter(h=>h.hp>0); if(al.length){ const h=al[Math.floor(Math.random()*al.length)]; h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.30)); } }},
-      {t:'💰 強盜路霸',d:'被攔路強盜訛詐',auto:true,bad:true,r:'被搶走 💰80',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-80); }},
+      {t:'🕳 隱藏陷阱',d:'踩中暗藏的陷阱',auto:true,bad:true,r:'全隊損失 15% 體力',act:()=>{ const bm=badEventMul(); RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.15*bm)); } }); }},
+      {t:'☠ 毒瘴瀰漫',d:'吸入瀰漫的毒瘴',auto:true,bad:true,r:'全隊損失 20% 體力',act:()=>{ const bm=badEventMul(); RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.20*bm)); } }); }},
+      {t:'🪨 落石坍方',d:'通道突然坍方落石',auto:true,bad:true,r:'一名隊員受到重創',act:()=>{ const al=RUN.heroes.filter(h=>h.hp>0); if(al.length){ const h=al[Math.floor(Math.random()*al.length)]; h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.30*badEventMul())); } }},
+      {t:'💰 強盜路霸',d:'被攔路強盜訛詐',auto:true,bad:true,r:'被搶走 💰80',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-Math.round(80*badEventMul())); }},
       {t:'🐀 貪婪鼠群',d:'鼠群竄入貨車翻找',auto:true,bad:true,cond:()=>RUN.cargo.length>0,r:'一件貨物被啃壞',act:()=>{ const _i=Math.floor(Math.random()*RUN.cargo.length); const _it=RUN.cargo[_i]; RUN.cargo.splice(_i,1); logItem('lost', _it, '被鼠群啃壞'); }},
       {t:'🌀 詛咒石碑',d:'觸動了古老的詛咒',auto:true,bad:true,r:'失去 💰50、全隊損失 10% 體力',act:()=>{ RUN.gold=Math.max(0,(RUN.gold||0)-50); RUN.heroes.forEach(h=>{ if(h.hp>0){ h.hp=Math.max(1, h.hp-Math.round(heroStat(h).maxHp*0.10)); } }); }},
     ];

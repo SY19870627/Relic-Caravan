@@ -41,35 +41,37 @@ class WagonHall extends Phaser.Scene {
       else c.add(button(this,0,45,120,24,'選用',()=>{ GUILD.horse=i; saveGuild(); this.render(); },{size:12,fill:0x3a4f6b,stroke:0x5a8cd0,hover:0x4c6c9c}));
     });
 
-    // 工坊強化（單欄，全部屬後勤）
-    add(txt(this,W/2,264,'── 工坊強化（工匠解鎖，一次性）──',12,TH.gold));
-    if(ct===0) add(txt(this,W/2,286,'尚未聘僱工匠 → 請至招募所「後勤」聘僱學徒工匠',11,TH.red));
+    // ===== v9.0 工坊強化（等級化）：兩欄格狀，每項可重複升級到滿級 =====
+    add(txt(this,W/2,266,'── 工坊強化（點擊升級・素材成本隨等級成長）──',12,TH.gold));
+    if(ct===0) add(txt(this,W/2,280,'尚未聘僱工匠 → 請至招募所「後勤」聘僱學徒工匠',10,TH.red));
     UPGRADES.forEach((u,j)=>{
-      const y=312+j*54; const owned=upgradeOwned(u.id), ok=canBuyUpgrade(u);
+      const col=j%2, row=(j-col)/2, cx=W/2+(col?226:-226), cy=300+row*40;
+      const lv=upgradeLv(u.id), maxed=lv>=(u.maxLv||1), ok=canBuyUpgrade(u);
       const tier=u.craftReq===1?'學徒':u.craftReq===2?'師傅':'大師';
-      const c=this.add.container(W/2,y); add(c);
-      c.add(this.add.rectangle(0,0,560,48, TH.panel, owned?0.5:1).setStrokeStyle(2, owned?0x5ad06a:(ct>=u.craftReq?0x55476b:0x6b3a3a)));
-      c.add(txt(this,-264,-10,`${u.name}　[${tier}]`,14, owned?'#5ad06a':TH.text,0,0.5));
-      c.add(txt(this,-264,10,`${u.desc}`,10,TH.dim,0,0.5).setWordWrapWidth(360));
-      if(owned){ c.add(txt(this,190,0,'✓ 已強化',14,'#5ad06a')); }
-      else {
-        c.add(button(this,190,0,150,32, upgradeCostText(u), ()=>{
-          if(craftsmanTier()<u.craftReq){ this.flash(`需 ${tier} 工匠`); return; }
-          const m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]){ this.flash(`素材不足：${MATERIAL_BY_ID[k].name}`); return; } }
-          buyUpgrade(u); this.flash(`完成強化：${u.name}`,TH.green); this.render();
-        },{size:11, fill:ok?0x3a6b3a:0x33323a, stroke:ok?0x5ad06a:0x55555f, hover:ok?0x4c8c4c:0x33323a}));
-      }
+      const c=this.add.container(cx,cy); add(c);
+      c.add(this.add.rectangle(0,0,440,36, TH.panel, maxed?0.55:1).setStrokeStyle(1.5, maxed?0x5ad06a:(ok?0x5ad06a:(ct>=u.craftReq?0x55476b:0x6b3a3a))));
+      c.add(txt(this,-208,-8,`${u.name} Lv${lv}/${u.maxLv||1}［${tier}］`,11.5, maxed?'#5ad06a':TH.text,0,0.5));
+      c.add(txt(this,-208,9,u.desc,8.5,TH.dim,0,0.5).setWordWrapWidth(300));
+      c.add(txt(this,208,0, maxed?'✓ 滿級':upgradeCostText(u), 9.5, maxed?'#5ad06a':(ok?TH.green:TH.dim),1,0.5));
+      const hit=this.add.rectangle(cx,cy,440,36,0xffffff,0.001).setInteractive({useHandCursor:true}); add(hit);
+      hit.on('pointerdown',()=>{
+        if(maxed) return;
+        if(craftsmanTier()<u.craftReq){ this.flash(`需 ${tier} 工匠`); return; }
+        const nl=lv+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]*nl){ this.flash(`素材不足：${MATERIAL_BY_ID[k].name}×${m[k]*nl}`); return; } }
+        if(!buyUpgrade(u)){ this.flash('聲望不足'); return; }
+        this.flash(`${u.name} → Lv${nl}`,TH.green); this.render();
+      });
     });
-    // ===== v8.3 商隊補給架：挑選職業代表物件（每波戰鬥自篷車拋出；預設 1 件、「補給架擴充」後 2 件）=====
+    // ===== 商隊補給架：挑選職業代表物件（每波戰鬥自篷車拋出；預設 1 件、「補給架擴充」後 2 件）=====
     const sCap=supplyCap(), sPicks=supplyPicks();
-    add(txt(this,W/2,508,`── 商隊補給架（${sPicks.length}/${sCap}）：每波戰鬥拋出所選職業代表物件 ──`,12,TH.gold));
+    add(txt(this,96,542,`補給架 ${sPicks.length}/${sCap}`,11.5,TH.gold,1,0.5).setOrigin(1,0.5));
     const SUP_LABEL={gong:'🔔 銅鑼・戰士', totem:'🌀 圖騰・遊俠', candles:'🕯 燭台・牧師', crystal:'🔮 水晶・法師', lantern:'🏮 燈籠・盜賊'};
-    const sp=172, sx0=W/2-2*sp;
+    const spw=142, sx0=228;
     SUPPLY_OBJECTS.forEach((s,i)=>{ const on=sPicks.indexOf(s.type)>=0;
-      add(button(this, sx0+i*sp, 536, 162, 28, (on?'✓ ':'')+SUP_LABEL[s.type], ()=>{
+      add(button(this, sx0+i*spw, 542, 134, 26, (on?'✓ ':'')+SUP_LABEL[s.type], ()=>{
         if(!toggleSupplyPick(s.type)){ this.flash('至少保留 1 件補給'); return; }   // 架滿改選＝自動替換最舊一件
         this.render();
-      },{size:11, fill:on?0x3a6b3a:0x33323a, stroke:on?0x5ad06a:0x55555f, hover:on?0x4c8c4c:0x44424e}));
+      },{size:10, fill:on?0x3a6b3a:0x33323a, stroke:on?0x5ad06a:0x55555f, hover:on?0x4c8c4c:0x44424e}));
     });
   }
   flash(msg,col){ if(this._f) this._f.destroy(); this._f=txt(this,this.scale.width/2,96,msg,14,col||TH.red).setDepth(99);   // v8.3 移到上方，避開補給架列

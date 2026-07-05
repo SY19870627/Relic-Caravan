@@ -119,16 +119,16 @@ const WEAPONS = [
   // starter:true 才會出現在整備目錄；其餘為地城掉落專屬
   // v2.4 單一資料來源：cls＝可裝備職業（省略＝通用）、vis＝[圖示,配色]（WEAPON_CLASS/ITEM_ICON 由此衍生，新增武器只改這裡）
   {name:'鐵劍', atkSeq:[14,18], heal:0, lvReq:1, starter:true, cls:'warrior', vis:['sword','teal']},
-  {name:'雙手斧', atkSeq:[20,28], heal:0, lvReq:3, starter:true, cls:'warrior', vis:['axe','teal']},
-  {name:'獵弓', atkSeq:[18,20,22], heal:0, lvReq:2, starter:true, cls:'ranger', vis:['bow','teal']},
+  {name:'雙手斧', atkSeq:[20,28], heal:0, lvReq:3, cls:'warrior', vis:['axe','teal']},   // v9.4 移除 starter 殘留：非起始裝，回歸階梯掉落
+  {name:'獵弓', atkSeq:[18,20,22], heal:0, lvReq:2, cls:'ranger', vis:['bow','teal']},
   {name:'短弓', atkSeq:[16,18,20], heal:0, lvReq:1, starter:true, cls:'ranger', vis:['bow','teal']},
   {name:'橡木杖', atkSeq:[10,12], heal:8, lvReq:1, starter:true, cls:'priest', vis:['staff','green']},
-  {name:'聖光杖', atkSeq:[14,16], heal:14, lvReq:3, starter:true, cls:'priest', vis:['staff','gold']},
+  {name:'聖光杖', atkSeq:[14,16], heal:14, lvReq:3, cls:'priest', vis:['staff','gold']},   // v9.4 同上
   {name:'火花杖', atkSeq:[9,11], heal:0, lvReq:1, starter:true, magic:true, cls:'mage', vis:['magestaff','violet']},   // 法師起手（範圍魔法）
   {name:'短刃', atkSeq:[10,12,14], heal:0, lvReq:1, starter:true, cls:'rogue', vis:['dagger','teal']},   // 盜賊起手（快速三段）
   // 掉落專屬（靠探險取得，整備目錄看不到）；回歸基本：只有傷害數值，無特殊效果
+  {name:'精鋼長劍', atkSeq:[17,22], heal:0, lvReq:2, cls:'warrior', vis:['sword','slate']},   // v9.3 補洞：戰士原缺 2 階（1 直跳 3）
   {name:'匕首', atkSeq:[12,13,14,16], heal:0, lvReq:2, cls:'rogue', vis:['dagger','blue']},
-  {name:'雙刃劍', atkSeq:[18,22,26], heal:0, lvReq:3, cls:'warrior', vis:['dualblade','gold']},
   {name:'巨劍', atkSeq:[26,34], heal:0, lvReq:4, cls:'warrior', vis:['greatsword','gold']},
   {name:'戰弓', atkSeq:[22,24,26,28], heal:0, lvReq:4, cls:'ranger', vis:['bow','gold']},
   {name:'神息法杖', atkSeq:[18,20], heal:20, lvReq:4, cls:'priest', vis:['staff','green']},
@@ -183,8 +183,8 @@ const ARMORS = [
   // v2.4 單一資料來源：cls＝可裝備職業陣列（5 職全列＝通用）、vis＝[圖示,配色]
   {name:'布衣', def:1, shield:8, lvReq:1, starter:true, cls:['warrior','ranger','priest','mage','rogue'], vis:['robe','slate']},
   {name:'皮甲', def:3, shield:12, lvReq:1, starter:true, cls:['warrior','ranger','rogue'], vis:['armor','teal']},
-  {name:'鎖子甲', def:6, shield:22, lvReq:3, starter:true, cls:['warrior'], vis:['armor','blue']},
-  {name:'法袍', def:2, shield:16, lvReq:2, starter:true, cls:['priest','mage'], vis:['robe','violet']},
+  {name:'鎖子甲', def:6, shield:22, lvReq:3, cls:['warrior'], vis:['armor','blue']},   // v9.4 移除 starter 殘留
+  {name:'法袍', def:2, shield:16, lvReq:2, cls:['priest','mage'], vis:['robe','violet']},   // v9.4 同上
   // 掉落專屬：更高防禦＋更高護盾
   {name:'精鋼板甲', def:9, shield:30, lvReq:4, cls:['warrior'], vis:['armor','gold']},
   {name:'守護重盔', def:7, shield:26, lvReq:3, cls:['warrior'], vis:['helmet','gold']},
@@ -483,11 +483,19 @@ const RECIPES = [
 ];
 // ===== 工坊強化（工匠解鎖，一次性，全部屬後勤）：craftReq 工匠階級門檻 =====
 // feature：deck2 清掉精英戰後 +3 貨格｜campstove 每次營火多採集 1 份食材
+// v9.0 等級化強化：每項可重複升級（maxLv），素材成本 ×目標等級、聲望成本隨等級 +1；feature 類為 1~2 級
 const UPGRADES = [
-  {id:'rack1',    name:'加固貨架',   craftReq:1, effect:{slots:2},            cost:{mats:{wood:2}},           desc:'貨格 +2'},
-  {id:'deck2',    name:'貨車第二層', craftReq:2, effect:{feature:'deck2'},    cost:{mats:{iron:2}},           desc:'清掉精英戰後開啟，貨格 +3（高風險，全滅照噴）'},
-  {id:'campstove',name:'隨車鍋',     craftReq:2, effect:{feature:'campstove'},cost:{mats:{iron:1,crystal:1}}, desc:'每次營火多採集 1 份食材'},
-  {id:'supply',   name:'補給架擴充', craftReq:2, effect:{feature:'supply'},   cost:{mats:{wood:2,iron:2}},    desc:'補給架可同時裝載 2 件職業代表物件（預設 1 件，每波戰鬥自篷車拋出）'},   // v8.3 擴充第二格
+  {id:'rack1',    name:'加固貨架',   craftReq:1, maxLv:5, effect:{slotsPerLv:2},        cost:{mats:{wood:2}},              desc:'貨格 +2／級'},
+  {id:'deck2',    name:'貨車樓層',   craftReq:2, maxLv:2, effect:{feature:'deck2'},     cost:{mats:{iron:2}},              desc:'Lv1 清精英戰 +3 格・Lv2 清首領戰再 +2 格（全滅照噴）'},
+  {id:'campstove',name:'隨車鍋',     craftReq:2, maxLv:1, effect:{feature:'campstove'}, cost:{mats:{iron:1,crystal:1}},    desc:'每次營火多採集 1 份食材'},
+  {id:'supply',   name:'補給架擴充', craftReq:2, maxLv:1, effect:{feature:'supply'},    cost:{mats:{wood:2,iron:2}},       desc:'補給架可裝 2 件職業代表物件'},
+  {id:'bell',     name:'車頭銅鈴',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{iron:1,flint:1}},      desc:'壞事件損失 −10%／級（陷阱/毒瘴/落石/強盜）'},
+  {id:'spring',   name:'彈簧懸吊',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{iron:1,amber:1}},      desc:'貴重物品變賣價 +4%／級'},
+  {id:'gild',     name:'龕位鍍金',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{crystal:1,amber:1}},   desc:'遺物守護靈出手間隔 −3%／級'},
+  {id:'flag',     name:'商隊旗幟',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{wood:1,vine:1}},       desc:'地城商店售價 −2%／級'},
+  {id:'arm',      name:'精工投擲臂', craftReq:3, maxLv:5, effect:{},                    cost:{mats:{iron:2,voidore:1}},    desc:'補給架拋出物件的耐久 +1／級'},
+  {id:'holy',     name:'聖髑匣',     craftReq:3, maxLv:5, effect:{},                    cost:{mats:{voidore:1,rotcrystal:1}}, desc:'遺物守護靈傷害 +6%／級'},
+  {id:'reso',     name:'雙靈共鳴',   craftReq:3, maxLv:5, effect:{},                    cost:{mats:{amber:1,rotcrystal:1}},desc:'兩隻守護靈同場時，各自傷害再 +3%／級'},
 ];
 // 職業：等級決定血量（growthHp/級）與可穿戴裝備；ATK 來自武器、DEF 來自防具
 // 每級：growthHp 加血、growthAtk 加攻擊（升級兼顧生存與輸出）；另由升級 perk（state.js heroPerks）給功能。
