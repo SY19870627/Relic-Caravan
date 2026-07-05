@@ -43,9 +43,9 @@ class WagonHall extends Phaser.Scene {
 
     // ===== v9.0 工坊強化（等級化）：兩欄格狀，每項可重複升級到滿級 =====
     add(txt(this,W/2,266,'── 工坊強化（點擊升級・素材成本隨等級成長）──',12,TH.gold));
-    if(ct===0) add(txt(this,W/2,280,'尚未聘僱工匠 → 請至招募所「後勤」聘僱學徒工匠',10,TH.red));
+    if(ct===0) add(txt(this,W/2,284,'⚠ 尚未聘僱工匠 → 請至招募所「後勤」聘僱學徒工匠',10.5,TH.red));
     UPGRADES.forEach((u,j)=>{
-      const col=j%2, row=(j-col)/2, cx=W/2+(col?226:-226), cy=300+row*40;
+      const col=j%2, row=(j-col)/2, cx=W/2+(col?226:-226), cy=316+row*40;   // v9.5 移除隨車鍋後 10 項＝5 列，警告行不再被擋
       const lv=upgradeLv(u.id), maxed=lv>=(u.maxLv||1), ok=canBuyUpgrade(u);
       const tier=u.craftReq===1?'學徒':u.craftReq===2?'師傅':'大師';
       const c=this.add.container(cx,cy); add(c);

@@ -63,7 +63,7 @@ Object.assign(Battle.prototype, {
 ,
   evCamp(){ this._campShops={};   // 進新營火 → 重置商店快取（本營火內貨色固定，跨營火才換）
     // v5.4：營火不再自動治療/復活——復原交給 料理（食材）與 許願池（金幣）
-    const fN=2+(hasCampstove()?1:0), ing=forageIngredient(RUN.destIndex||0, fN); this._campForaged=fN;
+    const fN=2, ing=forageIngredient(RUN.destIndex||0, fN); this._campForaged=fN;   // v9.5 隨車鍋強化已移除，固定採集 2 份
     this._campAutoSold=this.autoSellAtCamp();
     this._renderCamp(); const nt=resourceGainNotice(ing,fN); if(nt) this.showGains([nt]); }
 ,

@@ -428,9 +428,9 @@ const ROW_WEIGHT = { front:3.2, mid:1.6, back:1 };   // 敵人選目標的權重
 // ===== 馬匹（單一馬車＋選馬）=====
 // 馬匹只決定「貨格」（後勤容量），不影響戰鬥。cost＝解鎖所需聲望（0＝免費）；index 0 為初始預設馬
 const HORSES = [
-  {name:'均衡馬', slots:6,  cost:0, desc:'標準商隊馬，貨格 6・無遺物龕（初始預設）'},
-  {name:'耐力馬', slots:9,  cost:3, desc:'耐久善負重，貨格 9・遺物龕 1 格（解鎖 ⭐3）'},
-  {name:'力量馬', slots:12, cost:4, desc:'力大能拉重載，貨格 12・遺物龕 2 格（解鎖 ⭐4）'},
+  {name:'均衡馬', slots:6,  cost:0, desc:'標準商隊馬\n無遺物龕'},
+  {name:'耐力馬', slots:9,  cost:3, desc:'耐久善負重\n遺物龕 1 格'},
+  {name:'力量馬', slots:12, cost:4, desc:'力大能拉重載\n遺物龕 2 格'},
 ];
 // ===== 素材（強化用）：特定關出特定素材 =====
 const MATERIALS = [
@@ -482,12 +482,11 @@ const RECIPES = [
   {id:'rotbanquet', name:'蝕菇盛宴',  need:{rotfungus:2},   desc:'全隊回復 45% HP，下一場戰鬥全隊首擊必暴',   heal:0.45, grant:'firstCrit'},
 ];
 // ===== 工坊強化（工匠解鎖，一次性，全部屬後勤）：craftReq 工匠階級門檻 =====
-// feature：deck2 清掉精英戰後 +3 貨格｜campstove 每次營火多採集 1 份食材
+// feature：deck2 清掉精英戰後 +3 貨格（Lv2 清首領戰再 +2）｜supply 補給架第 2 格
 // v9.0 等級化強化：每項可重複升級（maxLv），素材成本 ×目標等級、聲望成本隨等級 +1；feature 類為 1~2 級
 const UPGRADES = [
   {id:'rack1',    name:'加固貨架',   craftReq:1, maxLv:5, effect:{slotsPerLv:2},        cost:{mats:{wood:2}},              desc:'貨格 +2／級'},
   {id:'deck2',    name:'貨車樓層',   craftReq:2, maxLv:2, effect:{feature:'deck2'},     cost:{mats:{iron:2}},              desc:'Lv1 清精英戰 +3 格・Lv2 清首領戰再 +2 格（全滅照噴）'},
-  {id:'campstove',name:'隨車鍋',     craftReq:2, maxLv:1, effect:{feature:'campstove'}, cost:{mats:{iron:1,crystal:1}},    desc:'每次營火多採集 1 份食材'},
   {id:'supply',   name:'補給架擴充', craftReq:2, maxLv:1, effect:{feature:'supply'},    cost:{mats:{wood:2,iron:2}},       desc:'補給架可裝 2 件職業代表物件'},
   {id:'bell',     name:'車頭銅鈴',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{iron:1,flint:1}},      desc:'壞事件損失 −10%／級（陷阱/毒瘴/落石/強盜）'},
   {id:'spring',   name:'彈簧懸吊',   craftReq:2, maxLv:5, effect:{},                    cost:{mats:{iron:1,amber:1}},      desc:'貴重物品變賣價 +4%／級'},

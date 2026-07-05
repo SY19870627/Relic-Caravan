@@ -189,7 +189,7 @@ function forageIngredient(di,n){ const g=INGREDIENT_BY_DEST[di]; if(g){ addIngre
 
 // ---- 領隊・料理：消耗食材（公會庫存）產生補血／本趟增益 ----
 function recipeNeedText(r){ return Object.keys(r.need).map(k=>{ const g=INGREDIENT_BY_ID[k]; return `${g?g.icon:''}${g?g.name:k}×${r.need[k]}`; }).join(' '); }
-// 可料理：有領隊，或工匠強化「隨車鍋」(campstove) 解鎖後也能煮
+// 可料理：食材足夠即可（v9.5：隨車鍋強化已移除）
 function canCook(r){ for(const k in r.need){ if(ingCount(k)<r.need[k]) return false; } return true; }
 function cook(r){ if(!canCook(r)) return null; for(const k in r.need){ GUILD.ingredients[k]=(GUILD.ingredients[k]||0)-r.need[k]; } saveGuild();
   let msg='料理「'+r.name+'」：';
@@ -324,7 +324,6 @@ function bondTriggerActive(trigger){ const act=new Set(activeRoster().map(i=>CLA
 // ---- v0.8 馬匹專屬功能 ----
 // ---- v0.8 工匠功能解鎖（項目化強化中 effect.feature 型）----
 function hasUpgradeFeature(f){ return UPGRADES.some(u=>u.effect&&u.effect.feature===f&&upgradeOwned(u.id)); }
-function hasCampstove(){ return hasUpgradeFeature('campstove'); }
 function hasDeck2(){ return hasUpgradeFeature('deck2'); }
 // ---- v0.8 升級 perk（依等級自動獲得功能，取代純堆血）----
 const PERKS = { 3:{id:'swift',label:'疾行：出手速度 +12%'}, 5:{id:'startShield',label:'護身：每場開場護盾 +12'}, 7:{id:'extraUse',label:'熟練：技能每場多 1 次使用'} };
