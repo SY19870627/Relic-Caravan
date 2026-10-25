@@ -17,7 +17,10 @@
     overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
   /* 整頁改成「標題 + 遊戲」直排，遊戲區吃掉剩下的所有空間，Phaser FIT 依此等比縮放 */
   #shell{display:flex;flex-direction:column;height:100vh;height:100dvh;box-sizing:border-box;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    /* 左右安全區取兩側較大值、兩邊相同，避免瀏海那側較寬而讓畫面偏向一邊 */
+    padding-left:max(env(safe-area-inset-left),env(safe-area-inset-right));
+    padding-right:max(env(safe-area-inset-left),env(safe-area-inset-right))}
   header{flex:0 0 auto}
   h1{font-size:18px;margin:12px 0 2px;letter-spacing:3px;color:#e7c14a}
   p.sub{margin:0 0 8px;color:#8a7f9a;font-size:12px}
