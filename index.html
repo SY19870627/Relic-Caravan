@@ -2,25 +2,78 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e0a14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="遺物商隊">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>遺物商隊 Relic Caravan</title>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 <style>
-  html,body{margin:0;background:#0e0a14;color:#d8cdb8;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;text-align:center}
+  html,body{margin:0;height:100%;background:#0e0a14;color:#d8cdb8;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;text-align:center;
+    overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  /* 整頁改成「標題 + 遊戲」直排，遊戲區吃掉剩下的所有空間，Phaser FIT 依此等比縮放 */
+  #shell{display:flex;flex-direction:column;height:100vh;height:100dvh;box-sizing:border-box;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  header{flex:0 0 auto}
   h1{font-size:18px;margin:12px 0 2px;letter-spacing:3px;color:#e7c14a}
   p.sub{margin:0 0 8px;color:#8a7f9a;font-size:12px}
-  #game{display:block;margin:0 auto;width:min(96vw,1000px);aspect-ratio:900/560;border:3px solid #2a2238;border-radius:6px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+  #stage{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 12px 12px;box-sizing:border-box}
+  #game{width:100%;height:100%;max-width:1400px;touch-action:none}
+  #game canvas{border:3px solid #2a2238;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.6);box-sizing:border-box}
+  /* 手機、矮螢幕、全螢幕：拿掉標題與留白，畫面最大化 */
+  @media (max-height:700px),(max-width:820px),(pointer:coarse){
+    header{display:none}
+    #stage{padding:0}
+    #game canvas{border:0;border-radius:0;box-shadow:none}
+  }
+  :fullscreen header{display:none}
+  :fullscreen #stage{padding:0}
+  :fullscreen #game canvas{border:0;border-radius:0;box-shadow:none}
+
+  /* 全螢幕按鈕：放右下角，橫向時落在左右黑邊 */
+  #fsBtn{position:fixed;z-index:20;right:calc(8px + env(safe-area-inset-right));bottom:calc(8px + env(safe-area-inset-bottom));
+    width:40px;height:40px;display:grid;place-items:center;border:1px solid #3a3150;border-radius:10px;
+    background:rgba(20,15,30,.72);color:#e7c14a;cursor:pointer;opacity:.7;padding:0;touch-action:manipulation}
+  #fsBtn:hover{opacity:1}
+  #fsBtn[hidden]{display:none}
+  #fsBtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* 手機直拿時的提示：建議橫拿，也可以選擇直接玩 */
+  #rotateHint{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    padding:24px;background:rgba(14,10,20,.94);color:#d8cdb8;font-size:15px;line-height:1.6}
+  #rotateHint .phone{width:46px;height:76px;border:3px solid #e7c14a;border-radius:9px;animation:rc-rot 1.8s ease-in-out infinite}
+  #rotateHint strong{color:#e7c14a;font-size:18px;letter-spacing:2px}
+  #rotateHint button{margin-top:6px;padding:10px 18px;border:1px solid #7a6f93;border-radius:10px;background:#2a2238;color:#d8cdb8;font:inherit;font-size:14px;touch-action:manipulation}
+  #rotateHint button.primary{border-color:#e7c14a;color:#1a1424;background:#e7c14a;font-weight:700}
+  @keyframes rc-rot{0%,25%{transform:rotate(0)}55%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+  @media (orientation:portrait) and (pointer:coarse){ body:not(.hint-dismissed) #rotateHint{display:flex} }
 </style>
 </head>
 <body>
-  <h1>遺物商隊 · Relic Caravan</h1>
-  <p class="sub">整備 → 地城選路 → 自動戰鬥 → 帶回遺物　|　一趟完整 run</p>
-  <div id="game"></div>
+  <div id="shell">
+    <header>
+      <h1>遺物商隊 · Relic Caravan</h1>
+      <p class="sub">整備 → 地城選路 → 自動戰鬥 → 帶回遺物　|　一趟完整 run</p>
+    </header>
+    <div id="stage"><div id="game"></div></div>
+  </div>
+  <button id="fsBtn" type="button" aria-label="全螢幕" title="全螢幕" hidden></button>
+  <div id="rotateHint" role="dialog" aria-label="建議橫向遊玩">
+    <div class="phone" aria-hidden="true"></div>
+    <strong>請把手機橫過來</strong>
+    <div>遊戲畫面是橫式設計，橫拿會清楚很多</div>
+    <button id="rotateFs" class="primary" type="button" hidden>全螢幕並橫向遊玩</button>
+    <button id="rotateSkip" type="button">直接直向遊玩</button>
+  </div>
 
   <!-- 多檔架構：依相依順序以傳統 script 載入（仍可 file:// 直接開啟）。
        v2.4：統一版本號 APP_VER —— 改版只要把下面這一個數字 +1，所有檔案的快取一起失效。 -->
   <script>
-    const APP_VER = 147;
+    const APP_VER = 148;
     [
       'js/config.js',                 // 平衡設定：所有可調數值集中於此
       'js/data.js',                   // 純資料：調色盤、精靈、裝備、職業、技能
@@ -48,6 +101,7 @@
       'js/scenes/battle.env.js',      // v3.0 戰場環境系統：物件實體/光環/招牌互動/天氣特效（邏輯）
       'js/scenes/result.js',
       'js/main.js',                   // 啟動 Phaser.Game
+      'js/mobile.js',                 // 手機：全螢幕、橫向提示、觸控滑動捲動
     ].forEach(s=>document.write('<script src="'+s+'?v='+APP_VER+'"><\/script>'));
   </script>
 </body>

@@ -80,6 +80,11 @@ function panel(scene,x,y,w,h,opt){
   return c;
 }
 
+// 觸控指標判斷（手機）：滑動距離超過 TOUCH_TAP_SLOP 視為拖曳、不是點擊
+const TOUCH_TAP_SLOP = 14;
+function _isTouchPtr(p){ return !!(p && p.wasTouch); }
+function _isTouchDrag(p){ return !!(p && p.getDistance && p.getDistance() > TOUCH_TAP_SLOP); }
+
 function button(scene,x,y,w,h,label,onClick,opt){
   opt=opt||{};
   const variantAcc={ primary:'teal', go:'green', confirm:'green', danger:'red', gold:'gold', secondary:'violet', ember:'ember', info:'blue' };
@@ -100,7 +105,9 @@ function button(scene,x,y,w,h,label,onClick,opt){
   const hit=scene.add.rectangle(0,0,w,h,0xffffff,0.001).setInteractive({useHandCursor:true}); g.add(hit);
   hit.on('pointerover',()=>{ st.hov=true; draw(); scene.tweens.add({targets:g,scaleX:1.03,scaleY:1.03,duration:90,ease:'Quad.out'}); })
      .on('pointerout', ()=>{ st.hov=false; draw(); scene.tweens.add({targets:g,scaleX:1,scaleY:1,duration:90,ease:'Quad.out'}); })
-     .on('pointerdown',()=>{ scene.tweens.add({targets:g,scaleX:0.96,scaleY:0.96,duration:55,yoyo:true}); if(onClick)onClick(); });
+     .on('pointerdown',(p)=>{ scene.tweens.add({targets:g,scaleX:0.96,scaleY:0.96,duration:55,yoyo:true}); if(!_isTouchPtr(p) && onClick)onClick(); })
+     // 觸控：放開手指才觸發，且手指移動超過門檻（在滑動捲動清單）就不算點擊，避免滑清單時誤按「料理」等按鈕
+     .on('pointerup',(p)=>{ if(_isTouchPtr(p) && !_isTouchDrag(p) && onClick) onClick(); });
   g.bg = { setFillStyle:(c)=>{ if(c!=null)st.fill=c; draw(); return g.bg; }, setStrokeStyle:(wd,c)=>{ if(c!=null)st.stroke=c; draw(); return g.bg; } };
   g.label = t; g._hit = hit;
   return g;
