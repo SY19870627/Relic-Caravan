@@ -54,27 +54,44 @@
   #rotateHint button.primary{border-color:#e7c14a;color:#1a1424;background:#e7c14a;font-weight:700}
   @keyframes rc-rot{0%,25%{transform:rotate(0)}55%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
   @media (orientation:portrait) and (pointer:coarse){ body:not(.hint-dismissed) #rotateHint{display:flex} }
-  /* 關於／開發者資訊：桌機放在標題列，手機與全螢幕改用右下角（全螢幕鈕上方）的小按鈕，都落在畫面外的黑邊 */
-  p.sub .about-link{margin-left:10px;padding:0;border:0;background:none;color:#a99bc4;font:inherit;text-decoration:underline;cursor:pointer}
-  p.sub .about-link:hover{color:#e7c14a}
-  #aboutBtn{position:fixed;z-index:20;right:calc(8px + env(safe-area-inset-right));bottom:calc(56px + env(safe-area-inset-bottom));
-    width:40px;height:40px;display:none;place-items:center;border:1px solid #3a3150;border-radius:10px;
+  /* 關於／開發者資訊：桌機放在標題列（與說明文字分開），手機與全螢幕改用右下角（全螢幕鈕上方）的小按鈕，都落在畫面外的黑邊。
+     視窗沿用遊戲 panel()／sceneHeader() 的樣式：深靛面板、金色粗邊＋左側色條、內外光暈、標題兩側「•——」裝飾 */
+  p.sub .about-link{margin-left:14px;padding:2px 10px;border:1px solid rgba(242,193,78,.45);border-radius:9px;background:rgba(242,193,78,.08);
+    color:#f2c14e;font:inherit;font-size:13px;line-height:1.4;letter-spacing:1px;cursor:pointer;vertical-align:baseline}
+  p.sub .about-link:hover,p.sub .about-link:focus-visible{color:#ffd978;border-color:#f2c14e;background:rgba(242,193,78,.16);outline:none}
+  #aboutBtn{position:fixed;z-index:20;right:calc(6px + env(safe-area-inset-right));bottom:calc(56px + env(safe-area-inset-bottom));
+    width:44px;height:44px;display:none;place-items:center;border:1px solid #3a3150;border-radius:10px;
     background:rgba(20,15,30,.72);color:#e7c14a;cursor:pointer;opacity:.7;padding:0;font:700 18px/1 Georgia,serif;touch-action:manipulation}
   #aboutBtn:hover{opacity:1}
   @media (max-height:700px),(max-width:820px),(pointer:coarse){ #aboutBtn{display:grid} }
   :fullscreen #aboutBtn{display:grid}
-  #aboutDlg{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:16px;
-    background:rgba(14,10,20,.82);user-select:text;-webkit-user-select:text}
+  #aboutDlg{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;box-sizing:border-box;
+    padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    background:rgba(7,6,15,.78);user-select:text;-webkit-user-select:text}
   #aboutDlg.open{display:flex}
-  #aboutDlg .card{position:relative;width:min(340px,100%);max-height:100%;overflow:auto;box-sizing:border-box;padding:20px 22px 18px;
-    border:1px solid #3a3150;border-radius:12px;background:#1a1424;box-shadow:0 8px 30px rgba(0,0,0,.6);text-align:left;font-size:14px;line-height:1.7}
-  #aboutDlg h2{margin:0 0 10px;font-size:16px;letter-spacing:2px;color:#e7c14a;text-align:center}
-  #aboutDlg dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px}
-  #aboutDlg dt{color:#8a7f9a}
-  #aboutDlg dd{margin:0;word-break:break-all}
-  #aboutDlg a{color:#e7c14a}
-  #aboutClose{position:absolute;top:6px;right:6px;width:32px;height:32px;border:0;background:none;color:#8a7f9a;font-size:20px;cursor:pointer;touch-action:manipulation}
-  #aboutClose:hover{color:#e7c14a}
+  #aboutDlg .card{position:relative;width:min(320px,100%);max-height:100%;overflow:auto;box-sizing:border-box;padding:14px 18px 14px 23px;
+    border:2px solid rgba(242,193,78,.85);border-left-width:6px;border-radius:14px;
+    background:linear-gradient(rgba(36,30,68,.55),rgba(36,30,68,.55)) top/100% 64px no-repeat,#1b1736;
+    box-shadow:0 7px 0 2px rgba(0,0,0,.42),0 0 22px rgba(242,193,78,.22),inset 0 0 18px rgba(242,193,78,.08),inset 0 1px 0 rgba(255,255,255,.05);
+    color:#ece6d6;text-align:left;font-size:14px;line-height:1.5}
+  #aboutDlg h2{margin:0 34px 12px;white-space:nowrap;padding:8px 0 12px;border-bottom:1px solid rgba(242,193,78,.25);
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    font-size:16px;font-weight:700;letter-spacing:1px;color:#f2c14e;text-shadow:0 0 2px #07060f,0 2px 4px #000}
+  #aboutDlg h2::before,#aboutDlg h2::after{content:"";flex:0 0 18px;height:2px;background:rgba(242,193,78,.7)}
+  #aboutDlg h2 .dot{flex:0 0 6px;height:6px;border-radius:50%;background:rgba(242,193,78,.9);order:1}
+  #aboutDlg h2 .dot:first-child{order:-1}
+  #aboutDlg dl{margin:0;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
+  #aboutDlg dt{color:#b8b0c8;font-size:13px;text-align:right}
+  #aboutDlg dd{margin:0;min-width:0}
+  #aboutDlg dd.name{font-weight:700;color:#ece6d6;font-size:15px;padding:4px 0}
+  #aboutDlg a{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px;box-sizing:border-box;padding:0 12px;
+    border:1.5px solid #423a72;border-radius:10px;background:#2a2350;color:#f2c14e;text-decoration:none;font-size:14px;white-space:nowrap;touch-action:manipulation}
+  #aboutDlg a .ext{flex:0 0 auto;color:#9b93b8;font-size:13px}
+  #aboutDlg a:hover,#aboutDlg a:focus-visible{background:#372d66;border-color:#f2c14e;outline:none}
+  #aboutDlg a:hover .ext{color:#f2c14e}
+  #aboutDlg .ver{margin:12px 0 0;text-align:center;color:#9b93b8;font-size:12px;letter-spacing:1px}
+  #aboutClose{position:absolute;top:2px;right:2px;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:none;color:#9b93b8;font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation}
+  #aboutClose:hover,#aboutClose:focus-visible{color:#f2c14e;outline:none}
 </style>
 </head>
 <body>
@@ -90,12 +107,13 @@
   <div id="aboutDlg" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <div class="card">
       <button id="aboutClose" type="button" aria-label="關閉">✕</button>
-      <h2 id="aboutTitle">關於 遺物商隊</h2>
+      <h2 id="aboutTitle"><span class="dot" aria-hidden="true"></span>關於 遺物商隊<span class="dot" aria-hidden="true"></span></h2>
       <dl>
-        <dt>開發者</dt><dd>SY</dd>
-        <dt>GitHub</dt><dd><a href="https://github.com/SY19870627" target="_blank" rel="noopener noreferrer">github.com/SY19870627</a></dd>
-        <dt>推特</dt><dd><a href="https://x.com/nelsonyehfon" target="_blank" rel="noopener noreferrer">x.com/nelsonyehfon</a></dd>
+        <dt>開發者</dt><dd class="name">SY</dd>
+        <dt>GitHub</dt><dd><a href="https://github.com/SY19870627" target="_blank" rel="noopener noreferrer">github.com/SY19870627<span class="ext" aria-hidden="true">↗</span></a></dd>
+        <dt>X</dt><dd><a href="https://x.com/nelsonyehfon" target="_blank" rel="noopener noreferrer">x.com/nelsonyehfon<span class="ext" aria-hidden="true">↗</span></a></dd>
       </dl>
+      <p class="ver" id="aboutVer"></p>
     </div>
   </div>
   <div id="rotateHint" role="dialog" aria-label="建議橫向遊玩">
@@ -109,7 +127,7 @@
   <!-- 多檔架構：依相依順序以傳統 script 載入（仍可 file:// 直接開啟）。
        v2.4：統一版本號 APP_VER —— 改版只要把下面這一個數字 +1，所有檔案的快取一起失效。 -->
   <script>
-    const APP_VER = 149;
+    const APP_VER = 150;
     [
       'js/config.js',                 // 平衡設定：所有可調數值集中於此
       'js/data.js',                   // 純資料：調色盤、精靈、裝備、職業、技能
