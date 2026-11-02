@@ -6,7 +6,7 @@ class Result extends Phaser.Scene {
     const o=data.outcome;
     let title,acc,note,keep;
     if(o==='clear'){ title='完整通關！'; acc='gold'; note='擊敗守護者，僅將遺物帶回公會'; keep=true; }
-    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，僅將已取得遺物帶回公會'; keep=true; }
+    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，平安回公會：獲得聲望與職業點數（遺物只有打倒守護者才會掉落）'; keep=true; }
     else { const _l3=(typeof leaderTier==='function'&&leaderTier()>=3);   // v5.5.1 傳奇領隊斷後：保的是「歷練與名聲」（職業點數＋聲望），不是實體戰利品
       title=_l3?'全員倒下・領隊斷後':'全員倒下'; acc='red';
       note=_l3?'貨車留在了地城深處……但領隊護送眾人歸來——歷練與名聲不失':'傳送卷軸啟動 — 平安歸來，但本趟收穫全失';
@@ -72,7 +72,7 @@ class Result extends Phaser.Scene {
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
     const heroes=RUN.heroes||[];
     const awards=(typeof classPointAwards==='function')?classPointAwards():[];
-    const pTitle=(outcome==='retreat'?'撤退收工':'凱旋歸來')+'　·　隊伍狀態、遺物與職業點數';
+    const pTitle=(outcome==='retreat'?'撤退收工　·　隊伍狀態與職業點數':'凱旋歸來　·　隊伍狀態、遺物與職業點數');
     const pnl=panel(this,W/2,308,760,316,{accent:acc||'gold',title:pTitle,icon:'star',titleSize:15});
     txt(this,W/2,pnl.bodyTop+6,'隊員血量',12,UI.dim);
     const n=Math.max(1,heroes.length), cw=Math.min(150,Math.floor(700/n)), x0=W/2-(n*cw)/2+cw/2, y=pnl.bodyTop+44;
@@ -86,7 +86,7 @@ class Result extends Phaser.Scene {
     if(relics.length){
       txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏後每趟永久生效',13,UI.violet);
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
-    } else txt(this,W/2,ry+8,'本趟未帶回遺物',12,UI.faint);
+    } else txt(this,W/2,ry+8,outcome==='retreat'?'撤退不會帶回遺物——遺物只有打倒守護者才會掉落':'本趟未帶回遺物',12,UI.faint);
     const py=ry+62;
     if(awards.length){
       txt(this,W/2,py,'職業點數 +' + awards.reduce((a,b)=>a+b.points,0) + '　' + awards.map(a=>a.name+' +'+a.points).join('　'),12,UI.gold).setWordWrapWidth(700);
