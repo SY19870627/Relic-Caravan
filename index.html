@@ -96,6 +96,8 @@
     #aboutDlg .card{width:min(700px,100%)}
     #aboutDlg dl{grid-template-columns:auto 1fr auto 1fr}
     #aboutDlg dd.name{grid-column:2 / -1}
+    /* 連結數為奇數時，最後一個連結延伸到列尾，不留半列空格 */
+    #aboutDlg dd:nth-of-type(even):last-of-type{grid-column:span 3}
   }
   #aboutClose{position:absolute;top:2px;right:2px;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:none;color:#9b93b8;font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation}
   #aboutClose:hover,#aboutClose:focus-visible{color:#f2c14e;outline:none}
@@ -118,7 +120,6 @@
       <dl>
         <dt>開發者</dt><dd class="name">SY</dd>
         <dt>GitHub</dt><dd><a href="https://github.com/SY19870627" target="_blank" rel="noopener noreferrer"><span class="t">github.com/SY19870627</span><span class="ext" aria-hidden="true">↗</span></a></dd>
-        <dt>X</dt><dd><a href="https://x.com/nelsonyehfon" target="_blank" rel="noopener noreferrer"><span class="t">x.com/nelsonyehfon</span><span class="ext" aria-hidden="true">↗</span></a></dd>
         <dt>Threads</dt><dd><a href="https://www.threads.com/@ye.c.feng" target="_blank" rel="noopener noreferrer"><span class="t">threads.com/@ye.c.feng</span><span class="ext" aria-hidden="true">↗</span></a></dd>
         <dt>方格子</dt><dd><a href="https://vocus.cc/user/@SY19870627" target="_blank" rel="noopener noreferrer"><span class="t">vocus.cc/user/@SY19870627</span><span class="ext" aria-hidden="true">↗</span></a></dd>
       </dl>
