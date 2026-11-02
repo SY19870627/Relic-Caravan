@@ -4,6 +4,7 @@ class WorldMap extends Phaser.Scene {
   constructor(){ super('WorldMap'); }
   create(){
     const W=this.scale.width,H=this.scale.height;
+    this._tutNear=null;
     const w=Phaser.Math.Clamp(WORLDMAP_VIEW,0,WORLD_COUNT-1); WORLDMAP_VIEW=w;
     const wt=worldTheme(w), meta=WORLD_META[w]||{name:'世界 '+(w+1),sub:'',accent:wt.accent};
     sceneBg(this,{top:wt.top, bottom:wt.bottom, glow:wt.glow});
@@ -57,7 +58,8 @@ class WorldMap extends Phaser.Scene {
         }
       }
       if(ok){
-        button(this, L+ww-90, cy, 150, 44, '前 往', ()=>this.go(di), {variant:'go', size:16, icon:'play', iconSize:15});
+        const gb=button(this, L+ww-90, cy, 150, 44, '前 往', ()=>this.go(di), {variant:'go', size:16, icon:'play', iconSize:15});
+        if(di===0) this._tutNear=gb;   // 新手教學：高亮「近郊遺跡 → 前往」
       } else {
         const cc=chip(this, 0, cy, {label:'需聲望 '+d.repReq, accent:'red', size:13, h:30, filled:true, textColor:UI.white}); cc.setX(L+ww-90-cc.w/2);
       }

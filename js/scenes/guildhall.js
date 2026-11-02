@@ -23,7 +23,7 @@ class GuildHall extends Phaser.Scene {
     if(this._rdet) this._rdet.forEach(o=>o.destroy());
     this._ui=[]; this._rdet=[]; const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
 
-    add(button(this, 68, 20, 112, 26, '重置存檔', ()=>{ resetSave(); initRun(); this.render(); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));
+    add(button(this, 68, 20, 112, 26, '重置存檔', ()=>{ resetSave(); initRun(); this.scene.restart(); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));   // 重開場景：教學旗標一併清空，大廳引導重新播放
     add(button(this, W-76, 20, 128, 26, '作弊：+資源', ()=>{
       addRep(20); const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
       if(left.length) GUILD.relics.push(Phaser.Utils.Array.GetRandom(left).id);
@@ -78,9 +78,12 @@ class GuildHall extends Phaser.Scene {
       {x:x4(2), y:row2, accent:'blue', icon:'bag', title:'圖鑑', desc:'武器／防具／道具', s:'WarehouseHall'},
       {x:x4(3), y:row2, accent:'teal', icon:'target', title:'模擬實驗室', desc:'無後果試招', s:'SimLab'},
     ];
-    cards.forEach(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
+    const navs=cards.map(c=> add(navCard(this, c.x, c.y, cw, ch, {accent:c.accent, icon:c.icon, title:c.title, desc:c.desc, onClick:c.onClick||(()=>this.scene.start(c.s))})));
 
-    add(button(this, W/2, 510, 330, 46, '前往整備出發', ()=>this.scene.start('Outfit'), {variant:'go', size:18, icon:'play', iconSize:18}));
+    const go=add(button(this, W/2, 510, 330, 46, '前往整備出發', ()=>this.scene.start('Outfit'), {variant:'go', size:18, icon:'play', iconSize:18}));
+    // 新手教學的高亮目標（tutorial.js 讀取）：遺物區只框標題＋遺物格，下方留空間放說明框
+    const pTop=P.y-P.h/2;
+    this._tutRef={ go, rep:chips[0], recruit:navs[0], relic:{x:P.left, y:pTop, w:P.w, h:slotY+sz/2+22-pTop} };
   }
   relicSlot(x,y,sz,r){
     const got=relicCollected(r.id), on=got && wagonLoadedRelics().indexOf(r.id)>=0;

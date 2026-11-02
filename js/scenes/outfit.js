@@ -27,7 +27,7 @@ class Outfit extends Phaser.Scene {
     let cw2=c1.w+c3.w+12, sx=W/2-cw2/2; c1.setX(sx); c3.setX(sx+c1.w+12);
     txt(this, W/2, p.bodyTop+40, '在「商隊工坊」可換馬與項目強化', 10.5, UI.dim);
 
-    button(this, W/2, 484, 300, 46, '出 發 探 險', ()=>this.depart(), {variant:'go', size:18, icon:'play', iconSize:18});
+    this._tutGo=button(this, W/2, 484, 300, 46, '出 發 探 險', ()=>this.depart(), {variant:'go', size:18, icon:'play', iconSize:18});   // 新手教學高亮目標
   }
   heroCard(h,x,y,w,hh){
     const s=heroStat(h), i=h.idx, top=y-hh/2, L=x-w/2;
