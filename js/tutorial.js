@@ -71,7 +71,7 @@ const Tutorial = {
         {targets:()=>[R.relic], title:'只有遺物會帶回公會',
          text:'探險撿到的裝備、道具、貴重物品，都不會帶回公會。\n打倒地城盡頭的守護者會掉遺物，平安回來就收進這裡。\n貨車滿了就裝不下遺物，記得留一格；全員倒下的話，這趟收穫全失。'},
         {targets:()=>[this.rChip(R.rep), this.rBtn(R.recruit)], title:'聲望與招募所',
-         text:'平安回來會拿到聲望 ⭐（平安回來 +'+(re.perReturn||0)+'，每件新遺物再 +'+(re.perRelic||0)+'）。\n聲望累積夠了，世界地圖會開放更遠的地城，花掉也不會再鎖回去。\n到「招募所」花聲望，可以多帶一名隊員。'},
+         text:'平安回來會拿到聲望 ⭐（平安回來 +'+(re.perReturn||0)+'，每件新遺物再 +'+(re.perRelic||0)+'）。\n世界地圖上更遠的地城，要「累計拿到」的聲望夠多才會開放；之後就算把聲望花掉，已開放的地城也不會再鎖回去。\n到「招募所」花聲望，可以多帶一名隊員。'},
         {targets:()=>[this.rBtn(R.go)], pass:true, title:'準備出發', last:'知道了',
          text:'其他功能第一次打開時，會跳一句簡短說明。\n想重看教學，到「關於」（手機在右下角的 i）按「重看教學」。'},
       ]);
@@ -111,7 +111,9 @@ const Tutorial = {
     if(sc._tutOn) return;
     const marker={destroy(){}};
     sc.paused=true; sc.tweens.pauseAll(); sc.time.paused=true; sc.infoUI=marker;
-    const resume=()=>{ if(sc.infoUI!==marker) return; sc.infoUI=null;
+    // 「遭遇敵人！」等橫幅會從暗幕下透出、卡在說明框邊緣，說明期間先藏起來
+    const bn=sc.banner, bnVis=!!(bn && bn.visible); if(bn) bn.setVisible(false);
+    const resume=()=>{ if(bn && bn.active) bn.setVisible(bnVis); if(sc.infoUI!==marker) return; sc.infoUI=null;
       if(!sc._menuPaused){ sc.paused=false; sc.tweens.resumeAll(); sc.time.paused=false; } };
     const pb=sc._pctBox||{x:18,y:16,w:650,h:12};
     this.tour(sc,'battle',[
@@ -132,6 +134,8 @@ const Tutorial = {
   rBtn(b){ if(!b||!b._hit) return null; const w=b._hit.width, h=b._hit.height; return {x:b.x-w/2, y:b.y-h/2, w, h}; },
   rChip(c){ if(!c) return null; return {x:c.x, y:c.y-c.h/2, w:c.w, h:c.h}; },
   _minHit(scene){ const ds=scene.scale.displayScale; const k=(ds&&ds.y)||1; return Math.min(72, Math.max(38, Math.ceil(44*k))); },   // 手機上至少約 44 CSS px
+  // 說明框放大倍率：畫面縮得越小放得越大，讓內文至少約 13 CSS px（桌機 =1，外觀不變）
+  _uiScale(scene){ const ds=scene.scale.displayScale; const k=(ds&&ds.y)||1; return Math.max(1, Math.min(1.6, k*13/14)); },
   // 中文逐字斷行（Phaser 內建換行只認空白）；避免標點落在行首
   _wrap(str,size,maxW){
     const c=this._ctx||(this._ctx=document.createElement('canvas').getContext('2d'));
@@ -153,14 +157,14 @@ const Tutorial = {
       cands.push({x:h.x+h.w+G, y:clampY(h.y+h.h/2-bh/2)}); cands.push({x:h.x-G-bw, y:clampY(h.y+h.h/2-bh/2)}); });
     cands.push({x:(W-bw)/2, y:(H-bh)/2});
     const hit=(c,h)=> c.x<h.x+h.w && c.x+bw>h.x && c.y<h.y+h.h && c.y+bh>h.y;
-    for(const c of cands){ if(c.x<M-0.5||c.y<M-0.5||c.x+bw>W-M+0.5||c.y+bh>H-M+0.5) continue; if(holes.some(h=>hit(c,h))) continue; return c; }
-    return {x:(W-bw)/2, y:clampY(u.b+G)};
+    for(const c of cands){ if(c.x<M-0.5||c.y<M-0.5||c.x+bw>W-M+0.5||c.y+bh>H-M+0.5) continue; if(holes.some(h=>hit(c,h))) continue; c.ok=true; return c; }
+    return {x:(W-bw)/2, y:clampY(u.b+G), ok:false};
   },
   // 教學用按鈕：沿用 ui.js 的 button() 外觀，另加一層夠大的觸控區（手機 ≥ 約 44px）
-  _btn(scene, x, y, w, label, cb, opt, hitH){
-    const b=button(scene, x, y, w, 38, label, null, opt);
+  _btn(scene, x, y, w, h, label, cb, opt, hitH){
+    const b=button(scene, x, y, w, h, label, null, opt);
     b._hit.disableInteractive();
-    const z=scene.add.zone(0, 0, w+8, Math.max(38, hitH)).setInteractive({useHandCursor:true}); b.add(z);
+    const z=scene.add.zone(0, 0, w+8, Math.max(h, hitH)).setInteractive({useHandCursor:true}); b.add(z);
     let down=false;
     z.on('pointerover',()=>b._hit.emit('pointerover')).on('pointerout',()=>{ down=false; b._hit.emit('pointerout'); });
     z.on('pointerdown',p=>{ down=true; scene.tweens.add({targets:b,scaleX:0.96,scaleY:0.96,duration:55,yoyo:true}); if(!_isTouchPtr(p)) cb(); });
@@ -168,26 +172,29 @@ const Tutorial = {
     return b;
   },
   // 說明框（ui.js panel 樣式＋左側色條）：回傳尚未定位的 builder
+  // o.full：框寬撐到畫面寬（擺不下時改用較矮的寬框）
   _box(scene, o){
-    const bw=o.w||470, pad=16, ac=accent(o.accent||'gold'), hitH=this._minHit(scene);
-    const hasBtn=!!(o.buttons&&o.buttons.length), rowH=hasBtn? Math.max(40, hitH) : 0;
-    const title=txt(scene, 0, 0, o.title||'', 17, ac.hex, 0, 0);
-    const body=txt(scene, 0, 0, this._wrap(o.text||'', 14, bw-pad*2-12), 14, UI.text, 0, 0).setLineSpacing(5);
-    const foot=o.foot? txt(scene, 0, 0, o.foot, 11, UI.faint, 0.5, 0) : null;
-    const bh=Math.round(pad+title.height+8+body.height+(foot?10+foot.height:0)+(hasBtn?12+rowH:0)+pad-2);
-    return { bw, bh, build:(x,y,depth)=>{
+    const s=this._uiScale(scene), W=scene.scale.width, R=v=>Math.round(v*s);
+    const bw=o.full? W-16 : Math.min(W-16, R(o.w||470)), pad=Math.round(16*Math.min(s,1.25)), ac=accent(o.accent||'gold'), hitH=this._minHit(scene);
+    const btnH=R(38), hasBtn=!!(o.buttons&&o.buttons.length), rowH=hasBtn? Math.max(40, btnH+2, hitH) : 0;
+    const fs=R(14), title=txt(scene, 0, 0, o.title||'', R(17), ac.hex, 0, 0);
+    const body=txt(scene, 0, 0, this._wrap(o.text||'', fs, bw-pad*2-12), fs, UI.text, 0, 0).setLineSpacing(R(5));
+    const small=s>1? R(12) : 11;   // 頁碼／頁尾小字：手機上也要看得清楚
+    const foot=o.foot? txt(scene, 0, 0, o.foot, small, UI.faint, 0.5, 0) : null;
+    const bh=Math.round(pad+title.height+R(8)+body.height+(foot?R(10)+foot.height:0)+(hasBtn?R(12)+rowH:0)+pad-2);
+    return { bw, bh, discard:()=>{ title.destroy(); body.destroy(); if(foot) foot.destroy(); }, build:(x,y,depth)=>{
       const c=scene.add.container(x+bw/2, y+bh/2).setDepth(depth);
       c.add(panel(scene, 0, 0, bw, bh, {accent:o.accent||'gold'}));
       const bar=scene.add.graphics(); bar.fillStyle(ac.num,1); bar.fillRoundedRect(-bw/2,-bh/2,5,bh,{tl:14,bl:14,tr:0,br:0}); c.add(bar);
       const left=-bw/2+pad+6; let yy=-bh/2+pad;
       title.setPosition(left, yy); c.add(title);
-      if(o.step) c.add(txt(scene, bw/2-pad, yy+3, o.step, 11, UI.faint, 1, 0));
-      yy+=title.height+8; body.setPosition(left, yy); c.add(body); yy+=body.height;
-      if(foot){ yy+=10; foot.setPosition(0, yy); c.add(foot); yy+=foot.height; }
+      if(o.step) c.add(txt(scene, bw/2-pad, yy+3, o.step, small, UI.faint, 1, 0));
+      yy+=title.height+R(8); body.setPosition(left, yy); c.add(body); yy+=body.height;
+      if(foot){ yy+=R(10); foot.setPosition(0, yy); c.add(foot); yy+=foot.height; }
       if(hasBtn){ const by=bh/2-pad+2-rowH/2;
-        const btns=o.buttons, bwid=136, gap=12; let bx=bw/2-pad-bwid/2;
-        for(let i=btns.length-1;i>=0;i--){ const d=btns[i];
-          c.add(this._btn(scene, d.alignLeft? (-bw/2+pad+6+bwid/2) : bx, by, bwid, d.label, d.cb, d.opt||{}, hitH));
+        const btns=o.buttons, bwid=R(136), gap=12; let bx=bw/2-pad-bwid/2;
+        for(let i=btns.length-1;i>=0;i--){ const d=btns[i], bo=Object.assign({}, d.opt||{}); bo.size=R(bo.size||15);
+          c.add(this._btn(scene, d.alignLeft? (-bw/2+pad+6+bwid/2) : bx, by, bwid, btnH, d.label, d.cb, bo, hitH));
           if(!d.alignLeft) bx-=bwid+gap; } }
       return c; } };
   },
@@ -222,8 +229,11 @@ const Tutorial = {
       const last=i>=steps.length-1, buttons=[];
       if(!s.noSkip && !(last && steps.length>1)) buttons.push({label:'略過教學', alignLeft:true, cb:()=>end(true), opt:{size:13, fill:UI.lineSoftN, stroke:UI.lineN, color:UI.dim}});
       buttons.push({label:last?(s.last||'知道了'):'下一步', cb:()=>{ if(last) end(false); else { i++; show(); } }, opt:{variant:'go', size:14}});
-      const box=this._box(scene, {title:s.title, text:s.text, accent:s.accent, buttons, step:steps.length>1?((i+1)+' / '+steps.length):''});
-      const pos=this._place(holes, box.bw, box.bh, W, H);
+      const bo={title:s.title, text:s.text, accent:s.accent, buttons, step:steps.length>1?((i+1)+' / '+steps.length):''};
+      let box=this._box(scene, bo), pos=this._place(holes, box.bw, box.bh, W, H);
+      // 一般寬度擺不進高亮區旁邊（手機字放大後常見）→ 改用撐滿畫面寬、行數較少的框再試一次
+      if(!pos.ok){ const b2=this._box(scene, Object.assign({full:true}, bo)), p2=this._place(holes, b2.bw, b2.bh, W, H);
+        if(p2.ok){ box.discard(); box=b2; pos=p2; } else b2.discard(); }
       layer.push(box.build(pos.x, pos.y, 203));
     };
     show();
