@@ -87,7 +87,8 @@ function loadGuild(){ try{
   }
 }catch(e){} }
 function resetSave(){ try{ ['relicCaravanSave_v4','relicCaravanSave_v3','relicCaravanSave_v2','relicCaravanSave_v1'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
-  GUILD=defaultGuild(); ROSTER=defaultRoster(); ensureRoster(); }
+  GUILD=defaultGuild(); ROSTER=defaultRoster(); ensureRoster();
+  if(typeof Tutorial!=='undefined') Tutorial.reset(); }   // 新手教學旗標一併清空（重新開始＝重新教學）
 loadGuild(); ensureRoster();
 
 // ---- 素材 / 食材 資源存取（名稱→數量）----
