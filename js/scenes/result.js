@@ -6,7 +6,7 @@ class Result extends Phaser.Scene {
     const o=data.outcome;
     let title,acc,note,keep;
     if(o==='clear'){ title='完整通關！'; acc='gold'; note='擊敗守護者，僅將遺物帶回公會'; keep=true; }
-    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，平安回公會：獲得聲望與職業點數（遺物只有打倒守護者才會掉落）'; keep=true; }
+    else if(o==='retreat'){ title='撤退收工'; acc='teal'; note='見好就收，平安回公會：獲得聲望與職業點數'; keep=true; }
     else { const _l3=(typeof leaderTier==='function'&&leaderTier()>=3);   // v5.5.1 傳奇領隊斷後：保的是「歷練與名聲」（職業點數＋聲望），不是實體戰利品
       title=_l3?'全員倒下・領隊斷後':'全員倒下'; acc='red';
       note=_l3?'貨車留在了地城深處……但領隊護送眾人歸來——歷練與名聲不失':'傳送卷軸啟動 — 平安歸來，但本趟收穫全失';
