@@ -86,6 +86,8 @@ function loadGuild(){ try{
     }
   }
 }catch(e){} }
+// 開發者模式：網址帶 ?dev=1 才顯示作弊按鈕
+function devMode(){ try{ return new URLSearchParams(location.search).get('dev')==='1'; }catch(e){ return false; } }
 function resetSave(){ try{ ['relicCaravanSave_v4','relicCaravanSave_v3','relicCaravanSave_v2','relicCaravanSave_v1'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
   GUILD=defaultGuild(); ROSTER=defaultRoster(); ensureRoster();
   if(typeof Tutorial!=='undefined') Tutorial.reset(); }   // 新手教學旗標一併清空（重新開始＝重新教學）

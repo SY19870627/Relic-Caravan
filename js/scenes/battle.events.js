@@ -357,7 +357,7 @@ Object.assign(Battle.prototype, {
   _renderShop(){ const W=this.scale.width,H=this.scale.height, goods=this._shopGoods||[];
     const o=this.mkOverlay({accent:'gold', w:640, h:476});
     o.add(txt(this,W/2,H/2-208,this._shopTitle||'🧙 商人',22,TH.gold));
-    o.add(txt(this,W/2,H/2-180,'💰 持有 '+(RUN.gold||0)+'　·　'+(this._shopHint||'點選卡片購買'),12,TH.cyan));
+    o.add(txt(this,W/2,H/2-180,'💰 持有 '+(RUN.gold||0)+'（冒險者的旅費，帶不回公會）　·　'+(this._shopHint||'點選卡片購買'),12,TH.cyan));
     if(!goods.length){
       o.add(txt(this,W/2,H/2-12,'這裡沒有你還缺的款式',15,TH.dim));
       o.add(txt(this,W/2,H/2+16,'（你已擁有所有可購買的裝備）',12,TH.dim));

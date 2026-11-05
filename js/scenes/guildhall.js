@@ -1,6 +1,18 @@
 // ========================= 公會大廳（v0.9 重塑：遺物圖鑑為主角）=========================
 class GuildHall extends Phaser.Scene {
   constructor(){ super('GuildHall'); }
+
+  // 重置存檔確認：避免誤按清空進度
+  confirmReset(){
+    if(this._resetUI) return;
+    const W=this.scale.width, H=this.scale.height, c=this.add.container(0,0).setDepth(300); this._resetUI=c;
+    const close=()=>{ c.destroy(); this._resetUI=null; };
+    c.add(this.add.rectangle(W/2,H/2,W,H,0x000000,0.6).setInteractive());
+    c.add(panel(this, W/2, H/2, 420, 190, {accent:'red', title:'重置存檔？'}));
+    c.add(txt(this, W/2, H/2-14, '公會、隊員、遺物與聲望會全部清空，無法復原。', 13, UI.text));
+    c.add(button(this, W/2-90, H/2+48, 150, 36, '確定重置', ()=>{ close(); resetSave(); initRun(); this.scene.restart(); }, {variant:'danger', size:13}));
+    c.add(button(this, W/2+90, H/2+48, 150, 36, '取消', close, {variant:'info', size:13}));
+  }
   create(){
     sceneBg(this,{glow:0xb98bff, glowX:this.scale.width/2});
     sceneHeader(this,'公會大廳','',{accent:'gold'});
@@ -23,8 +35,8 @@ class GuildHall extends Phaser.Scene {
     if(this._rdet) this._rdet.forEach(o=>o.destroy());
     this._ui=[]; this._rdet=[]; const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
 
-    add(button(this, 68, 20, 112, 26, '重置存檔', ()=>{ resetSave(); initRun(); this.scene.restart(); }, {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));   // 重開場景：教學旗標一併清空，大廳引導重新播放
-    add(button(this, W-76, 20, 128, 26, '作弊：+資源', ()=>{
+    add(button(this, 68, 20, 112, 26, '重置存檔', ()=>this.confirmReset(), {size:11, fill:UI.lineSoftN, stroke:0x6b4a4a, color:UI.dim, icon:'refresh', iconSize:12, radius:8}));   // 重開場景：教學旗標一併清空，大廳引導重新播放
+    if(devMode()) add(button(this, W-76, 20, 128, 26, '作弊：+資源', ()=>{
       addRep(20); const left=RELIC_CATALOG.filter(r=>!GUILD.relics.includes(r.id));
       if(left.length) GUILD.relics.push(Phaser.Utils.Array.GetRandom(left).id);
       const w=Phaser.Utils.Array.GetRandom(WEAPONS); ownGear(w.name);
