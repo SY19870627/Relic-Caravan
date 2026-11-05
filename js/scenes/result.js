@@ -69,13 +69,19 @@ class Result extends Phaser.Scene {
     },{variant:'go',size:17,icon:'home',iconSize:16});
   }
   // 完整通關／撤退精簡結算：角色血量 + 獲得遺物 + 職業點數（裝備/道具不帶回）
+  // v157：面板→委託勾選→摘要→按鈕改由上往下堆疊，避開矮視窗裡委託列蓋住職業點數的重疊
   renderClear(outcome, acc){
     const W=this.scale.width,H=this.scale.height;
     const relics=RUN.cargo.filter(i=>i.kind==='遺物');
     const heroes=RUN.heroes||[];
     const awards=(typeof classPointAwards==='function')?classPointAwards():[];
     const pTitle=(outcome==='retreat'?'撤退收工　·　隊伍狀態與職業點數':'凱旋歸來　·　隊伍狀態、遺物與職業點數');
-    const pnl=panel(this,W/2,308,760,316,{accent:acc||'gold',title:pTitle,icon:'star',titleSize:15});
+    // v1.5 連續遠征／v2.2 同世界：先算底部預留，內容不得侵入按鈕區
+    const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
+    const btnY=H-34, footTop=hasNext? btnY-44 : btnY-18;
+    const panelTop=140, heroBlock=118, relicBlock=relics.length?46:28, awardBlock=awards.length?26:0;
+    const panelH=58+10+heroBlock+relicBlock+awardBlock+12, panelCy=panelTop+panelH/2;
+    const pnl=panel(this,W/2,panelCy,760,panelH,{accent:acc||'gold',title:pTitle,icon:'star',titleSize:15});
     txt(this,W/2,pnl.bodyTop+6,'隊員血量',12,UI.dim);
     const n=Math.max(1,heroes.length), cw=Math.min(150,Math.floor(700/n)), x0=W/2-(n*cw)/2+cw/2, y=pnl.bodyTop+44;
     heroes.forEach((h,i)=>{ const s=heroStat(h), mx=s.maxHp, hp=Math.max(0,Math.round(h.hp||0)), alive=hp>0, cx=x0+i*cw;
@@ -84,33 +90,35 @@ class Result extends Phaser.Scene {
       statBar(this,cx-52,y+60,104,8,hp,mx,{accent:alive?'green':'red'});
       txt(this,cx,y+76,alive?(hp+' / '+mx):'倒下',11, alive?UI.green:UI.red);
     });
-    const ry=pnl.bodyTop+176;
+    const ry=pnl.bodyTop+heroBlock;
     if(relics.length){
       txt(this,W/2,ry,'獲得遺物 ×'+relics.length+'　→ 入收藏後每趟永久生效',13,UI.violet);
       txt(this,W/2,ry+24,relics.map(r=>(r.icon||'')+' '+r.name).join('　'),12,UI.text).setWordWrapWidth(700);
     } else txt(this,W/2,ry+8,outcome==='retreat'?'撤退不會帶回遺物——遺物只有打倒守護者才會掉落':'本趟未帶回遺物',12,UI.faint);
-    const py=ry+62;
+    const py=ry+relicBlock;
     if(awards.length){
       txt(this,W/2,py,'職業點數 +' + awards.reduce((a,b)=>a+b.points,0) + '　' + awards.map(a=>a.name+' +'+a.points).join('　'),12,UI.gold).setWordWrapWidth(700);
     }
-    this._cy=py+30; this._sel=planCommissions(RUN.cargo).idx; this._cUI=[]; this.renderCommissions();
-    // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
-    // v2.2：「繼續深入」僅限同一世界內（第一世界第 4 關不會接到第二世界；跨世界需回地圖用聲望解鎖）
-    const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
+    // 委託列與摘要一律排在面板下方，彼此錯開；必要時上推以免壓到按鈕
+    const panelBottom=panelCy+panelH/2;
+    this._cy=Math.min(panelBottom+22, footTop-50);
+    this._sumY=Math.min(this._cy+28, footTop-16);
+    this._sel=planCommissions(RUN.cargo).idx; this._cUI=[]; this.renderCommissions();
     if(hasNext){
       const nx=DESTINATIONS[di+1];
-      txt(this, W/2, 492, '繼續深入：遺物先送回公會，貨車物品只在本趟續征中保留；最終回會只帶回遺物（階級 '+nx.tier+'）', 11, UI.dim);
-      button(this, W/2-150, 526, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
-      button(this, W/2+150, 526, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
+      txt(this, W/2, footTop, '繼續深入：遺物先送回公會，貨車物品只在本趟續征中保留；最終回會只帶回遺物（階級 '+nx.tier+'）', 11, UI.dim);
+      button(this, W/2-150, btnY, 280, 46, '繼續深入 · '+nx.name, ()=>this.continueToNext(di+1), {variant:'go', size:16, icon:'play', iconSize:16});
+      button(this, W/2+150, btnY, 280, 46, '帶回公會（結束）', ()=>this.bankAndReturn(), {variant:'gold', size:15, icon:'home', iconSize:15});
     } else {
-      button(this,W/2,526,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
+      button(this,W/2,btnY,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
     }
   }
   // v156 結算勾選：玩家自己選要交哪幾張委託（預設勾可交的前 N 張）；沒勾的素材收進倉庫
+  // v157：摘要改跟在勾選列下方（this._sumY），不再跟按鈕同一列互蓋
   renderCommissions(){ const W=this.scale.width, add=o=>{this._cUI.push(o);return o;};
     this._cUI.forEach(o=>o.destroy()); this._cUI=[];
-    const list=ensureCommissions(), cap=commissionCap(), y=this._cy, nMat=RUN.cargo.filter(i=>i.kind==='素材').length;
-    if(!nMat){ add(txt(this,W/2,y,'📜 貨車上沒有素材可交給公會',12,UI.dim)); add(txt(this,W/2,478,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim)); return; }
+    const list=ensureCommissions(), cap=commissionCap(), y=this._cy, sumY=this._sumY||(y+28), nMat=RUN.cargo.filter(i=>i.kind==='素材').length;
+    if(!nMat){ add(txt(this,W/2,y,'📜 貨車上沒有素材可交給公會',12,UI.dim)); add(txt(this,W/2,sumY,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim)); return; }
     const bw=236, x0=W/2-bw-8;
     list.forEach((c,i)=>{ const m=MATERIAL_BY_ID[c.mat]||{icon:'',name:c.mat}, on=this._sel.indexOf(i)>=0, ok=commissionSelectable(RUN.cargo,this._sel,i);
       add(button(this, x0+i*(bw+8), y, bw, 30, (on?'☑ ':'☐ ')+m.icon+m.name+'×'+c.n+'　⭐+'+commissionRep(c), ()=>{
@@ -120,7 +128,7 @@ class Result extends Phaser.Scene {
           this.cFlash(this._sel.length>=cap? ('這趟最多交 '+cap+' 張') : ('素材不夠（貨車上 '+m.name+' '+have+' 份）')); return; }
         this.renderCommissions(); }, {variant:on?'go':(ok?'info':'slate'), size:11, color:(on||ok)?undefined:UI.faint})); });
     const r=planCommissions(RUN.cargo,this._sel), left=Object.values(r.leftover).reduce((a,b)=>a+b,0);
-    add(txt(this,W/2,478,'📜 交件 '+r.done.length+' / '+cap+' 張　⭐+'+r.rep+(left?('　·　其餘素材 '+left+' 份收進倉庫'):'')+'　·　裝備、道具不帶回公會',11.5,r.done.length?'#9fe8a0':UI.dim)); }
+    add(txt(this,W/2,sumY,'📜 交件 '+r.done.length+' / '+cap+' 張　⭐+'+r.rep+(left?('　·　其餘素材 '+left+' 份收進倉庫'):'')+'　·　裝備、道具不帶回公會',11.5,r.done.length?'#9fe8a0':UI.dim)); }
   cFlash(msg){ if(this._cf) this._cf.destroy(); this._cf=txt(this,this.scale.width/2,this._cy-26,msg,13,'#ff8a8a').setDepth(99).setStroke('#000',4);
     this.tweens.add({targets:this._cf, alpha:0, delay:1200, duration:500}); }
   bankAndReturn(){
