@@ -34,6 +34,7 @@ function defaultGuild(){ return {
   owned:{},                      // 已擁有的武器/防具（唯一，不計數量）
   questKills:{}, questStage:{}, titles:{},   // v2.1 任務累計擊殺 / 已領取階數 / 已解鎖稱號（全開生效）
   classPoints:{},   // 職業規劃器：各職業點數上限 {warrior:Number,...}（活著回來累計）
+  commissions:[],  // v156 公會委託板：[{mat,n,rep}]，回公會刷新
   classPlans:{},    // 職業規劃器：各職業配置 {warrior:{slots:[{act,skill},...長度20]}}
 }; }
 let GUILD = defaultGuild();
@@ -80,6 +81,7 @@ function loadGuild(){ try{
     if(GUILD.horse==null||GUILD.horse>=HORSES.length) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
     if(GUILD.repEarned==null) GUILD.repEarned=GUILD.reputation||0;    if(GUILD.formation==null||GUILD.formation>=FORMATIONS.length) GUILD.formation=0;
+    migrateCommissions();   // v156 公會委託（舊存檔補預設、公會旗幟等級對應）
     if(Array.isArray(s.ROSTER)&&s.ROSTER.length>=1){
       ROSTER = s.ROSTER.map(r=>{ const slot=newRosterSlot(!!r.unlocked); slot.tier=(r&&r.tier)||0; return slot; });
       ensureRoster();
@@ -97,7 +99,41 @@ loadGuild(); ensureRoster();
 function addMaterial(name,n){ GUILD.materials[name]=(GUILD.materials[name]||0)+(n||1); }
 function matCount(name){ return GUILD.materials[name]||0; }
 // 素材掉落→立即入庫（持久、不佔貨格、全滅也不失），對應目的地素材
-function gainMaterial(di){ const m=MATERIAL_BY_DEST[di]; if(m){ addMaterial(m.id); saveGuild(); } return m; }
+// v156 公會委託：探險中的素材放上貨車（佔貨格、全滅失去），回公會結算才交件／入庫
+function gainMaterial(di){ const m=MATERIAL_BY_DEST[di]; if(!m) return null;
+  if(typeof RUN!=='undefined' && RUN && Array.isArray(RUN.cargo) && !RUN.sim && !RUN.trial){
+    if(RUN.cargo.length>=RUN.slots) return {icon:m.icon, name:m.name+'（貨車已滿，帶不走）'};
+    const it=makeMaterialItem(di); RUN.cargo.push(it); if(typeof logItem==='function') logItem('gain', it, '素材'); return m; }
+  if(typeof RUN!=='undefined' && RUN && (RUN.sim||RUN.trial)) return null;
+  addMaterial(m.id); saveGuild(); return m; }
+// ---- v156 公會委託板 ----
+function commissionCap(){ return (CFG.commission.capBase||3) + upgradeLv('flag'); }   // 公會旗幟：每級 +1 張
+function commissionRepBonus(){ return Math.floor(upgradeLv('spring')/2); }             // 公會帳簿：每 2 級每張 +1 聲望
+function commissionRep(c){ return (c.rep||0) + commissionRepBonus(); }
+function refreshCommissions(){ const C=CFG.commission, rep=repEarned();
+  const open=DESTINATIONS.map((d,i)=>i).filter(i=>rep>=(DESTINATIONS[i].repReq||0) && MATERIAL_BY_DEST[i]);
+  const pool=open.length?open:[0], out=[];
+  for(let k=0;k<C.boardSize;k++){ const di=pool[Math.floor(Math.random()*pool.length)], m=MATERIAL_BY_DEST[di];
+    const n=C.nMin+Math.floor(Math.random()*(C.nMax-C.nMin+1));
+    out.push({mat:m.id, n, rep:C.repBase+Math.floor((n-C.nMin)/2)+Math.floor(DESTINATIONS[di].tier/2)}); }
+  GUILD.commissions=out; return out; }
+// 依序比對貨車素材與委託，最多交 cap 張；回傳 {done:[委託], rep, leftover:{matId:數量}}
+function ensureCommissions(){ if(!Array.isArray(GUILD.commissions)||!GUILD.commissions.length) refreshCommissions(); return GUILD.commissions; }
+function planCommissions(cargo){ ensureCommissions(); const have={}; (cargo||[]).forEach(it=>{ if(it&&it.kind==='素材') have[it.matId]=(have[it.matId]||0)+1; });
+  const done=[]; let rep=0; const cap=commissionCap();
+  (GUILD.commissions||[]).forEach(c=>{ if(done.length>=cap) return; if((have[c.mat]||0)>=c.n){ have[c.mat]-=c.n; done.push(c); rep+=commissionRep(c); } });
+  return {done, rep, leftover:have}; }
+// 回公會：交件換聲望、剩下的素材入倉庫、刷新委託板
+function settleCommissions(cargo){ const r=planCommissions(cargo);
+  for(const k in r.leftover){ if(r.leftover[k]>0) addMaterial(k, r.leftover[k]); }
+  if(r.rep) addRep(r.rep); refreshCommissions(); return r; }
+// 舊存檔相容：補委託板；公會旗幟上限改為 2 級，超過的等級退還素材
+function migrateCommissions(){ if(!Array.isArray(GUILD.commissions)||!GUILD.commissions.length) refreshCommissions();
+  const max=(UPGRADES.find(u=>u.id==='flag')||{}).maxLv||2, lv=upgradeLv('flag');
+  if(lv>max){ const u=UPGRADES.find(x=>x.id==='flag'), m=u.cost.mats||{};
+    for(let l=max+1;l<=lv;l++) for(const k in m) addMaterial(k, m[k]*l);   // 退還當初實付（舊成本）
+    GUILD.upgrades.flag=max; } }
+function matCostAt(base,lv){ return Math.max(1, Math.ceil(base*lv*(CFG.commission.matCostMul||1))); }
 // 食材：持久公會庫存（像素材），不佔貨格
 function addIngredient(id,n){ GUILD.ingredients[id]=(GUILD.ingredients[id]||0)+(n||1); }
 function ingCount(id){ return GUILD.ingredients[id]||0; }
@@ -206,15 +242,15 @@ function upgradeOwned(id){ return upgradeLv(id)>0; }
 function upgradeMaxed(u){ return upgradeLv(u.id)>=(u.maxLv||1); }
 function upgradeRepCost(u){ return CFG.repCost.upgradeBase + CFG.repCost.upgradePerCraft*(u.craftReq||0) + upgradeLv(u.id); }
 function canBuyUpgrade(u){ if(upgradeMaxed(u)) return false; if(craftsmanTier()<u.craftReq) return false; if(!canSpendRep(upgradeRepCost(u))) return false;
-  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]*nl) return false; } return true; }
+  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<matCostAt(m[k],nl)) return false; } return true; }
 function buyUpgrade(u){ if(!canBuyUpgrade(u)) return false; spendRep(upgradeRepCost(u));
-  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-m[k]*nl; }
+  const nl=upgradeLv(u.id)+1, m=u.cost.mats||{}; for(const k in m){ GUILD.materials[k]=(GUILD.materials[k]||0)-matCostAt(m[k],nl); }
   GUILD.upgrades[u.id]=nl; saveGuild(); return true; }
-function upgradeCostText(u){ const nl=upgradeLv(u.id)+1, parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${m[k]*nl}`); } return parts.join(' '); }
+function upgradeCostText(u){ const nl=upgradeLv(u.id)+1, parts=['⭐'+upgradeRepCost(u)]; const m=u.cost.mats||{}; for(const k in m){ const md=MATERIAL_BY_ID[k]; parts.push(`${md?md.icon:''}${md?md.name:k}×${matCostAt(m[k],nl)}`); } return parts.join(' '); }
 // v9.0 等級化強化效果（集中取值，戰鬥/商店/事件端讀這裡）
 function badEventMul(){ return Math.max(0, 1-0.10*upgradeLv('bell')); }
-function valuableSellMul(){ return 1+0.04*upgradeLv('spring'); }
-function shopPriceMul(){ return 1-0.02*upgradeLv('flag'); }
+function valuableSellMul(){ return 1; }   // v156 彈簧懸吊改為公會帳簿（委託聲望），不再影響賣價
+function shopPriceMul(){ return 1; }   // v156 商隊旗幟改為公會旗幟（交件上限），不再影響商店價
 function spiritIntervalMul(){ return 1-0.03*upgradeLv('gild'); }
 function spiritDmgMul(n){ let m=1+0.06*upgradeLv('holy'); if((n||0)>=2) m*=1+0.03*upgradeLv('reso'); return m; }
 function supplyDurBonus(){ return upgradeLv('arm'); }

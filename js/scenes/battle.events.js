@@ -52,7 +52,7 @@ Object.assign(Battle.prototype, {
     const _wBias=(CFG.loot&&CFG.loot.chestWeaponBias!=null)?CFG.loot.chestWeaponBias:0.55;
     const o=this.mkOverlay({accent:'gold',h:180}); let msg;
     let gainNotice=null;
-    if(_r<_matCh){ const m=gainMaterial(di); gainNotice=resourceGainNotice(m,1); msg = m? ('獲得 '+m.icon+' '+m.name+' ×1（已入庫，供工坊強化）') : '寶箱空空如也'; }
+    if(_r<_matCh){ const m=gainMaterial(di); gainNotice=resourceGainNotice(m,1); msg = m? ('獲得 '+m.icon+' '+m.name+'（放上貨車，回公會可交委託）') : '寶箱空空如也'; }
     else { const it=rollItem(2, Math.random()<_wBias?'武器':'防具');
       if(RUN.cargo.length<RUN.slots){ RUN.cargo.push(it); discover(it.name); if(it.gear) ownGear(it.name); logItem('gain', it, '寶箱'); msg='獲得 '+it.icon+' '+it.name+'（'+it.kind+'）'; }
       else msg='貨車已滿，放棄 '+it.icon+' '+it.name; }

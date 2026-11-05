@@ -19,13 +19,14 @@ class Result extends Phaser.Scene {
     if(!keep){
       const p=panel(this,W/2,300,560,150,{accent:'red',title:'貨車戰利品全失',icon:'skull',titleSize:15});
       txt(this,W/2,p.bodyTop+18,'貨車與身上裝備都留在了地城深處…',15,UI.red);
-      txt(this,W/2,p.bodyTop+44,'本趟不帶回遺物。',12,UI.dim);
+      txt(this,W/2,p.bodyTop+44,'本趟不帶回遺物，貨車上的素材也沒能交給公會。',12,UI.dim);
       if(this._leaderSaved){   // v5.5.1 傳奇領隊：職業點數照常結算＋平安折返聲望
         const awards=(typeof classPointAwards==='function')?classPointAwards():[];
         txt(this,W/2,p.bodyTop+74,'🧭 領隊斷後：職業點數 +'+awards.reduce((a,b)=>a+b.points,0)+'、聲望 ⭐+'+(CFG.repEarn.perReturn||0)+' 保住了',13,'#9fe8a0');
       } else txt(this,W/2,p.bodyTop+74,'全員倒下不獲得職業點數。',13,UI.text);
       button(this,W/2,470,240,46,'回公會大廳',()=>{
         if(this._leaderSaved){ awardClassPoints(); addRep(CFG.repEarn.perReturn||0); saveGuild(); }   // v5.5.1
+        refreshCommissions(); saveGuild();   // v156 全滅：貨車素材全失，委託板照常刷新
         initRun(); this.scene.start('GuildHall'); },{variant:'go',size:17,icon:'home',iconSize:16});
       return;
     }
@@ -59,10 +60,11 @@ class Result extends Phaser.Scene {
       let newRelics=0;
       RUN.cargo.forEach(it=>{
         if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; }   // v4.6：入庫＋品階（高難度重打升級）
-        else if(it.kind==='素材'){ addMaterial(it.matId); }
+        else if(it.kind==='素材'){ /* v156 由 settleCommissions 交件／入庫 */ }
         else if(it.kind==='食材'){ /* 食材為每趟隨身消耗，不帶回公會 */ }
         else { discover(it.name); } });   // 其餘戰利品：本趟已可在地城商店變現為 💰，回會不再入庫
       addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));   // 新遺物＋平安折返 → 賺聲望
+      settleCommissions(RUN.cargo);
       saveGuild(); initRun(); this.scene.start('GuildHall');
     },{variant:'go',size:17,icon:'home',iconSize:16});
   }
@@ -91,6 +93,8 @@ class Result extends Phaser.Scene {
     if(awards.length){
       txt(this,W/2,py,'職業點數 +' + awards.reduce((a,b)=>a+b.points,0) + '　' + awards.map(a=>a.name+' +'+a.points).join('　'),12,UI.gold).setWordWrapWidth(700);
     }
+    const cp=planCommissions(RUN.cargo), nMat=RUN.cargo.filter(i=>i.kind==='素材').length, left=Object.values(cp.leftover).reduce((a,b)=>a+b,0);
+    txt(this,W/2,py+22, nMat? ('📜 公會委託：交件 '+cp.done.length+' / '+commissionCap()+' 張　⭐+'+cp.rep+(left?('　·　其餘素材 '+left+' 份收進倉庫'):'')+'（回公會時結算）') : '📜 貨車上沒有素材可交給公會', 12, cp.done.length?'#9fe8a0':UI.dim).setWordWrapWidth(720);
     txt(this,W/2,478,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim);
     // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
     // v2.2：「繼續深入」僅限同一世界內（第一世界第 4 關不會接到第二世界；跨世界需回地圖用聲望解鎖）
@@ -110,6 +114,7 @@ class Result extends Phaser.Scene {
       if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; }   // v4.6：入庫＋品階
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
+    settleCommissions(RUN.cargo);   // v156 公會委託：交件換聲望、其餘素材入倉庫、刷新委託板
     awardClassPoints();   // 大改版：活著回來 → 依各出戰職業當趟最終等級累加職業點數上限
     saveGuild(); initRun(); this.scene.start('GuildHall');
   }
@@ -121,7 +126,7 @@ class Result extends Phaser.Scene {
       if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; if(typeof logItem==='function') logItem('bank', it, '送回公會'); }   // v4.6：入庫＋品階
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics);   // 續征：先給新遺物聲望；平安折返獎勵留到最終帶回公會時再給
-    RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='素材' && it.kind!=='食材');   // 遺物已送回公會；其他物品只供續征使用
+    RUN.cargo = RUN.cargo.filter(it=> it.kind!=='遺物' && it.kind!=='食材');   // v156 素材留在貨車，最後回公會再交件   // 遺物已送回公會；其他物品只供續征使用
     const nx=DESTINATIONS[nextIndex]||DESTINATIONS[DESTINATIONS.length-1];
     RUN.destIndex=nextIndex; RUN.destTier=nx.tier; RUN.destName=nx.name;   // 推進到更深、更高階的地城
     RUN.wiped=false;

@@ -61,6 +61,7 @@ const CFG = {
   gold: { stipendBase:40, stipendPerParty:20, sellRate:0.7, battleBase:16, battlePerRisk:12 },   // 出發補給金＋一般戰鬥掉金=（battleBase+風險*perRisk）×目的地階級
   autoSip: { hpFrac:0.30, cooldownMs:2500 },   // 戰鬥中最低血隊員 < hpFrac 時自動喝最弱的補血藥水（冷卻 cooldownMs）
   repCost: { partySlot:[3,5,8,12], craftsman:[2,4,6], leader:3, leaderTiers:[3,5,8], upgradeBase:2, upgradePerCraft:2 },   // v5.2 領隊三級聘僱/升級費
+  commission: { boardSize:3, capBase:3, nMin:2, nMax:4, repBase:1, matCostMul:0.75 },   // v156 公會委託：板上 3 張、每趟最多交 3 張、每張 2–4 份、工坊素材成本 ×0.75
   repEarn: { perRelic:3, perReturn:1 },   // 帶回新遺物 +3、平安折返 +1
 
   // ===== v4.0 職業階級制（見習/正式/精銳/菁英/大師）=====

@@ -57,7 +57,7 @@ class WagonHall extends Phaser.Scene {
       hit.on('pointerdown',()=>{
         if(maxed) return;
         if(craftsmanTier()<u.craftReq){ this.flash(`需 ${tier} 工匠`); return; }
-        const nl=lv+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<m[k]*nl){ this.flash(`素材不足：${MATERIAL_BY_ID[k].name}×${m[k]*nl}`); return; } }
+        const nl=lv+1, m=u.cost.mats||{}; for(const k in m){ if(matCount(k)<matCostAt(m[k],nl)){ this.flash(`素材不足：${MATERIAL_BY_ID[k].name}×${matCostAt(m[k],nl)}`); return; } }
         if(!buyUpgrade(u)){ this.flash('聲望不足'); return; }
         this.flash(`${u.name} → Lv${nl}`,TH.green); this.render();
       });

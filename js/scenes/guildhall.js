@@ -83,7 +83,7 @@ class GuildHall extends Phaser.Scene {
         title:(partySizeCap()>=5?'隊形':'🔒 隊形'), desc:(partySizeCap()>=5?'站位與加成':'5 名隊員到齊後開放'),
         onClick:()=>{ if(partySizeCap()>=5) this.scene.start('FormationHall');
           else this.flash('隊形需 5 名隊員全數到齊後開放——先到招募所擴編'); } },   // v4.8.3：隊形鎖定至滿編
-      {x:x4(2), y:row1, accent:'gold', icon:'star', title:'任務 / 懸賞', desc:'領聲望與稱號', s:'QuestHall'},
+      {x:x4(2), y:row1, accent:'gold', icon:'star', title:'公會委託', desc:'交素材、領懸賞', s:'QuestHall'},
       {x:x4(3), y:row1, accent:'red', icon:'flame', title:'試煉之間', desc:'單人晉升、解鎖技能', s:'TrialHall'},
       {x:x4(0), y:row2, accent:'ember', icon:'wagon', title:'商隊工坊', desc:'選馬車、強化貨格', s:'WagonHall'},
       {x:x4(1), y:row2, accent:'violet', icon:'sparkle', title:'職業規劃', desc:'配置技能 build', s:'SkillTreeHall'},

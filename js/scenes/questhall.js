@@ -1,4 +1,4 @@
-// ========================= 任務 / 懸賞（v2.1 分階段任務鏈）=========================
+// ========================= 公會委託板（v156：素材委託＋懸賞委託；原 任務 / 懸賞）=========================
 // 每條任務線共用一個累計擊殺，分 4 階；達標領取 → +聲望、解鎖該階稱號（解鎖即生效、可全部疊加）。
 // 同一線只生效「最高已領階段」的稱號；數值跨線相加，震懾/增傷同族群取最高。
 class QuestHall extends Phaser.Scene {
@@ -6,19 +6,37 @@ class QuestHall extends Phaser.Scene {
   create(){
     if(!RUN) initRun();
     sceneBg(this,{glow:0xf2c14e});
-    sceneHeader(this,'任 務 ・ 懸 賞','擊殺累計跨階保留；達標領取 → 聲望＋稱號。稱號全部解鎖即生效、可疊加（同族群取最高階）',{accent:'gold'});
+    sceneHeader(this,'公 會 委 託','公會需要的材料與懸賞都貼在這裡。冒險者完成委託，公會付聲望。',{accent:'gold'});
+    if(!this._tab) this._tab='mat';
     button(this, 70, 20, 120, 28, '返回大廳', ()=>this.scene.start('GuildHall'), {variant:'info', size:12, icon:'home', iconSize:13});
     this.render();
   }
   render(){
     if(this._ui) this._ui.forEach(o=>o.destroy());
     this._ui=[]; const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
+    const tabs=[['mat','📜 素材委託'],['bounty','⚔ 懸賞委託']];
+    tabs.forEach((t,i)=>{ const on=this._tab===t[0]; add(button(this, W/2-90+i*180, 84, 170, 30, t[1], ()=>{ this._tab=t[0]; this.render(); }, {variant:on?'gold':'info', size:12})); });
+    if(this._tab==='mat'){ this.renderMat(); return; }
     let doneStages=0, totalStages=0;
     QUEST_LINES.forEach(l=>{ totalStages+=l.stages.length; doneStages+=lineStageIdx(l.id); });
     const doneChip=chip(this,0,0,{label:'已完成階段 '+doneStages+' / '+totalStages, accent:'green', icon:'chest', size:12, h:26});
     doneChip.setX(W/2+360-doneChip.w/2); doneChip.setY(52); add(doneChip);
-    const y0=104, pitch=53;
+    const y0=128, pitch=48;
     QUEST_LINES.forEach((l,i)=> this.questRow(l, y0+i*pitch));
+  }
+  renderMat(){
+    const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
+    const list=ensureCommissions(), cap=commissionCap(), bonus=commissionRepBonus();
+    add(txt(this, W/2, 130, '把素材放上貨車帶回來，回公會時自動交件。每趟最多交 '+cap+' 張'+(bonus?('，每張額外 ⭐+'+bonus+'（公會帳簿）'):'')+'。', 13, UI.text));
+    add(txt(this, W/2, 152, '沒交出的素材會收進倉庫，給工坊用。全員倒下時，貨車上的素材會一起失去。', 11.5, UI.dim));
+    const cw=270, gap=24, x0=W/2-(list.length*cw+(list.length-1)*gap)/2+cw/2;
+    list.forEach((c,i)=>{ const m=MATERIAL_BY_ID[c.mat]||{icon:'🧱',name:c.mat}, cx=x0+i*(cw+gap), cy=290;
+      add(panel(this, cx, cy, cw, 190, {accent:'gold', title:'委託 '+(i+1)}));
+      add(txt(this, cx, cy-30, m.icon, 34, '#fff'));
+      add(txt(this, cx, cy+14, '需要 '+m.name+' ×'+c.n, 16, UI.text));
+      add(txt(this, cx, cy+42, '報酬 ⭐ +'+commissionRep(c), 15, UI.gold));
+      add(txt(this, cx, cy+68, '倉庫存量 '+matCount(c.mat)+'（倉庫的不能交，要這趟帶回）', 10.5, UI.faint).setWordWrapWidth(cw-20)); });
+    add(txt(this, W/2, 420, '委託板在每次回到公會後刷新。', 11.5, UI.dim));
   }
   questRow(line, y){
     const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
