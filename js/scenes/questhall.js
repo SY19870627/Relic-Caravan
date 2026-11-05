@@ -27,7 +27,7 @@ class QuestHall extends Phaser.Scene {
   renderMat(){
     const W=this.scale.width, add=o=>{this._ui.push(o);return o;};
     const list=ensureCommissions(), cap=commissionCap(), bonus=commissionRepBonus();
-    add(txt(this, W/2, 130, '把素材放上貨車帶回來，回公會時自動交件。每趟最多交 '+cap+' 張'+(bonus?('，每張額外 ⭐+'+bonus+'（公會帳簿）'):'')+'。', 13, UI.text));
+    add(txt(this, W/2, 130, '把素材放上貨車帶回來，回公會結算時勾選要交哪幾張。每趟最多交 '+cap+' 張'+(bonus?('，每張額外 ⭐+'+bonus+'（公會帳簿）'):'')+'。', 13, UI.text));
     add(txt(this, W/2, 152, '沒交出的素材會收進倉庫，給工坊用。全員倒下時，貨車上的素材會一起失去。', 11.5, UI.dim));
     const cw=270, gap=24, x0=W/2-(list.length*cw+(list.length-1)*gap)/2+cw/2;
     list.forEach((c,i)=>{ const m=MATERIAL_BY_ID[c.mat]||{icon:'🧱',name:c.mat}, cx=x0+i*(cw+gap), cy=290;

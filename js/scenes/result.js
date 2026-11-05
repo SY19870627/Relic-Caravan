@@ -93,9 +93,7 @@ class Result extends Phaser.Scene {
     if(awards.length){
       txt(this,W/2,py,'職業點數 +' + awards.reduce((a,b)=>a+b.points,0) + '　' + awards.map(a=>a.name+' +'+a.points).join('　'),12,UI.gold).setWordWrapWidth(700);
     }
-    const cp=planCommissions(RUN.cargo), nMat=RUN.cargo.filter(i=>i.kind==='素材').length, left=Object.values(cp.leftover).reduce((a,b)=>a+b,0);
-    txt(this,W/2,py+22, nMat? ('📜 公會委託：交件 '+cp.done.length+' / '+commissionCap()+' 張　⭐+'+cp.rep+(left?('　·　其餘素材 '+left+' 份收進倉庫'):'')+'（回公會時結算）') : '📜 貨車上沒有素材可交給公會', 12, cp.done.length?'#9fe8a0':UI.dim).setWordWrapWidth(720);
-    txt(this,W/2,478,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim);
+    this._cy=py+30; this._sel=planCommissions(RUN.cargo).idx; this._cUI=[]; this.renderCommissions();
     // v1.5 連續遠征（4 地城接力）：通關後若仍有更深的地城，可選擇「繼續深入」接續下一地城（戰利品先入庫、全隊回滿、難度遞增）
     // v2.2：「繼續深入」僅限同一世界內（第一世界第 4 關不會接到第二世界；跨世界需回地圖用聲望解鎖）
     const di=(RUN.destIndex||0), hasNext=(outcome==='clear' && di+1<DESTINATIONS.length && worldOfDest(di+1)===worldOfDest(di));
@@ -108,13 +106,30 @@ class Result extends Phaser.Scene {
       button(this,W/2,526,260,46,'帶回公會',()=>this.bankAndReturn(),{variant:'go',size:17,icon:'home',iconSize:16});
     }
   }
+  // v156 結算勾選：玩家自己選要交哪幾張委託（預設勾可交的前 N 張）；沒勾的素材收進倉庫
+  renderCommissions(){ const W=this.scale.width, add=o=>{this._cUI.push(o);return o;};
+    this._cUI.forEach(o=>o.destroy()); this._cUI=[];
+    const list=ensureCommissions(), cap=commissionCap(), y=this._cy, nMat=RUN.cargo.filter(i=>i.kind==='素材').length;
+    if(!nMat){ add(txt(this,W/2,y,'📜 貨車上沒有素材可交給公會',12,UI.dim)); add(txt(this,W/2,478,'武器、防具、道具與貴重物品不帶回公會',11,UI.dim)); return; }
+    const bw=236, x0=W/2-bw-8;
+    list.forEach((c,i)=>{ const m=MATERIAL_BY_ID[c.mat]||{icon:'',name:c.mat}, on=this._sel.indexOf(i)>=0, ok=commissionSelectable(RUN.cargo,this._sel,i);
+      add(button(this, x0+i*(bw+8), y, bw, 30, (on?'☑ ':'☐ ')+m.icon+m.name+'×'+c.n+'　⭐+'+commissionRep(c), ()=>{
+        if(on){ this._sel=this._sel.filter(k=>k!==i); }
+        else if(ok){ this._sel=this._sel.concat([i]); }
+        else { const have=RUN.cargo.filter(x=>x.kind==='素材'&&x.matId===c.mat).length;
+          this.cFlash(this._sel.length>=cap? ('這趟最多交 '+cap+' 張') : ('素材不夠（貨車上 '+m.name+' '+have+' 份）')); return; }
+        this.renderCommissions(); }, {variant:on?'go':(ok?'info':'slate'), size:11, color:(on||ok)?undefined:UI.faint})); });
+    const r=planCommissions(RUN.cargo,this._sel), left=Object.values(r.leftover).reduce((a,b)=>a+b,0);
+    add(txt(this,W/2,478,'📜 交件 '+r.done.length+' / '+cap+' 張　⭐+'+r.rep+(left?('　·　其餘素材 '+left+' 份收進倉庫'):'')+'　·　裝備、道具不帶回公會',11.5,r.done.length?'#9fe8a0':UI.dim)); }
+  cFlash(msg){ if(this._cf) this._cf.destroy(); this._cf=txt(this,this.scale.width/2,this._cy-26,msg,13,'#ff8a8a').setDepth(99).setStroke('#000',4);
+    this.tweens.add({targets:this._cf, alpha:0, delay:1200, duration:500}); }
   bankAndReturn(){
     let newRelics=0;
     RUN.cargo.forEach(it=>{
       if(it.kind==='遺物'){ if(bankRelic(it)) newRelics++; }   // v4.6：入庫＋品階
     });
     addRep((CFG.repEarn.perRelic||0)*newRelics + (CFG.repEarn.perReturn||0));
-    settleCommissions(RUN.cargo);   // v156 公會委託：交件換聲望、其餘素材入倉庫、刷新委託板
+    settleCommissions(RUN.cargo, this._sel);   // v156 公會委託：依玩家勾選交件換聲望、其餘素材入倉庫、刷新委託板
     awardClassPoints();   // 大改版：活著回來 → 依各出戰職業當趟最終等級累加職業點數上限
     saveGuild(); initRun(); this.scene.start('GuildHall');
   }

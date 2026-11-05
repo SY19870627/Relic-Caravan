@@ -119,12 +119,17 @@ function refreshCommissions(){ const C=CFG.commission, rep=repEarned();
   GUILD.commissions=out; return out; }
 // 依序比對貨車素材與委託，最多交 cap 張；回傳 {done:[委託], rep, leftover:{matId:數量}}
 function ensureCommissions(){ if(!Array.isArray(GUILD.commissions)||!GUILD.commissions.length) refreshCommissions(); return GUILD.commissions; }
-function planCommissions(cargo){ ensureCommissions(); const have={}; (cargo||[]).forEach(it=>{ if(it&&it.kind==='素材') have[it.matId]=(have[it.matId]||0)+1; });
-  const done=[]; let rep=0; const cap=commissionCap();
-  (GUILD.commissions||[]).forEach(c=>{ if(done.length>=cap) return; if((have[c.mat]||0)>=c.n){ have[c.mat]-=c.n; done.push(c); rep+=commissionRep(c); } });
-  return {done, rep, leftover:have}; }
+// sel：玩家勾選的委託索引（省略＝依序自動挑可交的前 cap 張，作為預設勾選）
+function planCommissions(cargo, sel){ ensureCommissions(); const have={}; (cargo||[]).forEach(it=>{ if(it&&it.kind==='素材') have[it.matId]=(have[it.matId]||0)+1; });
+  const done=[], idx=[]; let rep=0; const cap=commissionCap(), list=GUILD.commissions||[];
+  const order=Array.isArray(sel)? sel.slice().sort((a,b)=>a-b) : list.map((c,i)=>i);
+  order.forEach(i=>{ const c=list[i]; if(!c || done.length>=cap) return; if((have[c.mat]||0)>=c.n){ have[c.mat]-=c.n; done.push(c); idx.push(i); rep+=commissionRep(c); } });
+  return {done, idx, rep, leftover:have}; }
+// 某張委託在目前勾選下還能不能勾（素材夠、未達上限）
+function commissionSelectable(cargo, sel, i){ if(sel.indexOf(i)>=0) return true; if(sel.length>=commissionCap()) return false;
+  const r=planCommissions(cargo, sel.concat([i])); return r.idx.indexOf(i)>=0 && r.idx.length===sel.length+1; }
 // 回公會：交件換聲望、剩下的素材入倉庫、刷新委託板
-function settleCommissions(cargo){ const r=planCommissions(cargo);
+function settleCommissions(cargo, sel){ const r=planCommissions(cargo, sel);
   for(const k in r.leftover){ if(r.leftover[k]>0) addMaterial(k, r.leftover[k]); }
   if(r.rep) addRep(r.rep); refreshCommissions(); return r; }
 // 舊存檔相容：補委託板；公會旗幟上限改為 2 級，超過的等級退還素材

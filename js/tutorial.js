@@ -9,7 +9,7 @@ const TUT_IDS = ['hall','outfit','worldmap','battle','return',
 const TUT_TIPS = {
   RecruitHall:   {title:'招募所', accent:'teal', text:'花聲望解鎖新隊員，出戰隊伍最多 5 人。\n「後勤」分頁可以聘工匠和領隊，他們不佔出戰名額。'},
   FormationHall: {title:'隊形', accent:'violet', text:'選站位陣形，每個位置有攻防加減成；前排容易被集火，後排比較安全。\n新隊形要花聲望，由上往下依序解鎖。'},
-  QuestHall:     {title:'公會委託', accent:'gold', text:'素材委託：把公會要的素材放上貨車帶回來，回公會就自動交件換聲望，每趟最多 3 張。\n懸賞委託：打倒的怪物會累計，達標來這裡領聲望和稱號，稱號一解鎖就生效。'},
+  QuestHall:     {title:'公會委託', accent:'gold', text:'素材委託：把公會要的素材放上貨車帶回來，回公會結算時勾選要交哪幾張換聲望，每趟最多 3 張。\n懸賞委託：打倒的怪物會累計，達標來這裡領聲望和稱號，稱號一解鎖就生效。'},
   TrialHall:     {title:'試煉之間', accent:'red', text:'讓一名已招募的隊員單人挑戰關卡。\n通關可以晉升職業階級、解鎖新技能；失敗沒有懲罰。'},
   WagonHall:     {title:'商隊工坊', accent:'ember', text:'換馬車會改變貨格和遺物龕的格數；聘了工匠之後，可以用倉庫裡的素材和聲望做強化。\n遺物要搬上遺物龕才會生效：在大廳點已收藏的遺物就能上車／卸下。'},
   SkillTreeHall: {title:'職業規劃', accent:'violet', text:'替每個職業排好技能表，探險中升級時會照表自動學技能。\n可用點數靠「活著回來」累積。'},
