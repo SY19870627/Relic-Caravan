@@ -36,6 +36,8 @@ function defaultGuild(){ return {
   classPoints:{},   // 職業規劃器：各職業點數上限 {warrior:Number,...}（活著回來累計）
   commissions:[],  // v156 公會委託板：[{mat,n,rep}]，回公會刷新
   classPlans:{},    // 職業規劃器：各職業配置 {warrior:{slots:[{act,skill},...長度20]}}
+  supplyPicks:[],   // v159 補給架選件（新檔空；首次進工坊解鎖後預設銅鑼）
+  supplyUnlocked:false,  // v159 是否已解鎖補給架（舊檔遷移為 true）
 }; }
 let GUILD = defaultGuild();
 
@@ -76,7 +78,12 @@ function loadGuild(){ try{
     if(!GUILD.formationsUnlocked) GUILD.formationsUnlocked={};
     if(!GUILD.horsesUnlocked) GUILD.horsesUnlocked={};
     if(!Array.isArray(GUILD.wagonRelics)) GUILD.wagonRelics=[];   // v8.0 遺物龕（馬車上生效的遺物）
-    if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=['gong'];   // v8.3 補給架選件（預設戰士銅鑼）
+    // v159 補給架：舊存檔沒有欄位 → 維持過去「開局就有銅鑼」；新檔空架待工坊解鎖
+    if(!('supplyPicks' in (s.GUILD||{}))){ GUILD.supplyPicks=['gong']; GUILD.supplyUnlocked=true; }
+    else {
+      if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=[];
+      if(GUILD.supplyUnlocked==null) GUILD.supplyUnlocked = GUILD.supplyPicks.length>0 || !!(GUILD.upgrades&&GUILD.upgrades.supply);
+    }
     if(!GUILD.settings) GUILD.settings={autoSipFrac:0.30};
     if(GUILD.horse==null||GUILD.horse>=HORSES.length) GUILD.horse=0;    if(GUILD.partySize==null) GUILD.partySize=1;
     if(GUILD.reputation==null) GUILD.reputation=0;
@@ -301,18 +308,22 @@ function toggleWagonRelic(id){ if(!(GUILD.relics||[]).includes(id)) return false
   if(i>=0){ l.splice(i,1); saveGuild(); return true; }
   if(l.length>=wagonRelicCap()) return false;
   l.push(id); saveGuild(); return true; }
-// v8.3 商隊補給架：玩家挑選「職業代表物件」每波自篷車拋出——預設可帶 1 件；工坊「補給架擴充」後可帶 2 件
+// v8.3／v159 商隊補給架：玩家挑選「職業代表物件」每波自篷車拋出；新檔空架，首次進工坊解鎖後可帶 1 件（擴充後 2 件）
 const SUPPLY_OBJECTS=[{type:'gong',cls:'warrior'},{type:'totem',cls:'ranger'},{type:'candles',cls:'priest'},{type:'crystal',cls:'mage'},{type:'lantern',cls:'rogue'}];
 function supplyCap(){ return upgradeOwned('supply') ? 2 : 1; }
-function supplyPicks(){ if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=['gong'];
+function supplyUnlocked(){ return !!GUILD.supplyUnlocked; }
+function unlockSupplyRack(){ if(GUILD.supplyUnlocked) return false;
+  GUILD.supplyUnlocked=true;
+  if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=[];
+  if(!GUILD.supplyPicks.length) GUILD.supplyPicks=['gong'];   // 解鎖當下預設銅鑼
+  saveGuild(); return true; }
+function supplyPicks(){ if(!Array.isArray(GUILD.supplyPicks)) GUILD.supplyPicks=[];
   GUILD.supplyPicks=GUILD.supplyPicks.filter(t=>SUPPLY_OBJECTS.some(s=>s.type===t)).slice(0, supplyCap());
-  if(!GUILD.supplyPicks.length) GUILD.supplyPicks=['gong'];
-  return GUILD.supplyPicks; }
-function toggleSupplyPick(t){ if(!SUPPLY_OBJECTS.some(s=>s.type===t)) return false;
+  return GUILD.supplyPicks; }   // v159：允許空陣列（未解鎖／自願卸空 → 不拋）
+function toggleSupplyPick(t){ if(!supplyUnlocked() || !SUPPLY_OBJECTS.some(s=>s.type===t)) return false;
   const l=supplyPicks(), i=l.indexOf(t);
-  if(i>=0){ if(l.length<=1) return false;   // 至少保留 1 件（預設配給）
-    l.splice(i,1); saveGuild(); return true; }
-  if(l.length>=supplyCap()) l.shift();   // 架滿→自動替換最舊的一件（容量 1 也能直接換選）
+  if(i>=0){ l.splice(i,1); saveGuild(); return true; }   // v159：允許全部卸下
+  if(l.length>=supplyCap()) l.shift();   // 架滿→自動替換最舊的一件
   l.push(t); saveGuild(); return true; }
 // 遺物效果摘要（數值＋規則名稱），給大廳/整備顯示
 function relicCollected(id){ return (GUILD.relics||[]).includes(id); }

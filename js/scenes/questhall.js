@@ -36,7 +36,28 @@ class QuestHall extends Phaser.Scene {
       add(txt(this, cx, cy+14, '需要 '+m.name+' ×'+c.n, 16, UI.text));
       add(txt(this, cx, cy+42, '報酬 ⭐ +'+commissionRep(c), 15, UI.gold));
       add(txt(this, cx, cy+68, '倉庫存量 '+matCount(c.mat)+'（倉庫的不能交，要這趟帶回）', 10.5, UI.faint).setWordWrapWidth(cw-20)); });
-    add(txt(this, W/2, 420, '委託板在每次回到公會後刷新。', 11.5, UI.dim));
+    add(txt(this, W/2, 408, '委託板在每次回到公會後刷新。', 11.5, UI.dim));
+    // v159：公會帳簿／旗幟從馬車工坊搬來（存檔與效果不變，只改購買入口）
+    add(txt(this, W/2, 432, '── 公會建設（原馬車工坊・需師傅工匠）──', 12, UI.gold));
+    const guildUps=UPGRADES.filter(u=>u.id==='spring'||u.id==='flag');
+    guildUps.forEach((u,i)=>{
+      const cx=W/2+(i?200:-200), cy=492;
+      const lv=upgradeLv(u.id), maxed=lv>=(u.maxLv||1), ok=canBuyUpgrade(u);
+      const ct=craftsmanTier(), need=ct<(u.craftReq||2);
+      add(panel(this, cx, cy, 360, 78, {accent:maxed?'green':(ok?'gold':'slate'), title:u.name+'　Lv'+lv+'/'+(u.maxLv||1)}));
+      add(txt(this, cx, cy-4, u.desc, 11, UI.text).setWordWrapWidth(320));
+      const cost=maxed?'✓ 滿級':(need?'需師傅工匠':upgradeCostText(u));
+      add(txt(this, cx, cy+22, cost, 11, maxed?'#5ad06a':(ok?UI.green:UI.dim)));
+      if(!maxed && !need){
+        const hit=this.add.rectangle(cx,cy,360,78,0xffffff,0.001).setInteractive({useHandCursor:true}); add(hit);
+        hit.on('pointerdown',()=>{
+          const nl=lv+1, m=u.cost.mats||{};
+          for(const k in m){ if(matCount(k)<matCostAt(m[k],nl)){ this.flash('素材不足：'+(MATERIAL_BY_ID[k]?MATERIAL_BY_ID[k].name:k)+'×'+matCostAt(m[k],nl)); return; } }
+          if(!buyUpgrade(u)){ this.flash('聲望不足'); return; }
+          this.flash(u.name+' → Lv'+nl, '#9fe8a0'); this.render();
+        });
+      }
+    });
   }
   questRow(line, y){
     const W=this.scale.width, add=o=>{this._ui.push(o);return o;};

@@ -4,14 +4,14 @@
 // 「略過教學」＝整套標成看過；「關於」視窗的「重看教學」與「重置存檔」都會把旗標清空。
 const TUT_KEY = 'relicCaravanTutorial_v1';
 const TUT_IDS = ['hall','outfit','worldmap','battle','return',
-  'RecruitHall','FormationHall','QuestHall','TrialHall','WagonHall','SkillTreeHall','WarehouseHall','SimLab'];
+  'RecruitHall','FormationHall','QuestHall','TrialHall','WagonHall','supplyRack','SkillTreeHall','WarehouseHall','SimLab'];
 // 各功能畫面第一次進入的一句提示（內容對照各畫面實際功能）
 const TUT_TIPS = {
   RecruitHall:   {title:'招募所', accent:'teal', text:'花聲望解鎖新隊員，出戰隊伍最多 5 人。\n「後勤」分頁可以聘工匠和領隊，他們不佔出戰名額。'},
   FormationHall: {title:'隊形', accent:'violet', text:'選站位陣形，每個位置有攻防加減成；前排容易被集火，後排比較安全。\n新隊形要花聲望，由上往下依序解鎖。'},
-  QuestHall:     {title:'公會委託', accent:'gold', text:'素材委託：把公會要的素材放上貨車帶回來，回公會結算時勾選要交哪幾張換聲望，每趟最多 3 張。\n懸賞委託：打倒的怪物會累計，達標來這裡領聲望和稱號，稱號一解鎖就生效。'},
+  QuestHall:     {title:'公會委託', accent:'gold', text:'素材委託：把公會要的素材放上貨車帶回來，回公會結算時勾選要交哪幾張換聲望，每趟最多 3 張。\n懸賞委託：打倒的怪物會累計，達標來這裡領聲望和稱號。\n底部可升級公會帳簿（委託聲望）與公會旗幟（每趟可交張數）。'},
   TrialHall:     {title:'試煉之間', accent:'red', text:'讓一名已招募的隊員單人挑戰關卡。\n通關可以晉升職業階級、解鎖新技能；失敗沒有懲罰。'},
-  WagonHall:     {title:'商隊工坊', accent:'ember', text:'換馬車會改變貨格和遺物龕的格數；聘了工匠之後，可以用倉庫裡的素材和聲望做強化。\n遺物要搬上遺物龕才會生效：在大廳點已收藏的遺物就能上車／卸下。'},
+  WagonHall:     {title:'商隊工坊', accent:'ember', text:'換馬車會改變貨格和遺物龕的格數；聘了工匠之後，這裡會展開可做的強化。\n補給架裝上後，每波戰鬥會自篷車拋出你選的物件。\n公會帳簿與旗幟改到「公會委託」板升級。'},
   SkillTreeHall: {title:'職業規劃', accent:'violet', text:'替每個職業排好技能表，探險中升級時會照表自動學技能。\n可用點數靠「活著回來」累積。'},
   WarehouseHall: {title:'圖鑑', accent:'blue', text:'拿到過的武器、防具、道具、貴重物品會登錄在這裡。\n「物件」「怪物」分頁可以查戰場物件和怪物的說明。'},
   SimLab:        {title:'模擬實驗室', accent:'teal', text:'自由選等級、天氣、物件和對手來試打。\n不給經驗和掉落、不存檔，全滅也沒有損失。'},
@@ -290,6 +290,7 @@ const Tutorial = {
   // ---------- 功能畫面的一句提示（點任意處關閉） ----------
   tip(scene, id){
     const t=TUT_TIPS[id]; if(!t || this.seen(id) || scene._tutOn) return;
+    if(id==='WagonHall' && typeof supplyUnlocked==='function' && !supplyUnlocked()) return;   // v159：先讓補給架解鎖教學播完
     if(id==='FormationHall' && partySizeCap()<5) return;   // 未滿編會被彈回大廳，不在這時播
     scene._tutOn=true; this.mark(id);
     const W=scene.scale.width, H=scene.scale.height, layer=[];
