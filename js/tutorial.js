@@ -116,11 +116,12 @@ const Tutorial = {
     const resume=()=>{ if(bn && bn.active) bn.setVisible(bnVis); if(sc.infoUI!==marker) return; sc.infoUI=null;
       if(!sc._menuPaused){ sc.paused=false; sc.tweens.resumeAll(); sc.time.paused=false; } };
     const pb=sc._pctBox||{x:18,y:16,w:650,h:12};
+    // v158：角色卡改逐步挖洞高亮（整卡→血條護盾→裝備→屬性→技能格→腳下血條），座標取自實際渲染
+    const cardSteps=this._cardSpotlightSteps(sc);
     this.tour(sc,'battle',[
       {title:'戰鬥會自動進行',
        text:'隊員會自己出手、放技能，不用操作。\n點角色或敵人可以看數值和技能（看的時候戰鬥會暫停）。\n戰場上的巨木、營火等物件會影響戰鬥，作用可以到大廳的「圖鑑」→「物件」查。'},
-      {title:'角色資訊怎麼看',
-       text:'上方隊員卡：綠段是血量、緊接的青段是護盾（防具與技能提供，傷害先打護盾再扣血）；卡上還有武器／防具圖示、DPS／ATK／DEF，以及技能格（亮＝可放、暗＝冷卻或用盡）。\n角色腳下也有同一條血＋護盾。\n技能會自動施放；預設會在入手新裝或升級時自動換上更好的裝備（暫停選單可關閉）。'},
+      ...cardSteps,
       {targets:()=>[this.rBtn(sc.targetBtn)], title:'🎯 鎖定順序',
        text:'決定隊員優先打哪個敵人。按下去會暫停，用 ▲▼ 排順序：低血、治療者、後排、前排、低防、狀態。\n按鈕上顯示的是排第一的那一項。'},
       {targets:()=>[this.rBtn(sc.sipBtn)], title:'💧 自動喝水',
@@ -135,6 +136,45 @@ const Tutorial = {
   // ---------- 位置工具 ----------
   rBtn(b){ if(!b||!b._hit) return null; const w=b._hit.width, h=b._hit.height; return {x:b.x-w/2, y:b.y-h/2, w, h}; },
   rChip(c){ if(!c) return null; return {x:c.x, y:c.y-c.h/2, w:c.w, h:c.h}; },
+  // v158 戰鬥教學：取第一張隊員卡（與 buildPartyHud / makeCombatant 同一套座標）
+  _heroCard(sc){ const hs=sc&&sc.heroes; if(!hs||!hs.length) return null; return hs.find(h=>h&&h.card&&h.alive!==false)||hs.find(h=>h&&h.card)||hs[0]; },
+  _cardBox(sc){ const h=this._heroCard(sc), c=h&&h.card; return c?{x:c.left,y:c.top,w:c.w,h:c.h}:null; },
+  _hpBox(sc){ const h=this._heroCard(sc), c=h&&h.card; if(!c) return null;
+    return {x:c.left+6, y:c.top+20, w:(c.hpBarW||151)+6, h:14}; },
+  _gearBox(sc){ const h=this._heroCard(sc), c=h&&h.card; if(!c) return null;
+    // 武器／防具圖示約在卡內 (76,14)/(92,14)，角標到 y≈26
+    return {x:c.left+66, y:c.top+2, w:48, h:28}; },
+  _statBox(sc){ const h=this._heroCard(sc), c=h&&h.card; if(!c) return null;
+    return {x:c.left+4, y:c.top+30, w:76, h:22}; },
+  _pipBox(sc){ const h=this._heroCard(sc), c=h&&h.card; if(!c) return null;
+    const dz=c.dpsZone||82, ps=16, pad=3;
+    if(c.pipCont && h.skillPips){ const pcs=Object.keys(h.skillPips).map(k=>h.skillPips[k]&&h.skillPips[k].c).filter(Boolean);
+      if(pcs.length){ const m0=c.pipCont.getWorldTransformMatrix?c.pipCont.getWorldTransformMatrix():null;
+        const bx=m0?m0.tx: (c.left+c.pipCont.x), by=m0?m0.ty:(c.top+c.pipCont.y);
+        let minX=1e9,maxX=-1e9; pcs.forEach(pc=>{ const lx=pc.x||0; minX=Math.min(minX,bx+lx-ps/2); maxX=Math.max(maxX,bx+lx+ps/2); });
+        return {x:minX-pad, y:by-ps/2-pad, w:(maxX-minX)+pad*2, h:ps+pad*2}; } }
+    // 尚無主動技能時仍框右側技能區，說明之後會出現在這裡
+    return {x:c.left+dz-2, y:c.top+32, w:Math.max(36,c.w-dz), h:20}; },
+  _footBox(sc){ const h=this._heroCard(sc); if(!h||!h.container) return null;
+    // makeCombatant：名字在 (0,-54)、barBg 在 (0,-42) 寬 52——血條在頭上而非腳下
+    const cx=h.container.x, cy=h.container.y;
+    return {x:cx-28, y:cy-48, w:56, h:14}; },
+  _cardSpotlightSteps(sc){
+    return [
+      {targets:()=>[this._cardBox(sc)], tap:true, title:'隊員狀態卡',
+       text:'每名出戰隊員上方都有一張狀態卡。\n名字、血量、裝備、屬性與技能，都集中在這裡。'},
+      {targets:()=>[this._hpBox(sc)], tap:true, title:'血量與護盾',
+       text:'綠段是血量，緊接的青段是護盾（防具與技能提供）。\n傷害先打護盾，護盾沒了才扣血。'},
+      {targets:()=>[this._gearBox(sc)], tap:true, title:'武器與防具',
+       text:'中間兩個小圖是目前裝備的武器與防具（右下角數字是裝備階）。\n預設會在入手新裝或升級時自動換上更好的；可在暫停選單關閉。'},
+      {targets:()=>[this._statBox(sc)], tap:true, title:'DPS／ATK／DEF',
+       text:'DPS 是近期輸出；ATK、DEF 是攻擊與防禦（含暫時加成，數字變色代表有 buff）。'},
+      {targets:()=>[this._pipBox(sc)], tap:true, title:'技能小格',
+       text:'右側小格是主動技能圖示：亮＝可放、暗＝冷卻或用盡。\n技能會自動施放，不用手動點。'},
+      {targets:()=>[this._footBox(sc)], tap:true, title:'頭上的血條',
+       text:'角色頭上（名字下方）也有同一條血＋護盾，方便在戰場上盯血量。\n點角色可暫停查看更詳細的數值與技能。'},
+    ];
+  },
   _minHit(scene){ const ds=scene.scale.displayScale; const k=(ds&&ds.y)||1; return Math.min(72, Math.max(38, Math.ceil(44*k))); },   // 手機上至少約 44 CSS px
   // 說明框放大倍率：畫面縮得越小放得越大，讓內文至少約 13 CSS px（桌機 =1，外觀不變）
   _uiScale(scene){ const ds=scene.scale.displayScale; const k=(ds&&ds.y)||1; return Math.max(1, Math.min(1.6, k*13/14)); },
@@ -208,7 +248,7 @@ const Tutorial = {
     const W=scene.scale.width, H=scene.scale.height, layer=[];
     let i=0, alive=true;
     const clear=()=>{ layer.forEach(o=>{ scene.tweens.killTweensOf(o); o.destroy(); }); layer.length=0; };
-    const end=(skip)=>{ if(!alive) return; alive=false; clear(); scene._tutOn=false; scene.events.off('shutdown', onShut);
+    const end=(skip)=>{ if(!alive) return; alive=false; clear(); scene._tutOn=false; scene._tutAdvance=null; scene._tutStepTitle=null; scene.events.off('shutdown', onShut);
       if(skip) this.skipAll(); else this.mark(id); if(opt.onClose) opt.onClose(); };
     // 玩家直接點了高亮的按鈕（換場）→ 視為看完這段引導
     const onShut=()=>{ if(!alive) return; alive=false; scene._tutOn=false; layer.length=0; if(steps[i] && steps[i].pass) this.mark(id); };
@@ -229,9 +269,15 @@ const Tutorial = {
         g.lineStyle(8, UI.goldN, 0.18); g.strokeRoundedRect(h.x-3,h.y-3,h.w+6,h.h+6,12); layer.push(g);
         scene.tweens.add({targets:g, alpha:0.35, duration:650, yoyo:true, repeat:-1, ease:'Sine.inOut'}); });
       const last=i>=steps.length-1, buttons=[];
+      const advance=()=>{ if(!alive) return; if(last) end(false); else { i++; show(); } };
+      scene._tutAdvance=advance; scene._tutStepTitle=s.title; scene._tutStepIndex=i; scene._tutStepTotal=steps.length; scene._tutHoles=holes;
       if(!s.noSkip && !(last && steps.length>1)) buttons.push({label:'略過教學', alignLeft:true, cb:()=>end(true), opt:{size:13, fill:UI.lineSoftN, stroke:UI.lineN, color:UI.dim}});
-      buttons.push({label:last?(s.last||'知道了'):'下一步', cb:()=>{ if(last) end(false); else { i++; show(); } }, opt:{variant:'go', size:14}});
-      const bo={title:s.title, text:s.text, accent:s.accent, buttons, step:steps.length>1?((i+1)+' / '+steps.length):''};
+      buttons.push({label:last?(s.last||'知道了'):'下一步', cb:advance, opt:{variant:'go', size:14}});
+      // v158：挖洞高亮步驟可點暗幕／畫面繼續（按鈕仍保留）；腳註提示
+      if(s.tap){ let down=false;
+        blk.on('pointerdown',p=>{ down=true; if(!_isTouchPtr(p)) advance(); });
+        blk.on('pointerup',p=>{ if(down && _isTouchPtr(p) && !_isTouchDrag(p)) advance(); down=false; }); }
+      const bo={title:s.title, text:s.text, accent:s.accent, buttons, step:steps.length>1?((i+1)+' / '+steps.length):'', foot:s.tap?'點一下畫面繼續':undefined};
       let box=this._box(scene, bo), pos=this._place(holes, box.bw, box.bh, W, H);
       // 一般寬度擺不進高亮區旁邊（手機字放大後常見）→ 改用撐滿畫面寬、行數較少的框再試一次
       if(!pos.ok){ const b2=this._box(scene, Object.assign({full:true}, bo)), p2=this._place(holes, b2.bw, b2.bh, W, H);

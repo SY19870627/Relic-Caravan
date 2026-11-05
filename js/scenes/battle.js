@@ -321,7 +321,7 @@ class Battle extends Phaser.Scene {
     c.skillPips={};
     const ps=16, gap=4, total=sk.length*ps+(sk.length-1)*gap;
     const dz=c.card.dpsZone||50;   // 左側 DPS 區，技能格置中於剩餘空間
-    const cont=this.add.container(dz + (c.card.w-dz)/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont);
+    const cont=this.add.container(dz + (c.card.w-dz)/2 - total/2 + ps/2, c.card.pipY); c.card.cont.add(cont); c.card.pipCont=cont;   // v158 教學挖洞用
     let cx=0;
     sk.forEach(s=>{ const sv=skillVisual(s), ac=accent(sv.accent), active=s.cd!==undefined;
       const pc=this.add.container(cx,0); const g=this.add.graphics();
